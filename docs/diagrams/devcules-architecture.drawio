@@ -1,0 +1,491 @@
+<mxfile host="65bd71144e">
+    <diagram id="arch1" name="Arch_1">
+        <mxGraphModel dx="2925" dy="601" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="1340" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="t1" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=18;fontStyle=1;fontColor=#333333" value="ARCH_1 — Build 1 (M0.1): the CI/CD pipeline — pipelines and repo files only; no runtime code yet (no server, runner, storage, redaction or UI)" vertex="1">
+                    <mxGeometry height="50" width="1150" x="40" y="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3B3B3;fontSize=11;align=left;verticalAlign=top;spacing=8" value="&lt;b&gt;How to read&lt;/b&gt;&lt;br&gt;• dashed + animated = live trigger / traffic (plays in the draw.io app)&lt;br&gt;• solid grey = static relation&lt;br&gt;• red edge = forbidden import (arch test)&lt;br&gt;• orange SKIP = gate that wakes up in a later milestone" vertex="1">
+                    <mxGeometry height="110" width="330" x="1380" y="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="developer" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12" value="&lt;b&gt;Developer&lt;/b&gt;&lt;br&gt;one module per PR, tests included" vertex="1">
+                    <mxGeometry height="70" width="220" x="60" y="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="repo" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12" value="&lt;b&gt;GitHub repo&lt;/b&gt;&lt;br&gt;github.com/devcules/devcules&lt;br&gt;Go 1.27 · every action pinned to a full commit SHA" vertex="1">
+                    <mxGeometry height="100" width="220" x="60" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="pr" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12" value="&lt;b&gt;event: pull_request&lt;/b&gt;&lt;br&gt;any feature branch" vertex="1">
+                    <mxGeometry height="70" width="220" x="60" y="420" as="geometry"/>
+                </mxCell>
+                <mxCell id="tagv" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12" value="&lt;b&gt;event: push tag v*&lt;/b&gt;&lt;br&gt;release cut" vertex="1">
+                    <mxGeometry height="70" width="220" x="60" y="540" as="geometry"/>
+                </mxCell>
+                <mxCell id="dependabot" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;fontSize=11" value="&lt;b&gt;Dependabot — weekly&lt;/b&gt;&lt;br&gt;gomod · github-actions (npm returns with /web, M1.2)&lt;br&gt;keeps the SHA pins fresh" vertex="1">
+                    <mxGeometry height="110" width="220" x="60" y="700" as="geometry"/>
+                </mxCell>
+                <mxCell id="ci-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;ci.yml — on: pull_request · push(main)&lt;/b&gt;&lt;br&gt;permissions: contents: read · concurrency: newer run cancels the older (per branch)" vertex="1">
+                    <mxGeometry height="800" width="320" x="340" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="j-lint" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;lint&lt;/b&gt;&lt;br&gt;gofmt -l (any diff fails) · go vet ./...&lt;br&gt;staticcheck&lt;br&gt;web eslint + tsc &lt;font color=&#39;#CC6600&#39;&gt;&lt;b&gt;SKIP → M1.2&lt;/b&gt;&lt;/font&gt;" vertex="1">
+                    <mxGeometry height="130" width="280" x="360" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="j-arch" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;arch — TestModuleBoundaries&lt;/b&gt;&lt;br&gt;go test -run TestModuleBoundaries .&lt;br&gt;rule 1: internal/ never imports plugins/&lt;br&gt;rule 2: runner role never depends on vault (transitively)&lt;br&gt;(zoomed below)" vertex="1">
+                    <mxGeometry height="130" width="280" x="360" y="350" as="geometry"/>
+                </mxCell>
+                <mxCell id="j-unit" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;unit&lt;/b&gt;&lt;br&gt;go test -race -cover ./...&lt;br&gt;coverage gate: ≥ 70% per covered package&lt;br&gt;(activates with first real code, M0.2)&lt;br&gt;vitest &lt;font color=&#39;#CC6600&#39;&gt;&lt;b&gt;SKIP → M1.2&lt;/b&gt;&lt;/font&gt;" vertex="1">
+                    <mxGeometry height="130" width="280" x="360" y="510" as="geometry"/>
+                </mxCell>
+                <mxCell id="j-integ" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;integration&lt;/b&gt;&lt;br&gt;docker compose up + scripts/smoke.sh&lt;br&gt;&lt;font color=&#39;#CC6600&#39;&gt;&lt;b&gt;SKIP → M0.5&lt;/b&gt;&lt;/font&gt; — no compose.yaml yet" vertex="1">
+                    <mxGeometry height="110" width="280" x="360" y="670" as="geometry"/>
+                </mxCell>
+                <mxCell id="j-sec" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;security&lt;/b&gt;&lt;br&gt;gitleaks (full history) · govulncheck&lt;br&gt;npm audit &lt;font color=&#39;#CC6600&#39;&gt;&lt;b&gt;SKIP → M1.2&lt;/b&gt;&lt;/font&gt;&lt;br&gt;go-licenses check: allow-list MIT · BSD · ISC · Apache-2.0" vertex="1">
+                    <mxGeometry height="110" width="280" x="360" y="800" as="geometry"/>
+                </mxCell>
+                <mxCell id="gate" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11" value="&lt;b&gt;Branch protection on main&lt;/b&gt;&lt;br&gt;required: lint · arch · unit · integration · security&lt;br&gt;up to date · squash merge only · linear history · DCO&lt;br&gt;&lt;i&gt;turned on after this merge — docs/ci.md&lt;/i&gt;" vertex="1">
+                    <mxGeometry height="160" width="240" x="720" y="380" as="geometry"/>
+                </mxCell>
+                <mxCell id="mainN" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11" value="&lt;b&gt;main&lt;/b&gt; — protected" vertex="1">
+                    <mxGeometry height="70" width="240" x="720" y="600" as="geometry"/>
+                </mxCell>
+                <mxCell id="cd-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;cd.yml — on: push(main)&lt;/b&gt;&lt;br&gt;permissions: contents:read · packages:write · id-token:write (job only) · never cancels mid-publish" vertex="1">
+                    <mxGeometry height="470" width="320" x="1020" y="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="cd-steps" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=11" value="&lt;b&gt;build&lt;/b&gt; (ubuntu-latest)&lt;br&gt;&lt;br&gt;1 · gate: Dockerfile exists?&lt;br&gt;&lt;font color=&#39;#CC6600&#39;&gt;&lt;b&gt;SKIP → M0.5&lt;/b&gt;&lt;/font&gt; — build=false today&lt;br&gt;2 · QEMU + buildx (amd64 + arm64)&lt;br&gt;3 · login ghcr.io (GITHUB_TOKEN)&lt;br&gt;4 · build-push :edge · :sha-⟨SHA⟩&lt;br&gt;5 · SBOM — spdx-json per :sha image&lt;br&gt;6 · cosign keyless sign + attest (by digest)&lt;br&gt;&lt;br&gt;&lt;i&gt;steps 2–6 run only when the gate passes&lt;/i&gt;" vertex="1">
+                    <mxGeometry height="370" width="280" x="1040" y="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="rel-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;release.yml — on: push tag v*&lt;/b&gt;&lt;br&gt;permissions: contents:read (job: contents:write · packages:write) · never cancels mid-publish" vertex="1">
+                    <mxGeometry height="330" width="320" x="1020" y="620" as="geometry"/>
+                </mxCell>
+                <mxCell id="rel-steps" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11" value="&lt;b&gt;release&lt;/b&gt; (ubuntu-latest)&lt;br&gt;&lt;br&gt;1 · notes: pull CHANGELOG.md §tag&lt;br&gt;(placeholder if the section is missing)&lt;br&gt;2 · gate: cmd/devcules exists?&lt;br&gt;&lt;font color=&#39;#CC6600&#39;&gt;&lt;b&gt;SKIP → M0.2&lt;/b&gt;&lt;/font&gt; — bins=false today&lt;br&gt;3 · GoReleaser: linux · darwin · windows · amd64 + arm64 + checksums.txt&lt;br&gt;4 · gh release create + assets&lt;br&gt;5 · gate: Dockerfile? &lt;font color=&#39;#CC6600&#39;&gt;&lt;b&gt;SKIP → M0.5&lt;/b&gt;&lt;/font&gt;&lt;br&gt;6 · images :tag · :latest (unsigned)" vertex="1">
+                    <mxGeometry height="240" width="280" x="1040" y="690" as="geometry"/>
+                </mxCell>
+                <mxCell id="ghcr" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11" value="&lt;b&gt;GHCR&lt;/b&gt; — ghcr.io/devcules/devcules&lt;br&gt;&lt;br&gt;:edge · :sha-⟨SHA⟩ ← cd.yml (main) + SBOM + cosign&lt;br&gt;:&amp;lt;tag&amp;gt; · :latest ← release.yml (unsigned in this build)&lt;br&gt;all of it appears with the Dockerfile, M0.5" vertex="1">
+                    <mxGeometry height="140" width="300" x="1400" y="180" as="geometry"/>
+                </mxCell>
+                <mxCell id="relart" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11" value="&lt;b&gt;GitHub Release&lt;/b&gt;&lt;br&gt;&lt;br&gt;tar.gz / zip per OS + arch · checksums.txt&lt;br&gt;notes from CHANGELOG.md&lt;br&gt;(binaries appear with cmd/devcules, M0.2)" vertex="1">
+                    <mxGeometry height="140" width="300" x="1400" y="380" as="geometry"/>
+                </mxCell>
+                <mxCell id="zoom-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;Zoom — arch_test.go · TestModuleBoundaries (shipped in this build)&lt;/b&gt; — the future architecture&#39;s rules, locked in before any feature code exists" vertex="1">
+                    <mxGeometry height="340" width="1620" x="60" y="960" as="geometry"/>
+                </mxCell>
+                <mxCell id="z-golist" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;fontSize=11" value="&lt;b&gt;go list ./...&lt;/b&gt;&lt;br&gt;-f path | imports | testimports | xtestimports | deps&lt;br&gt;parsed per package" vertex="1">
+                    <mxGeometry height="90" width="230" x="100" y="1030" as="geometry"/>
+                </mxCell>
+                <mxCell id="z-internal" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12" value="&lt;b&gt;internal/*&lt;/b&gt; — core packages&lt;br&gt;(config · store · bus · vault · … M0.2+)" vertex="1">
+                    <mxGeometry height="90" width="300" x="390" y="1030" as="geometry"/>
+                </mxCell>
+                <mxCell id="z-plugins" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11" value="&lt;b&gt;plugins/*&lt;/b&gt; — agents · assistants ·&lt;br&gt;providers · machines (M3+)" vertex="1">
+                    <mxGeometry height="90" width="300" x="770" y="1030" as="geometry"/>
+                </mxCell>
+                <mxCell id="z-vault" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12" value="&lt;b&gt;internal/vault&lt;/b&gt; — AES-256-GCM&lt;br&gt;real API keys (M2)" vertex="1">
+                    <mxGeometry height="80" width="300" x="390" y="1160" as="geometry"/>
+                </mxCell>
+                <mxCell id="z-runner" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11" value="&lt;b&gt;runner role&lt;/b&gt; — internal/terminals/*&lt;br&gt;any *runner* package (M1.4+)" vertex="1">
+                    <mxGeometry height="80" width="300" x="770" y="1160" as="geometry"/>
+                </mxCell>
+                <mxCell id="z-note" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82B366;fontSize=10;fontColor=#333333" value="&lt;b&gt;Why this ships in build 1&lt;/b&gt;&lt;br&gt;&lt;br&gt;Devcules is one binary with a trust split:&lt;br&gt;• &lt;b&gt;serve&lt;/b&gt; (control plane) holds the real API keys in vault&lt;br&gt;• &lt;b&gt;runner&lt;/b&gt; / &lt;b&gt;machine&lt;/b&gt; (untrusted side) get per-launch tokens only&lt;br&gt;&lt;br&gt;Rule 1 keeps the core a modular monolith: plug-ins register through interfaces; the core never imports them.&lt;br&gt;Rule 2 keeps real keys out of the agent side.&lt;br&gt;&lt;br&gt;Today there is nothing to violate — the rules are already enforced by CI on every PR, so every future module lands inside them." vertex="1">
+                    <mxGeometry height="250" width="510" x="1140" y="1030" as="geometry"/>
+                </mxCell>
+                <mxCell id="e1" edge="1" parent="1" source="developer" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="repo" value="① codes + pushes a branch">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e2" edge="1" parent="1" source="repo" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="pr" value="② opens a PR">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e3" edge="1" parent="1" source="developer" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="tagv" value="③ tags v*">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="44" y="175"/>
+                            <mxPoint x="44" y="575"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e4a" edge="1" parent="1" source="pr" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="j-lint" value="">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="305" y="455"/>
+                            <mxPoint x="305" y="255"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e4b" edge="1" parent="1" source="pr" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="j-arch" value="">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="312" y="455"/>
+                            <mxPoint x="312" y="415"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e4c" edge="1" parent="1" source="pr" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="j-unit" value="④ five checks fan out">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="319" y="455"/>
+                            <mxPoint x="319" y="575"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e4d" edge="1" parent="1" source="pr" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="j-integ" value="">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="326" y="455"/>
+                            <mxPoint x="326" y="725"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e4e" edge="1" parent="1" source="pr" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="j-sec" value="">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="333" y="455"/>
+                            <mxPoint x="333" y="855"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e5a" edge="1" parent="1" source="j-lint" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.15;entryDx=0;entryDy=0;" target="gate" value="">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="660" y="255"/>
+                            <mxPoint x="660" y="404"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e5b" edge="1" parent="1" source="j-arch" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" target="gate" value="">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="672" y="415"/>
+                            <mxPoint x="672" y="428"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e5c" edge="1" parent="1" source="j-unit" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.45;entryDx=0;entryDy=0;" target="gate" value="⑤ all green → mergeable">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="684" y="575"/>
+                            <mxPoint x="684" y="452"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e5d" edge="1" parent="1" source="j-integ" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.6;entryDx=0;entryDy=0;" target="gate" value="">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="696" y="725"/>
+                            <mxPoint x="696" y="476"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e5e" edge="1" parent="1" source="j-sec" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;" target="gate" value="">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="708" y="855"/>
+                            <mxPoint x="708" y="500"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e6" edge="1" parent="1" source="gate" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="mainN" value="⑥ squash merge">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e7" edge="1" parent="1" source="mainN" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="cd-zone" value="⑦ push to main">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="990" y="635"/>
+                            <mxPoint x="990" y="355"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e8" edge="1" parent="1" source="cd-zone" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.4;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="ghcr" value="⑧ push :edge · :sha">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1370" y="308"/>
+                            <mxPoint x="1370" y="250"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e9" edge="1" parent="1" source="tagv" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="rel-zone" value="③&#39; on tag v*">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="306" y="575"/>
+                            <mxPoint x="306" y="940"/>
+                            <mxPoint x="1180" y="940"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e10" edge="1" parent="1" source="rel-zone" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.152;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="relart" value="⑨ gh release create">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1370" y="670.16"/>
+                            <mxPoint x="1370" y="450"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e11" edge="1" parent="1" source="rel-zone" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="ghcr" value="images :tag · :latest">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1720" y="785"/>
+                            <mxPoint x="1720" y="250"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e12" edge="1" parent="1" source="dependabot" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="repo" value="weekly pin-bump PRs">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="30" y="755"/>
+                            <mxPoint x="30" y="310"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="zg1" edge="1" parent="1" source="z-golist" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.2;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" target="z-internal" value="">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="360" y="1048"/>
+                            <mxPoint x="360" y="1057"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="zg2" edge="1" parent="1" source="z-golist" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.7;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.4;entryDx=0;entryDy=0;" target="z-plugins" value="">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="261" y="1004"/>
+                            <mxPoint x="740" y="1004"/>
+                            <mxPoint x="740" y="1066"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="zg3" edge="1" parent="1" source="z-golist" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.26;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="z-vault" value="">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="159.8" y="1200"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="zg4" edge="1" parent="1" source="z-golist" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="z-runner" value="">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="272.5" y="1270"/>
+                            <mxPoint x="920" y="1270"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="zr1" edge="1" parent="1" source="z-internal" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#CC0000;strokeWidth=3;fontSize=11;fontStyle=1;labelBackgroundColor=#FFE5E5exitX=1;exitY=0.2;exitDx=0;exitDy=0;entryX=0;entryY=0.2;entryDx=0;entryDy=0;" target="z-plugins" value="✕ rule 1: internal/ → plugins/ fails the build">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="zr2" edge="1" parent="1" source="z-runner" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#CC0000;strokeWidth=3;fontSize=11;fontStyle=1;labelBackgroundColor=#FFE5E5exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="z-vault" value="✕ rule 2: runner → … → vault fails the build">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="za1" edge="1" parent="1" source="z-plugins" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#82B366;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0;exitY=0.85;exitDx=0;exitDy=0;entryX=1;entryY=0.85;entryDx=0;entryDy=0;" target="z-internal" value="✓ plug-ins may import core interfaces (the only direction)">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="archcombined" name="Arch_Combined">
+        <mxGraphModel dx="2925" dy="601" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="1340" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="t2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=18;fontStyle=1;fontColor=#333333" value="ARCH_COMBINED — Devcules today and where it grows — one modular monolith, one trust split; blue strip = shipped (M0.1), ghosts = planned (PLAN.md §9). This page gains a solid block every build." vertex="1">
+                    <mxGeometry height="60" width="1150" x="40" y="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3B3B3;fontSize=11;align=left;verticalAlign=top;spacing=8" value="&lt;b&gt;How to read&lt;/b&gt;&lt;br&gt;• blue strip at the bottom = shipped in this build (M0.1)&lt;br&gt;• grey dashed ghost = planned module (milestone tag)&lt;br&gt;• dashed + animated = live traffic (plays in the draw.io app)&lt;br&gt;• red vertical bar = trust split — real keys never cross it; enforced today by arch_test.go (M0.1)" vertex="1">
+                    <mxGeometry height="130" width="470" x="1250" y="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="phone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;phone / browser&lt;/b&gt;&lt;br&gt;PWA (M1.2)&lt;br&gt;approve risky steps from anywhere" vertex="1">
+                    <mxGeometry height="120" width="190" x="80" y="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="providers" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;model providers&lt;/b&gt; (M2)&lt;br&gt;plugins/providers/&lt;br&gt;meta · openai-compat · ollama&lt;br&gt;&lt;br&gt;&lt;i&gt;keys stay in vault — only redacted calls leave&lt;/i&gt;" vertex="1">
+                    <mxGeometry height="160" width="190" x="80" y="380" as="geometry"/>
+                </mxCell>
+                <mxCell id="serve-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#FBFBFB;strokeColor=#CCCCCC;dashed=1;fontColor=#777777;fontSize=13" value="&lt;b&gt;devcules serve — control plane (trusted) · M0.2+&lt;/b&gt;&lt;br&gt;one codebase · one binary · one image (PLAN.md §2)" vertex="1">
+                    <mxGeometry height="780" width="730" x="320" y="180" as="geometry"/>
+                </mxCell>
+                <mxCell id="m-config" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;config&lt;/b&gt; (M0.2)&lt;br&gt;env + file, validated at start" vertex="1">
+                    <mxGeometry height="60" width="300" x="360" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="m-store" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;store&lt;/b&gt; (M0.3)&lt;br&gt;Store interface · SQLite | Postgres" vertex="1">
+                    <mxGeometry height="60" width="300" x="360" y="340" as="geometry"/>
+                </mxCell>
+                <mxCell id="m-bus" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;bus&lt;/b&gt; (M0.4)&lt;br&gt;Bus interface · memory | pg LISTEN/NOTIFY" vertex="1">
+                    <mxGeometry height="60" width="300" x="360" y="420" as="geometry"/>
+                </mxCell>
+                <mxCell id="m-redact" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;redact&lt;/b&gt; (M2)&lt;br&gt;Gitleaks + PII detectors · placeholders · restore" vertex="1">
+                    <mxGeometry height="60" width="300" x="360" y="500" as="geometry"/>
+                </mxCell>
+                <mxCell id="m-vault" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;vault&lt;/b&gt; (M2)&lt;br&gt;AES-256-GCM · real API keys · never logged" vertex="1">
+                    <mxGeometry height="60" width="300" x="360" y="580" as="geometry"/>
+                </mxCell>
+                <mxCell id="m-approvals" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;approvals&lt;/b&gt; (M3)&lt;br&gt;pending decisions · critical-step policy" vertex="1">
+                    <mxGeometry height="60" width="300" x="360" y="660" as="geometry"/>
+                </mxCell>
+                <mxCell id="m-push" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;push&lt;/b&gt; (M3)&lt;br&gt;Web Push (VAPID) → phone" vertex="1">
+                    <mxGeometry height="60" width="300" x="360" y="740" as="geometry"/>
+                </mxCell>
+                <mxCell id="m-mcp" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;mcp&lt;/b&gt; (M3)&lt;br&gt;Devcules MCP server — tools for agents" vertex="1">
+                    <mxGeometry height="60" width="300" x="360" y="820" as="geometry"/>
+                </mxCell>
+                <mxCell id="m-cmd" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;cmd/devcules&lt;/b&gt; (M0.2)&lt;br&gt;serve | runner | machine | hook | version" vertex="1">
+                    <mxGeometry height="60" width="300" x="680" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="m-auth" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;auth&lt;/b&gt; (M1.1)&lt;br&gt;bootstrap · sessions · CSRF · passkeys (M1.5)" vertex="1">
+                    <mxGeometry height="60" width="300" x="680" y="340" as="geometry"/>
+                </mxCell>
+                <mxCell id="m-web" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;web&lt;/b&gt; (M1.2)&lt;br&gt;React PWA, embedded via go:embed" vertex="1">
+                    <mxGeometry height="60" width="300" x="680" y="420" as="geometry"/>
+                </mxCell>
+                <mxCell id="m-link" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;link&lt;/b&gt; (M1.3)&lt;br&gt;runner + machine WebSocket protocol" vertex="1">
+                    <mxGeometry height="60" width="300" x="680" y="500" as="geometry"/>
+                </mxCell>
+                <mxCell id="m-terminals" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;terminals&lt;/b&gt; (M1.4)&lt;br&gt;tmux PTYs · serve-side relay" vertex="1">
+                    <mxGeometry height="60" width="300" x="680" y="580" as="geometry"/>
+                </mxCell>
+                <mxCell id="m-router" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;router&lt;/b&gt; (M2)&lt;br&gt;/llm/{provider} · OpenAI + Anthropic style" vertex="1">
+                    <mxGeometry height="60" width="300" x="680" y="660" as="geometry"/>
+                </mxCell>
+                <mxCell id="m-audit" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;audit&lt;/b&gt; (M2)&lt;br&gt;append-only log · JSON-lines export" vertex="1">
+                    <mxGeometry height="60" width="300" x="680" y="740" as="geometry"/>
+                </mxCell>
+                <mxCell id="m-health" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;health&lt;/b&gt; (M0.5)&lt;br&gt;/healthz · /readyz endpoints" vertex="1">
+                    <mxGeometry height="60" width="300" x="680" y="820" as="geometry"/>
+                </mxCell>
+                <mxCell id="trust-note" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82B366;fontSize=10;fontColor=#333333" value="↑ trust split: real keys never cross the red bar — per-launch tokens only · already enforced today by arch_test.go (M0.1 ✓)" vertex="1">
+                    <mxGeometry height="56" width="340" x="700" y="890" as="geometry"/>
+                </mxCell>
+                <mxCell id="divider" parent="1" style="rounded=0;fillColor=#CC0000;strokeColor=none;" value="" vertex="1">
+                    <mxGeometry height="780" width="6" x="1076" y="180" as="geometry"/>
+                </mxCell>
+                <mxCell id="runner-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#FBFBFB;strokeColor=#CCCCCC;dashed=1;fontColor=#777777;fontSize=13" value="&lt;b&gt;devcules runner — untrusted zone · M1.4+&lt;/b&gt;&lt;br&gt;tmux terminals · agent CLIs · workspace" vertex="1">
+                    <mxGeometry height="420" width="580" x="1130" y="180" as="geometry"/>
+                </mxCell>
+                <mxCell id="r-tmux" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;tmux PTY terminals&lt;/b&gt; (M1.4)&lt;br&gt;resume + replay sessions" vertex="1">
+                    <mxGeometry height="80" width="250" x="1160" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="r-tokens" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;per-launch tokens&lt;/b&gt; only — never real keys" vertex="1">
+                    <mxGeometry height="80" width="240" x="1440" y="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="r-agents" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;agent CLIs&lt;/b&gt; (M3 · plugins/agents/)&lt;br&gt;musecode · claudecode · codex&lt;br&gt;launched per LaunchSpec" vertex="1">
+                    <mxGeometry height="120" width="250" x="1160" y="370" as="geometry"/>
+                </mxCell>
+                <mxCell id="r-work" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;workspace&lt;/b&gt; (M3)&lt;br&gt;repo checkouts · sandboxes" vertex="1">
+                    <mxGeometry height="120" width="240" x="1440" y="370" as="geometry"/>
+                </mxCell>
+                <mxCell id="machine-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#FBFBFB;strokeColor=#CCCCCC;dashed=1;fontColor=#777777;fontSize=13" value="&lt;b&gt;devcules machine — helper · M4&lt;/b&gt;&lt;br&gt;runs on your other computers · dials out" vertex="1">
+                    <mxGeometry height="330" width="580" x="1130" y="640" as="geometry"/>
+                </mxCell>
+                <mxCell id="mach-drive" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;screen · input · accessibility&lt;/b&gt; (M4)&lt;br&gt;drives a real computer" vertex="1">
+                    <mxGeometry height="100" width="250" x="1160" y="720" as="geometry"/>
+                </mxCell>
+                <mxCell id="mach-sam" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;OCR · SAM 3.1 grounding&lt;/b&gt; (M4)&lt;br&gt;finds canvas UI elements" vertex="1">
+                    <mxGeometry height="100" width="240" x="1440" y="720" as="geometry"/>
+                </mxCell>
+                <mxCell id="mach-note" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;install&lt;/b&gt;: curl …/install/machine.sh · machine.ps1 — SHA-256 checked, served by serve (M4)" vertex="1">
+                    <mxGeometry height="100" width="520" x="1160" y="840" as="geometry"/>
+                </mxCell>
+                <mxCell id="strip-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=13;fontColor=#333333" value="&lt;b&gt;SHIPPED — M0.1: CI/CD pipeline (detail on page Arch_1)&lt;/b&gt; — these pipelines build and ship every future module above" vertex="1">
+                    <mxGeometry height="260" width="1710" x="40" y="1040" as="geometry"/>
+                </mxCell>
+                <mxCell id="s-repo" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;GitHub repo&lt;/b&gt;&lt;br&gt;PR · main · tag v*" vertex="1">
+                    <mxGeometry height="70" width="160" x="70" y="1110" as="geometry"/>
+                </mxCell>
+                <mxCell id="s-ci" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;ci.yml&lt;/b&gt; — lint · arch · unit · integration · security&lt;br&gt;(pinned actions · cancel-in-progress)" vertex="1">
+                    <mxGeometry height="70" width="330" x="280" y="1110" as="geometry"/>
+                </mxCell>
+                <mxCell id="s-main" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11" value="&lt;b&gt;main&lt;/b&gt;&lt;br&gt;branch protection" vertex="1">
+                    <mxGeometry height="70" width="140" x="660" y="1110" as="geometry"/>
+                </mxCell>
+                <mxCell id="s-cd" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=11" value="&lt;b&gt;cd.yml&lt;/b&gt; — image → GHCR&lt;br&gt;&lt;font color=&#39;#CC6600&#39;&gt;&lt;b&gt;SKIP → Dockerfile M0.5&lt;/b&gt;&lt;/font&gt;" vertex="1">
+                    <mxGeometry height="70" width="240" x="850" y="1110" as="geometry"/>
+                </mxCell>
+                <mxCell id="s-ghcr" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11" value="&lt;b&gt;GHCR&lt;/b&gt;&lt;br&gt;:edge · :sha" vertex="1">
+                    <mxGeometry height="70" width="150" x="1140" y="1110" as="geometry"/>
+                </mxCell>
+                <mxCell id="s-tag" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12" value="&lt;b&gt;tag v*&lt;/b&gt;&lt;br&gt;cut from main" vertex="1">
+                    <mxGeometry height="70" width="140" x="660" y="1210" as="geometry"/>
+                </mxCell>
+                <mxCell id="s-rel" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11" value="&lt;b&gt;release.yml&lt;/b&gt; — GoReleaser + images&lt;br&gt;&lt;font color=&#39;#CC6600&#39;&gt;&lt;b&gt;SKIP → cmd M0.2 · Dockerfile M0.5&lt;/b&gt;&lt;/font&gt;" vertex="1">
+                    <mxGeometry height="70" width="240" x="850" y="1210" as="geometry"/>
+                </mxCell>
+                <mxCell id="s-relart" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11" value="&lt;b&gt;GitHub Release&lt;/b&gt;&lt;br&gt;binaries · checksums · notes" vertex="1">
+                    <mxGeometry height="70" width="240" x="1140" y="1210" as="geometry"/>
+                </mxCell>
+                <mxCell id="s1" edge="1" parent="1" source="s-repo" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s-ci" value="PR + push">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s2" edge="1" parent="1" source="s-ci" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s-main" value="5 checks green">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s3" edge="1" parent="1" source="s-main" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s-cd" value="merge">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s4" edge="1" parent="1" source="s-cd" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s-ghcr" value=":edge :sha">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s5" edge="1" parent="1" source="s-main" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="s-tag" value="cut release">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s6" edge="1" parent="1" source="s-tag" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s-rel" value="on tag">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s7" edge="1" parent="1" source="s-rel" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s-relart" value="assets">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s8" edge="1" parent="1" source="s-rel" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="s-ghcr" value=":tag :latest">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="970" y="1195"/>
+                            <mxPoint x="1215" y="1195"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="f1" edge="1" parent="1" source="phone" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6699CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.35;entryDx=0;entryDy=0;" target="serve-zone" value="HTTPS over Tailscale (M1.2)">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="295" y="260"/>
+                            <mxPoint x="295" y="453"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="f2" edge="1" parent="1" source="serve-zone" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6699CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0;exitY=0.7;exitDx=0;exitDy=0;entryX=0;entryY=0.4;entryDx=0;entryDy=0;" target="phone" value="approval buzz → approve (M3)">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="60" y="726"/>
+                            <mxPoint x="60" y="248"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="f3" edge="1" parent="1" source="serve-zone" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6699CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;" target="runner-zone" value="WebSocket &#39;link&#39; — dials out · runner token (M1.4)">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1088" y="375"/>
+                            <mxPoint x="1088" y="285"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="f4" edge="1" parent="1" source="runner-zone" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6699CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0;exitY=0.6;exitDx=0;exitDy=0;entryX=1;entryY=0.55;entryDx=0;entryDy=0;" target="serve-zone" value="agent model calls → router · per-launch token (M2)">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1100" y="432"/>
+                            <mxPoint x="1100" y="609"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="f5" edge="1" parent="1" source="machine-zone" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6699CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.7;entryDx=0;entryDy=0;" target="serve-zone" value="dials out WebSocket (M4) · grounded clicks">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1096" y="805"/>
+                            <mxPoint x="1096" y="726"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="f6" edge="1" parent="1" source="m-router" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6699CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="providers" value="redacted model traffic (M2)">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="668" y="690"/>
+                            <mxPoint x="668" y="990"/>
+                            <mxPoint x="290" y="990"/>
+                            <mxPoint x="290" y="460"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

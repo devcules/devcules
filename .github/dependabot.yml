@@ -1,0 +1,12 @@
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+  # npm for /web returns with the web shell (M1.2); there is no
+  # package.json to watch until then.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

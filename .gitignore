@@ -1,0 +1,22 @@
+# Go
+*.exe
+*.test
+*.out
+coverage.txt
+dist/
+/bin/
+
+# Node
+node_modules/
+.pnp.*
+
+# Build
+.vite/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local env
+.env
+.env.local

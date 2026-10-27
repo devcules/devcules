@@ -130,10 +130,14 @@ jobs:
             echo "SKIP: deploy/compose.yaml does not exist yet (compose lands in M0.5); nothing to smoke-test."
             exit 0
           fi
-          docker compose -f deploy/compose.yaml up -d --wait
+          if ! docker compose -f deploy/compose.yaml up -d --wait; then
+            docker compose -f deploy/compose.yaml logs --no-color
+            docker compose -f deploy/compose.yaml down -v
+            exit 1
+          fi
           status=0
           ./scripts/smoke.sh || status=$?
-          docker compose -f deploy/compose.yaml down
+          docker compose -f deploy/compose.yaml down -v
           exit $status
 
   security:

@@ -1,0 +1,11 @@
+# The build needs module files, Go sources and the embedded migrations;
+# everything else stays out of the image context.
+.git
+dist/
+coverage.txt
+coverage.out
+*.test
+.env
+.DS_Store
+Dockerfile
+.dockerignore

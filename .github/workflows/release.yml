@@ -112,3 +112,7 @@ jobs:
           tags: |
             ghcr.io/devcules/devcules:${{ github.ref_name }}
             ghcr.io/devcules/devcules:latest
+          build-args: |
+            VERSION=${{ github.ref_name }}
+            COMMIT=${{ github.sha }}
+            DATE=${{ github.event.head_commit.timestamp }}

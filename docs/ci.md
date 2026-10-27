@@ -27,11 +27,14 @@ the first package with coverable statements lands.
 
 Jobs with nothing to check yet pass and log why they skipped:
 
-- `integration` skips until `deploy/compose.yaml` exists (M0.5).
 - The web parts of `lint`, `unit` and `security` skip until `web/`
   exists (M1.2).
-- The CD image build skips until a `Dockerfile` exists (M0.5).
-- The release binaries skip until `cmd/devcules` exists (M0.2).
+
+Since M0.5 the integration job really runs: `docker compose up -d
+--wait` followed by `scripts/smoke.sh` (health endpoints, non-root
+user, read-only rootfs, loopback-only port, SIGTERM drain), then
+`down -v` on every exit path. The CD image build and the release
+binaries run too (`Dockerfile` and `cmd/devcules` both exist).
 
 The e2e Playwright job from §8 is deliberately left out for now; it
 lands with the web shell.

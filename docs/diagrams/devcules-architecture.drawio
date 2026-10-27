@@ -822,6 +822,316 @@
             </root>
         </mxGraphModel>
     </diagram>
+    <diagram id="arch5" name="Arch_5">
+        <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1750" pageHeight="1570" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="t6" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=17;fontStyle=1;fontColor=#333333" value="&lt;b&gt;ARCH_5&lt;/b&gt; — Build 5 (M0.5): it runs. The Dockerfile, deploy/compose.yaml, internal/api health endpoints and scripts/smoke.sh land; &lt;b&gt;serve&lt;/b&gt; now serves for real and &lt;b&gt;runner&lt;/b&gt; idles until the M1.3 link. First build with runtime code, first build CI smoke-tests end to end." vertex="1">
+                    <mxGeometry height="60" width="1090" x="40" y="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3B3B3;fontSize=11;align=left;verticalAlign=top;spacing=8" value="&lt;b&gt;How to read&lt;/b&gt;&lt;br&gt;• blue = shipped in this build (M0.5)&lt;br&gt;• grey dashed = planned module (milestone tag)&lt;br&gt;• dashed + animated = live traffic / trigger (plays in the draw.io app)&lt;br&gt;• red bar = trust split — serve is trusted, the runner never holds a real key" vertex="1">
+                    <mxGeometry height="76" width="570" x="1140" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-z-build" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;1 · BUILD&lt;/b&gt; — one Dockerfile, two stages, one static binary (agent CLIs are never baked in)" vertex="1">
+                    <mxGeometry height="330" width="800" x="40" y="112" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-op" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;operator&lt;/b&gt;&lt;br&gt;runs one command&lt;br&gt;from the repo root" vertex="1">
+                    <mxGeometry height="86" width="190" x="70" y="178" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-up" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;docker compose&lt;/b&gt;&lt;br&gt;&lt;font face=&#39;Courier New&#39;&gt;-f deploy/compose.yaml&lt;br&gt;up -d --wait&lt;/font&gt;" vertex="1">
+                    <mxGeometry height="86" width="225" x="285" y="178" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-build" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;stage 1 · builder&lt;/b&gt;&lt;br&gt;golang:1.27-bookworm&lt;br&gt;&lt;i&gt;@sha256 pinned&lt;/i&gt;&lt;br&gt;CGO_ENABLED=0 · -trimpath&lt;br&gt;-s -w build ⇒ /out/devcules" vertex="1">
+                    <mxGeometry height="128" width="275" x="535" y="160" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-run" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;stage 2 · runtime&lt;/b&gt;&lt;br&gt;debian:bookworm-slim&lt;br&gt;&lt;i&gt;@sha256 pinned&lt;/i&gt;&lt;br&gt;tmux · git · bash · ca-certificates" vertex="1">
+                    <mxGeometry height="122" width="275" x="535" y="300" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-z-ship" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;2 · SHIP&lt;/b&gt; — the same image, published two ways; every base digest kept fresh by Dependabot" vertex="1">
+                    <mxGeometry height="330" width="840" x="870" y="112" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-cd" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;cd.yml&lt;/b&gt; — push to main&lt;br&gt;:edge · :sha-&amp;lt;sha&amp;gt;&lt;br&gt;cosign sign + SPDX SBOM" vertex="1">
+                    <mxGeometry height="92" width="250" x="900" y="178" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-rel" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;release.yml&lt;/b&gt; — tag v*&lt;br&gt;:vX.Y.Z · :latest&lt;br&gt;GoReleaser binaries" vertex="1">
+                    <mxGeometry height="92" width="250" x="1190" y="178" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-ghcr" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;GHCR&lt;/b&gt;&lt;br&gt;ghcr.io/devcules/&lt;br&gt;devcules" vertex="1">
+                    <mxGeometry height="92" width="200" x="1480" y="178" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-dep" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;dependabot.yml&lt;/b&gt;&lt;br&gt;gomod + docker ecosystems&lt;br&gt;weekly digest bumps" vertex="1">
+                    <mxGeometry height="92" width="250" x="900" y="300" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-integ" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;ci.yml integration job&lt;/b&gt;&lt;br&gt;compose up -d --wait&lt;br&gt;smoke.sh → down -v" vertex="1">
+                    <mxGeometry height="92" width="250" x="1190" y="300" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-args" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;build-args&lt;/b&gt;&lt;br&gt;VERSION · COMMIT · DATE&lt;br&gt;→ &lt;font face=&#39;Courier New&#39;&gt;-ldflags&lt;/font&gt;" vertex="1">
+                    <mxGeometry height="92" width="200" x="1480" y="300" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-z-run" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;3 · RUN&lt;/b&gt; — deploy/compose.yaml: two hardened services from one image, one loopback port" vertex="1">
+                    <mxGeometry height="500" width="1090" x="40" y="476" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-serve" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FBFBFB;strokeColor=#CCCCCC;fontSize=12;dashed=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fontColor=#555555;rounded=1" value="&lt;b&gt;serve&lt;/b&gt; — control plane (trusted)&lt;br&gt;uid 10001 · /data · port 7659" vertex="1">
+                    <mxGeometry height="400" width="456" x="76" y="540" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-sc-cmd" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;command&lt;/b&gt; [&quot;serve&quot;]&lt;br&gt;the real HTTP server" vertex="1">
+                    <mxGeometry height="64" width="196" x="96" y="606" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-sc-listen" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;DEVCULES_LISTEN&lt;/b&gt;&lt;br&gt;0.0.0.0:7659 (in-container)" vertex="1">
+                    <mxGeometry height="64" width="210" x="302" y="606" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-sc-hc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;healthcheck&lt;/b&gt;&lt;br&gt;devcules health · 10s/3s/3" vertex="1">
+                    <mxGeometry height="64" width="196" x="96" y="686" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-sc-data" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;volume&lt;/b&gt;&lt;br&gt;devcules-data → /data" vertex="1">
+                    <mxGeometry height="64" width="210" x="302" y="686" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-sc-port" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;ports&lt;/b&gt; 127.0.0.1:7659:7659 — loopback only, never 0.0.0.0 on the host" vertex="1">
+                    <mxGeometry height="64" width="416" x="96" y="766" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-sc-hard" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;hardened&lt;/b&gt; read_only · tmpfs /tmp + /run · cap_drop ALL · no-new-privileges" vertex="1">
+                    <mxGeometry height="64" width="416" x="96" y="846" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-div" parent="1" style="rounded=0;fillColor=#CC0000;strokeColor=none;" vertex="1">
+                    <mxGeometry height="400" width="6" x="556" y="540" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-runner" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FBFBFB;strokeColor=#CCCCCC;fontSize=12;dashed=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fontColor=#555555;rounded=1" value="&lt;b&gt;runner&lt;/b&gt; — untrusted zone&lt;br&gt;uid 10001 · no vault key · idle until M1.3" vertex="1">
+                    <mxGeometry height="400" width="500" x="586" y="540" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-rn-cmd" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;command&lt;/b&gt; [&quot;runner&quot;]&lt;br&gt;logs idle, then waits for a signal" vertex="1">
+                    <mxGeometry height="64" width="230" x="606" y="606" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-rn-url" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;DEVCULES_SERVE_URL&lt;/b&gt;&lt;br&gt;http://serve:7659" vertex="1">
+                    <mxGeometry height="64" width="214" x="852" y="606" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-rn-ws" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;volume&lt;/b&gt; ${DEVCULES_CODE_DIR:-~/code} → /workspace — the only host code it may touch" vertex="1">
+                    <mxGeometry height="64" width="460" x="606" y="686" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-rn-home" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;volume&lt;/b&gt; runner-home → /home/devcules (agent CLIs land here in M3)" vertex="1">
+                    <mxGeometry height="64" width="460" x="606" y="766" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-rn-hard" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;hardened&lt;/b&gt; same flags · &lt;b&gt;no DEVCULES_VAULT_KEY&lt;/b&gt; (smoke asserts it)" vertex="1">
+                    <mxGeometry height="64" width="460" x="606" y="846" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-z-smoke" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;4 · EVIDENCE&lt;/b&gt; — scripts/smoke.sh: no sleeps, every claim below is asserted" vertex="1">
+                    <mxGeometry height="500" width="560" x="1150" y="476" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-smoke" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;smoke.sh&lt;/b&gt; — runs against an already-up stack&lt;br&gt;&lt;font face=&#39;Courier New&#39;&gt;up -d --wait&lt;/font&gt; gates on health before it starts" vertex="1">
+                    <mxGeometry height="82" width="504" x="1178" y="540" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-smoke-list" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;fontSize=11;fontStyle=0;fontColor=#333333" value="• &lt;font face=&#39;Courier New&#39;&gt;GET /healthz&lt;/font&gt; = ok &amp;nbsp;•&amp;nbsp; &lt;font face=&#39;Courier New&#39;&gt;GET /readyz&lt;/font&gt; = ok&lt;br&gt;• serve runs as uid 10001&lt;br&gt;• serve + runner: ReadonlyRootfs = true, running&lt;br&gt;• runner runs as uid 10001, has no vault key&lt;br&gt;• published port is 127.0.0.1:7659 only&lt;br&gt;• &lt;font face=&#39;Courier New&#39;&gt;stop -t 20&lt;/font&gt; finishes in under 20 s&lt;br&gt;• serve exit code is 0 (not 143/137)&lt;br&gt;&lt;br&gt;&lt;i&gt;a red result dumps both logs, then tears the stack down&lt;/i&gt;" vertex="1">
+                    <mxGeometry height="220" width="500" x="1180" y="632" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-host" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;fontSize=11;dashed=1;fontColor=#555555" value="&lt;b&gt;host curl&lt;/b&gt; — the only way in at M0.5: loopback from this machine&lt;br&gt;Tailscale HTTPS arrives with the web UI (M1.2)" vertex="1">
+                    <mxGeometry height="70" width="504" x="1178" y="872" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-z-api" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;5 · ENDPOINTS&lt;/b&gt; — internal/api, the first package that answers a request" vertex="1">
+                    <mxGeometry height="360" width="700" x="40" y="1006" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-ep-hz" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;GET /healthz&lt;/b&gt; → 200 &quot;ok&quot;&lt;br&gt;liveness: the process is up&lt;br&gt;depends on nothing" vertex="1">
+                    <mxGeometry height="82" width="300" x="70" y="1074" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-ep-rz" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;GET /readyz&lt;/b&gt; → 200 &quot;ok&quot;&lt;br&gt;readiness: &lt;font face=&#39;Courier New&#39;&gt;store.Ping(ctx)&lt;/font&gt;&lt;br&gt;" vertex="1">
+                    <mxGeometry height="82" width="320" x="390" y="1074" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-ep-405" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;anything but GET&lt;/b&gt; → 405&lt;br&gt;with &lt;font face=&#39;Courier New&#39;&gt;Allow: GET&lt;/font&gt;&lt;br&gt;both endpoints" vertex="1">
+                    <mxGeometry height="82" width="300" x="70" y="1178" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-ep-503" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;store down&lt;/b&gt; → 503&lt;br&gt;&quot;not ready: store unreachable&quot;&lt;br&gt;&lt;i&gt;fixed reason: paths never leak&lt;/i&gt;" vertex="1">
+                    <mxGeometry height="82" width="320" x="390" y="1178" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-ep-store" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;store&lt;/b&gt; — sqlite at &amp;lt;DataDir&amp;gt;/devcules.db · migrations (0001_meta) applied at Open" vertex="1">
+                    <mxGeometry height="62" width="640" x="70" y="1282" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-z-life" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;6 · LIFECYCLE&lt;/b&gt; — runServe: up, then a 20 s drain and an ordered close" vertex="1">
+                    <mxGeometry height="360" width="940" x="770" y="1006" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-l-cfg" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;config.Load()&lt;/b&gt;&lt;br&gt;validate every env var" vertex="1">
+                    <mxGeometry height="64" width="170" x="800" y="1074" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-l-dburl" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;DATABASE_URL set?&lt;/b&gt;&lt;br&gt;exit 1 + next steps" vertex="1">
+                    <mxGeometry height="64" width="170" x="990" y="1074" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-l-open" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;sqlite.Open&lt;/b&gt;&lt;br&gt;&amp;lt;DataDir&amp;gt;/devcules.db" vertex="1">
+                    <mxGeometry height="64" width="170" x="1180" y="1074" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-l-mux" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.Handler&lt;/b&gt;&lt;br&gt;mux + store" vertex="1">
+                    <mxGeometry height="64" width="160" x="1370" y="1074" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-l-srv" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;Serve&lt;/b&gt;&lt;br&gt;timeouts 5/10/10/60 s" vertex="1">
+                    <mxGeometry height="64" width="140" x="1550" y="1074" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-l-sig" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=11" value="&lt;b&gt;SIGINT /&lt;br&gt;SIGTERM&lt;/b&gt;" vertex="1">
+                    <mxGeometry height="64" width="140" x="1550" y="1178" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-l-drain" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=11" value="&lt;b&gt;Shutdown&lt;/b&gt;&lt;br&gt;drain ≤ 20 s" vertex="1">
+                    <mxGeometry height="64" width="160" x="1370" y="1178" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-l-bus" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;bus.Close&lt;/b&gt;&lt;br&gt;subscriber channels" vertex="1">
+                    <mxGeometry height="64" width="170" x="1180" y="1178" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-l-store" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;store.Close&lt;/b&gt;&lt;br&gt;SQLite handle" vertex="1">
+                    <mxGeometry height="64" width="150" x="1010" y="1178" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-l-exit" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11" value="&lt;b&gt;exit 0&lt;/b&gt;&lt;br&gt;logs &quot;serve stopped&quot;" vertex="1">
+                    <mxGeometry height="64" width="160" x="830" y="1178" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-l-rn1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;runner · ForRole&lt;/b&gt;&lt;br&gt;a vault key is refused (exit 1)" vertex="1">
+                    <mxGeometry height="62" width="280" x="800" y="1282" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-l-rn2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;log idle&lt;/b&gt;&lt;br&gt;&quot;waiting for the link (M1.3)&quot;" vertex="1">
+                    <mxGeometry height="62" width="280" x="1110" y="1282" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-l-rn3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;wait signal&lt;/b&gt;&lt;br&gt;→ exit 0" vertex="1">
+                    <mxGeometry height="62" width="180" x="1420" y="1282" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-z-next" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;NEXT — what M0.5 hands to the next builds&lt;/b&gt; — the image, the stack and the endpoints are the foundation every later module is deployed with" vertex="1">
+                    <mxGeometry height="140" width="1670" x="40" y="1392" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-n1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;fontSize=11;dashed=1;fontColor=#555555" value="&lt;b&gt;M1.1 auth&lt;/b&gt; — sessions, CSRF,&lt;br&gt;passkeys guard the same mux" vertex="1">
+                    <mxGeometry height="62" width="380" x="70" y="1452" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-n2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;fontSize=11;dashed=1;fontColor=#555555" value="&lt;b&gt;M1.2 web + Tailscale&lt;/b&gt; — PWA via go:embed,&lt;br&gt;a web stage in the Dockerfile, HTTPS" vertex="1">
+                    <mxGeometry height="62" width="380" x="470" y="1452" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-n3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;fontSize=11;dashed=1;fontColor=#555555" value="&lt;b&gt;M1.3 link&lt;/b&gt; — runner stops idling;&lt;br&gt;/readyz gains the linked-runner check" vertex="1">
+                    <mxGeometry height="62" width="380" x="870" y="1452" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5-n4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;fontSize=11;dashed=1;fontColor=#555555" value="&lt;b&gt;M2 vault · redact · router&lt;/b&gt; — real keys stay in serve,&lt;br&gt;model traffic leaves redacted" vertex="1">
+                    <mxGeometry height="62" width="410" x="1270" y="1452" as="geometry"/>
+                </mxCell>
+                <mxCell id="g1" edge="1" parent="1" source="a5-op" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a5-up" value="runs one command">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="g2" edge="1" parent="1" source="a5-up" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0" target="a5-build" value="builds the image">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="g3" edge="1" parent="1" source="a5-build" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" target="a5-run" value="COPY --from=build&lt;br&gt;/out/devcules">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="g4" edge="1" parent="1" source="a5-run" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#82B366;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0" target="a5-ghcr" value="the image&lt;br&gt;:edge · :sha · :vX · :latest">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="830" y="361"/>
+                            <mxPoint x="830" y="240"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="g5" edge="1" parent="1" source="a5-cd" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#82B366;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0" target="a5-ghcr" value="pushes + signs">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="g6" edge="1" parent="1" source="a5-rel" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#82B366;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a5-ghcr" value="pushes">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="g7" edge="1" parent="1" source="a5-up" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" target="a5-sc-listen" value="starts both services">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="397" y="490"/>
+                            <mxPoint x="407" y="490"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="g8" edge="1" parent="1" source="a5-sc-listen" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#82B366;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a5-rn-url" value="depends_on:&lt;br&gt;service_healthy">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="g9" edge="1" parent="1" source="a5-sc-hc" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#82B366;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" target="a5-ep-hz" value="docker healthcheck every 10 s">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="194" y="990"/>
+                            <mxPoint x="220" y="990"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="g10" edge="1" parent="1" source="a5-smoke" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#82B366;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=0;exitY=0.4;exitDx=0;exitDy=0;entryX=1;entryY=0.35;entryDx=0;entryDy=0" target="a5-ep-hz" value="curl -fsS /healthz">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1130" y="573"/>
+                            <mxPoint x="1130" y="1103"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="g11" edge="1" parent="1" source="a5-smoke" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#82B366;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=0;exitY=0.7;exitDx=0;exitDy=0;entryX=1;entryY=0.6;entryDx=0;entryDy=0" target="a5-ep-rz" value="curl -fsS /readyz">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1110" y="597"/>
+                            <mxPoint x="1110" y="1123"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="g12" edge="1" parent="1" source="a5-ep-rz" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.65;entryY=0;entryDx=0;entryDy=0" target="a5-ep-store" value="store.Ping(ctx)">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="g13" edge="1" parent="1" source="a5-smoke" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#D79B00;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=0.2;exitY=0;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0" target="a5-sc-port" value="compose stop -t 20&lt;br&gt;→ exit 0">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1279" y="512"/>
+                            <mxPoint x="540" y="512"/>
+                            <mxPoint x="540" y="798"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="g14" edge="1" parent="1" source="a5-l-cfg" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a5-l-dburl" value="ok">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="g15" edge="1" parent="1" source="a5-l-dburl" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a5-l-open" value="unset → SQLite">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="g16" edge="1" parent="1" source="a5-l-open" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a5-l-mux" value="store ready">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="g17" edge="1" parent="1" source="a5-l-mux" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a5-l-srv" value="listen">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="g18" edge="1" parent="1" source="a5-l-srv" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#D79B00;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" target="a5-l-sig" value="signal">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="g19" edge="1" parent="1" source="a5-l-sig" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#D79B00;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0" target="a5-l-drain" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="g20" edge="1" parent="1" source="a5-l-drain" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#D79B00;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0" target="a5-l-bus" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="g21" edge="1" parent="1" source="a5-l-bus" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#D79B00;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0" target="a5-l-store" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="g22" edge="1" parent="1" source="a5-l-store" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#D79B00;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0" target="a5-l-exit" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="g23" edge="1" parent="1" source="a5-l-rn1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a5-l-rn2" value="config ok">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="g24" edge="1" parent="1" source="a5-l-rn2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a5-l-rn3" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="g25" edge="1" parent="1" source="a5-rn-cmd" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.8;entryDx=0;entryDy=0" target="a5-sc-port" value="WebSocket &#39;link&#39; — runner dials out (M1.3)">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="721" y="1000"/>
+                            <mxPoint x="721" y="1000"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="g26" edge="1" parent="1" source="a5-integ" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#82B366;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" target="a5-up" value="CI runs the same command, then smoke.sh">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1140" y="346"/>
+                            <mxPoint x="1140" y="462"/>
+                            <mxPoint x="397" y="462"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="g27" edge="1" parent="1" source="a5-ep-hz" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" target="a5-l-srv" value="same process">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="220" y="1050"/>
+                            <mxPoint x="1620" y="1050"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
     <diagram id="archcombined" name="Arch_Combined">
         <mxGraphModel dx="2925" dy="601" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="1540" math="0" shadow="0">
             <root>

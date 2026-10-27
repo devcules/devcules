@@ -1,0 +1,64 @@
+# M0.5 local stack. Run from the repo root:
+#
+#   docker compose -f deploy/compose.yaml up -d --wait
+#
+# Both services build the same Dockerfile locally: the :latest tag does
+# not exist until the first release, so there is nothing to pull yet.
+# No vault, provider or Tailscale configuration exists at this stage;
+# the vault key stays optional and the runner carries no secrets at all.
+
+services:
+  serve:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: ghcr.io/devcules/devcules:${DEVCULES_TAG:-edge}
+    command: ["serve"]
+    environment:
+      DEVCULES_LISTEN: "0.0.0.0:7659"
+      DEVCULES_PUBLIC_URL: ${DEVCULES_PUBLIC_URL:-}
+    volumes:
+      - devcules-data:/data
+    ports:
+      - "127.0.0.1:7659:7659"
+    healthcheck:
+      test: ["CMD", "devcules", "health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  runner:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: ghcr.io/devcules/devcules:${DEVCULES_TAG:-edge}
+    command: ["runner"]
+    environment:
+      DEVCULES_SERVE_URL: http://serve:7659
+    volumes:
+      - ${DEVCULES_CODE_DIR:-~/code}:/workspace
+      - runner-home:/home/devcules
+    depends_on:
+      serve:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  devcules-data:
+  runner-home:

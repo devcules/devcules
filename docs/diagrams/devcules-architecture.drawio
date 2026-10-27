@@ -279,7 +279,7 @@
         </mxGraphModel>
     </diagram>
     <diagram id="arch2" name="Arch_2">
-        <mxGraphModel dx="2562" dy="1310" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="1340" math="0" shadow="0">
+        <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1750" pageHeight="1340" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -373,7 +373,7 @@
                 <mxCell id="next-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;NEXT — enabled by this build&lt;/b&gt; — every later module parses the same config and grows one of these ghost boxes" vertex="1">
                     <mxGeometry height="200" width="1630" x="60" y="1080" as="geometry"/>
                 </mxCell>
-                <mxCell id="n-store" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;store&lt;/b&gt; (M0.3)&lt;br&gt;SQLite at DATA_DIR · postgres:// at DATABASE_URL" vertex="1">
+                <mxCell id="n-store" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;store&lt;/b&gt; (M0.3 ✓ → Arch_3)&lt;br&gt;Store · SQLite backend · storetest" vertex="1">
                     <mxGeometry height="80" width="300" x="100" y="1170" as="geometry"/>
                 </mxCell>
                 <mxCell id="n-healthz" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;/healthz · /readyz&lt;/b&gt; (M0.5)&lt;br&gt;the endpoint devcules health probes" vertex="1">
@@ -467,15 +467,199 @@
             </root>
         </mxGraphModel>
     </diagram>
-    <diagram id="archcombined" name="Arch_Combined">
-        <mxGraphModel dx="2925" dy="601" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="1340" math="0" shadow="0">
+    <diagram id="arch3" name="Arch_3">
+        <mxGraphModel dx="2562" dy="1310" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="1340" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
-                <mxCell id="t2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=18;fontStyle=1;fontColor=#333333" value="ARCH_COMBINED — Devcules today and where it grows — one modular monolith, one trust split; blue = shipped (M0.1 CI/CD · M0.2 config + subcommands), ghosts = planned (PLAN.md §9). This page gains a solid block every build." vertex="1">
+                <mxCell id="t4" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=18;fontStyle=1;fontColor=#333333" value="ARCH_3 — Build 3 (M0.3): the store — internal/store (the surface) · internal/store/sqlite (the backend) · storetest (the contract suite). No role opens it yet: serve wires it in M0.5." vertex="1">
                     <mxGeometry height="60" width="1150" x="40" y="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="legend2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3B3B3;fontSize=11;align=left;verticalAlign=top;spacing=8" value="&lt;b&gt;How to read&lt;/b&gt;&lt;br&gt;• blue = shipped in this build (M0.1 CI/CD pipeline · M0.2 config + subcommands)&lt;br&gt;• grey dashed ghost = planned module (milestone tag)&lt;br&gt;• dashed + animated = live traffic (plays in the draw.io app)&lt;br&gt;• red vertical bar = trust split — real keys never cross it; enforced today by arch_test.go (M0.1)" vertex="1">
+                <mxCell id="legend4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3B3B3;fontSize=11;align=left;verticalAlign=top;spacing=8" value="&lt;b&gt;How to read&lt;/b&gt;&lt;br&gt;• blue = shipped in this build (M0.3)&lt;br&gt;• solid grey = static relation&lt;br&gt;• grey dashed ghost = later module&lt;br&gt;• green = refuses to guess, by design" vertex="1">
+                    <mxGeometry height="120" width="330" x="1380" y="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="if-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;internal/store — the surface&lt;/b&gt;&lt;br&gt;lifecycle + repos, nothing else — the whole storage a role may touch" vertex="1">
+                    <mxGeometry height="560" width="400" x="60" y="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="st-store" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12" value="&lt;b&gt;Store&lt;/b&gt; — the whole surface a role needs&lt;br&gt;Ping · Close · SchemaVersion · Meta()&lt;br&gt;lifecycle plus repos, nothing else" vertex="1">
+                    <mxGeometry height="90" width="360" x="80" y="290" as="geometry"/>
+                </mxCell>
+                <mxCell id="st-meta" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;Meta() — MetaRepo&lt;/b&gt;&lt;br&gt;string key/value repo for installer-level state&lt;br&gt;(schema markers · bootstrap flags) · Get · Set · Delete&lt;br&gt;an empty key is rejected" vertex="1">
+                    <mxGeometry height="110" width="360" x="80" y="420" as="geometry"/>
+                </mxCell>
+                <mxCell id="st-notfound" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;ErrNotFound — typed not-found&lt;/b&gt;&lt;br&gt;wrapped with the key name, matched with errors.Is —&lt;br&gt;callers never parse messages" vertex="1">
+                    <mxGeometry height="90" width="360" x="80" y="560" as="geometry"/>
+                </mxCell>
+                <mxCell id="st-rule" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;fontSize=11" value="&lt;b&gt;how a repo grows&lt;/b&gt; (docs/store.md)&lt;br&gt;interface PR → one numbered migration → contract tests" vertex="1">
+                    <mxGeometry height="80" width="360" x="80" y="670" as="geometry"/>
+                </mxCell>
+                <mxCell id="sqlite-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;internal/store/sqlite — the backend&lt;/b&gt;&lt;br&gt;the file · the pragmas · the migrations — database/sql only, no ORM, no cgo" vertex="1">
+                    <mxGeometry height="560" width="640" x="500" y="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="sq-open" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;Open(ctx, path)&lt;/b&gt;&lt;br&gt;the file lives at DATA_DIR/devcules.db&lt;br&gt;dir created 0700 · file 0600&lt;br&gt;a path, never a URL — nothing secret to log" vertex="1">
+                    <mxGeometry height="130" width="280" x="520" y="290" as="geometry"/>
+                </mxCell>
+                <mxCell id="sq-pragmas" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;pragmas ride in the DSN&lt;/b&gt;&lt;br&gt;busy_timeout first — WAL setup waits too&lt;br&gt;WAL · foreign_keys=ON · 5 s busy&lt;br&gt;every pooled connection, not just the first" vertex="1">
+                    <mxGeometry height="130" width="280" x="840" y="290" as="geometry"/>
+                </mxCell>
+                <mxCell id="sq-conn" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;one connection&lt;/b&gt; — MaxOpenConns(1)&lt;br&gt;M0.3 serializes writers instead of&lt;br&gt;tuning a pool it cannot yet fill" vertex="1">
+                    <mxGeometry height="90" width="280" x="520" y="450" as="geometry"/>
+                </mxCell>
+                <mxCell id="sq-driver" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;pure Go&lt;/b&gt; — modernc.org/sqlite, no cgo&lt;br&gt;database/sql only · no ORM&lt;br&gt;the Postgres URL is not handled here" vertex="1">
+                    <mxGeometry height="90" width="280" x="840" y="450" as="geometry"/>
+                </mxCell>
+                <mxCell id="sq-meta" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;metaRepo on the meta table&lt;/b&gt;&lt;br&gt;Set upserts · Delete of a missing key: fine&lt;br&gt;Get on a missing key → ErrNotFound + the key&lt;br&gt;values never appear in errors" vertex="1">
+                    <mxGeometry height="110" width="280" x="520" y="570" as="geometry"/>
+                </mxCell>
+                <mxCell id="sq-later" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;not here, on purpose&lt;/b&gt;&lt;br&gt;Postgres wiring (DATABASE_URL) and every other repo — each lands as its own module with its migration + tests" vertex="1">
+                    <mxGeometry height="110" width="280" x="840" y="570" as="geometry"/>
+                </mxCell>
+                <mxCell id="suite-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;internal/store/storetest — the contract suite&lt;/b&gt;&lt;br&gt;Run(t, newStore) wires one constructor — every backend, same behaviour" vertex="1">
+                    <mxGeometry height="560" width="560" x="1180" y="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="su-run" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12" value="&lt;b&gt;Run(t, newStore)&lt;/b&gt; — one constructor, the same behaviour everywhere:&lt;br&gt;fresh open migrates · reopen is a no-op that keeps data · Meta CRUD with a typed not-found&lt;br&gt;Ping before and after Close · concurrent use under -race · context cancellation honored" vertex="1">
+                    <mxGeometry height="130" width="500" x="1200" y="290" as="geometry"/>
+                </mxCell>
+                <mxCell id="su-fake" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;in-memory fake&lt;/b&gt;&lt;br&gt;the suite passes on a correct backend — its checks are not vacuous" vertex="1">
+                    <mxGeometry height="110" width="240" x="1200" y="450" as="geometry"/>
+                </mxCell>
+                <mxCell id="su-probe" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;broken-store probe&lt;/b&gt;&lt;br&gt;a child process proves the suite fails a broken store loudly" vertex="1">
+                    <mxGeometry height="110" width="230" x="1470" y="450" as="geometry"/>
+                </mxCell>
+                <mxCell id="su-note" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82B366;fontSize=10;fontColor=#333333" value="&lt;b&gt;Why this ships in build 3&lt;/b&gt; — every later module lands a repo on this surface; one shared suite proves the behaviour once (migrations · WAL · concurrency) instead of each module re-testing its backend." vertex="1">
+                    <mxGeometry height="100" width="500" x="1200" y="590" as="geometry"/>
+                </mxCell>
+                <mxCell id="zoom3-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;Zoom — one migration, file to recorded&lt;/b&gt; — and the ways Open refuses to guess" vertex="1">
+                    <mxGeometry height="240" width="1630" x="60" y="800" as="geometry"/>
+                </mxCell>
+                <mxCell id="z3-files" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;migrations/*.sql — go:embed&lt;/b&gt;&lt;br&gt;NNNN_name.sql, version-sorted · a bad name or a duplicate version fails at open — a build bug, never silently skipped" vertex="1">
+                    <mxGeometry height="110" width="350" x="100" y="890" as="geometry"/>
+                </mxCell>
+                <mxCell id="z3-bookkeeping" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;schema_migrations&lt;/b&gt;&lt;br&gt;version · sha256 checksum · applied_at&lt;br&gt;the bookkeeping DDL is itself unversioned" vertex="1">
+                    <mxGeometry height="110" width="350" x="500" y="890" as="geometry"/>
+                </mxCell>
+                <mxCell id="z3-guard" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11" value="&lt;b&gt;open refuses to guess&lt;/b&gt;&lt;br&gt;an edited applied migration names its file&lt;br&gt;a database newer than the binary asks for an upgrade — neither ever runs" vertex="1">
+                    <mxGeometry height="110" width="350" x="900" y="890" as="geometry"/>
+                </mxCell>
+                <mxCell id="z3-lock" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;BEGIN IMMEDIATE per migration&lt;/b&gt;&lt;br&gt;racing openers take turns; the loser re-checks inside the lock and finds the work done&lt;br&gt;SQLITE_BUSY → bounded retry (5 s)" vertex="1">
+                    <mxGeometry height="110" width="360" x="1300" y="890" as="geometry"/>
+                </mxCell>
+                <mxCell id="next3-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;NEXT — enabled by this build&lt;/b&gt; — every later repo lands on this surface: accessor · migration · contract tests" vertex="1">
+                    <mxGeometry height="200" width="1630" x="60" y="1080" as="geometry"/>
+                </mxCell>
+                <mxCell id="n3-postgres" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;Postgres backend&lt;/b&gt; (stretch)&lt;br&gt;DATABASE_URL wiring, when it lands" vertex="1">
+                    <mxGeometry height="80" width="300" x="100" y="1170" as="geometry"/>
+                </mxCell>
+                <mxCell id="n3-users" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;users repo&lt;/b&gt; (M1.1)&lt;br&gt;auth&#39;s own migration + contract tests" vertex="1">
+                    <mxGeometry height="80" width="300" x="440" y="1170" as="geometry"/>
+                </mxCell>
+                <mxCell id="n3-bus" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;bus on Postgres&lt;/b&gt; (M0.4)&lt;br&gt;LISTEN/NOTIFY reads the same URL" vertex="1">
+                    <mxGeometry height="80" width="300" x="780" y="1170" as="geometry"/>
+                </mxCell>
+                <mxCell id="n3-serve" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;serve opens it&lt;/b&gt; (M0.5)&lt;br&gt;/healthz · /readyz answer from Ping" vertex="1">
+                    <mxGeometry height="80" width="240" x="1120" y="1170" as="geometry"/>
+                </mxCell>
+                <mxCell id="n3-audit" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;audit repo&lt;/b&gt; (M2)&lt;br&gt;append-only log — its own migration" vertex="1">
+                    <mxGeometry height="80" width="260" x="1400" y="1170" as="geometry"/>
+                </mxCell>
+                <mxCell id="i1" edge="1" parent="1" source="st-store" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="st-meta" value="the only repo (M0.3)">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="i2" edge="1" parent="1" source="st-meta" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="st-notfound" value="Get on a missing key">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="i12" edge="1" parent="1" source="st-store" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="sq-open" value="implements">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="490" y="335"/>
+                            <mxPoint x="490" y="355"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="i3" edge="1" parent="1" source="st-meta" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="sq-meta" value="implemented on the meta table">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="470" y="475"/>
+                            <mxPoint x="470" y="625"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="i4" edge="1" parent="1" source="sq-open" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="sq-pragmas" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="i5" edge="1" parent="1" source="sq-open" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="sq-conn" value="serialized writes">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="i6" edge="1" parent="1" source="sq-conn" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="sq-meta" value="every statement">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="i18" edge="1" parent="1" source="sq-driver" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0;exitY=0.25;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" target="sq-open" value="registers the driver">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="810" y="472.5"/>
+                            <mxPoint x="810" y="435"/>
+                            <mxPoint x="730" y="435"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="i7" edge="1" parent="1" source="sq-pragmas" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="su-run" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="i8" edge="1" parent="1" source="su-run" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.24;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="su-fake" value="passes on the fake">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="i8b" edge="1" parent="1" source="su-run" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.77;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="su-probe" value="fails a broken one">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="i9" edge="1" parent="1" source="sq-open" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="z3-files" value="Open applies the pending ones — zoomed below">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="820" y="387.5"/>
+                            <mxPoint x="820" y="860"/>
+                            <mxPoint x="275" y="860"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="i9a" edge="1" parent="1" source="z3-files" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="z3-bookkeeping" value="own transaction">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="i9b" edge="1" parent="1" source="z3-bookkeeping" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="z3-guard" value="checksum verified">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="i9c" edge="1" parent="1" source="z3-guard" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="z3-lock" value="racing openers">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="i10" edge="1" parent="1" source="st-rule" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6699CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="n3-users" value="auth adds Users() the documented way">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="260" y="770"/>
+                            <mxPoint x="475" y="770"/>
+                            <mxPoint x="475" y="1050"/>
+                            <mxPoint x="590" y="1050"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="i11" edge="1" parent="1" source="sq-later" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6699CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="n3-postgres" value="its wiring lands with it">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="875" y="625"/>
+                            <mxPoint x="875" y="1050"/>
+                            <mxPoint x="250" y="1050"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="archcombined" name="Arch_Combined">
+        <mxGraphModel dx="2925" dy="601" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="1440" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="t2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=18;fontStyle=1;fontColor=#333333" value="ARCH_COMBINED — Devcules today and where it grows — one modular monolith, one trust split; blue = shipped (M0.1 CI/CD · M0.2 config + subcommands · M0.3 store), ghosts = planned (PLAN.md §9). This page gains a solid block every build." vertex="1">
+                    <mxGeometry height="60" width="1150" x="40" y="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3B3B3;fontSize=11;align=left;verticalAlign=top;spacing=8" value="&lt;b&gt;How to read&lt;/b&gt;&lt;br&gt;• blue = shipped in this build (M0.1 CI/CD · M0.2 config + subcommands · M0.3 store)&lt;br&gt;• grey dashed ghost = planned module (milestone tag)&lt;br&gt;• dashed + animated = live traffic (plays in the draw.io app)&lt;br&gt;• red vertical bar = trust split — real keys never cross it; enforced today by arch_test.go (M0.1)" vertex="1">
                     <mxGeometry height="130" width="470" x="1250" y="30" as="geometry"/>
                 </mxCell>
                 <mxCell id="phone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;phone / browser&lt;/b&gt;&lt;br&gt;PWA (M1.2)&lt;br&gt;approve risky steps from anywhere" vertex="1">
@@ -490,7 +674,7 @@
                 <mxCell id="m-config" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;config&lt;/b&gt; (M0.2 ✓)&lt;br&gt;env + file, validated at start" vertex="1">
                     <mxGeometry height="60" width="300" x="360" y="260" as="geometry"/>
                 </mxCell>
-                <mxCell id="m-store" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;store&lt;/b&gt; (M0.3)&lt;br&gt;Store interface · SQLite | Postgres" vertex="1">
+                <mxCell id="m-store" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;store&lt;/b&gt; (M0.3 ✓)&lt;br&gt;Store interface · SQLite · storetest" vertex="1">
                     <mxGeometry height="60" width="300" x="360" y="340" as="geometry"/>
                 </mxCell>
                 <mxCell id="m-bus" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;bus&lt;/b&gt; (M0.4)&lt;br&gt;Bus interface · memory | pg LISTEN/NOTIFY" vertex="1">
@@ -568,8 +752,8 @@
                 <mxCell id="mach-note" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;install&lt;/b&gt;: curl …/install/machine.sh · machine.ps1 — SHA-256 checked, served by serve (M4)" vertex="1">
                     <mxGeometry height="100" width="520" x="1160" y="840" as="geometry"/>
                 </mxCell>
-                <mxCell id="strip-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=13;fontColor=#333333" value="&lt;b&gt;SHIPPED — M0.1: CI/CD pipeline (Arch_1) · M0.2: config + subcommands (Arch_2)&lt;/b&gt; — these pipelines build and ship every future module above" vertex="1">
-                    <mxGeometry height="330" width="1710" x="40" y="1000" as="geometry"/>
+                <mxCell id="strip-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=13;fontColor=#333333" value="&lt;b&gt;SHIPPED — M0.1: CI/CD pipeline (Arch_1) · M0.2: config + subcommands (Arch_2) · M0.3: the store (Arch_3)&lt;/b&gt; — these pipelines build and ship every future module above" vertex="1">
+                    <mxGeometry height="430" width="1710" x="40" y="1000" as="geometry"/>
                 </mxCell>
                 <mxCell id="s-repo" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;GitHub repo&lt;/b&gt;&lt;br&gt;PR · main · tag v*" vertex="1">
                     <mxGeometry height="70" width="160" x="70" y="1070" as="geometry"/>
@@ -609,6 +793,33 @@
                 </mxCell>
                 <mxCell id="s2-relart" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11" value="&lt;b&gt;release identity&lt;/b&gt; — version · commit · date via -X ldflags" vertex="1">
                     <mxGeometry height="70" width="240" x="1150" y="1250" as="geometry"/>
+                </mxCell>
+                <mxCell id="s3-if" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;internal/store&lt;/b&gt; — Store · Ping · Close ·&lt;br&gt;SchemaVersion · Meta() · ErrNotFound" vertex="1">
+                    <mxGeometry height="70" width="280" x="70" y="1350" as="geometry"/>
+                </mxCell>
+                <mxCell id="s3-sqlite" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;internal/store/sqlite&lt;/b&gt; — WAL · FK · 5 s busy&lt;br&gt;one connection · pure-Go driver · no ORM" vertex="1">
+                    <mxGeometry height="70" width="330" x="380" y="1350" as="geometry"/>
+                </mxCell>
+                <mxCell id="s3-mig" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;migrations/*.sql&lt;/b&gt; — go:embed · one&lt;br&gt;transaction each · sha256 recorded" vertex="1">
+                    <mxGeometry height="70" width="250" x="740" y="1350" as="geometry"/>
+                </mxCell>
+                <mxCell id="s3-suite" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;storetest&lt;/b&gt; — shared contract suite,&lt;br&gt;proven on a fake + a broken probe" vertex="1">
+                    <mxGeometry height="70" width="250" x="1020" y="1350" as="geometry"/>
+                </mxCell>
+                <mxCell id="s3-doc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;docs/store.md&lt;/b&gt; — shape · migrations ·&lt;br&gt;how a later module adds a repo" vertex="1">
+                    <mxGeometry height="70" width="260" x="1300" y="1350" as="geometry"/>
+                </mxCell>
+                <mxCell id="s20" edge="1" parent="1" source="s3-if" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s3-sqlite" value="implements">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s21" edge="1" parent="1" source="s3-sqlite" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s3-mig" value="applies">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s22" edge="1" parent="1" source="s3-mig" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s3-suite" value="contract-tested">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s23" edge="1" parent="1" source="s3-suite" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s3-doc" value="documents">
+                    <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="s1" edge="1" parent="1" source="s-repo" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s-ci" value="PR + push">
                     <mxGeometry relative="1" as="geometry"/>

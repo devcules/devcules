@@ -3,8 +3,12 @@ package main
 import (
 	"fmt"
 	"io"
+	"net"
 	"os"
+	"os/signal"
+	"syscall"
 
+	"github.com/devcules/devcules/internal/bus/memory"
 	"github.com/devcules/devcules/internal/config"
 )
 
@@ -53,6 +57,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return exitError
 	}
 
+	// Blocking roles wait on these; created once per invocation.
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(sigs)
+
 	if name == "health" {
 		return runHealth(cfg, stdout, stderr)
 	}
@@ -66,7 +75,25 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, err.Error())
 		return exitError
 	}
+	// serve binds the listener and runner idles for the M1.3 link, so
+	// both block: tests drive runServe/runRunner directly with fakes.
+	if role == "serve" || role == "runner" {
+		return runBlockingRole(cfg, role, stdout, stderr, sigs)
+	}
 	return runRole(role, cfg, stdout)
+}
+
+// runBlockingRole starts serve or runner for real.
+func runBlockingRole(cfg config.Config, role string, stdout, stderr io.Writer, sigs chan os.Signal) int {
+	if role == "runner" {
+		return runRunner(cfg, stdout, stderr, sigs)
+	}
+	ln, err := net.Listen("tcp", cfg.Listen)
+	if err != nil {
+		fmt.Fprintf(stderr, "cannot listen on %s: %s\n", cfg.Listen, err)
+		return exitError
+	}
+	return runServe(cfg, stdout, stderr, ln, sigs, openSQLite, memory.New())
 }
 
 // usage explains the invocation on stderr. It always exits non-zero, so

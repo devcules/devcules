@@ -10,8 +10,9 @@ Tailscale.
 
 ## Quick start (coming soon)
 
-Devcules is being built module by module, starting with the CI/CD
-pipeline (M0.1). There is no runnable binary yet.
+Devcules is being built module by module: the CI/CD pipeline (M0.1)
+plus config and subcommands (M0.2). The binary builds but runs nothing
+yet: `devcules version` works and every other subcommand is a stub.
 
 The front door will be a single command:
 

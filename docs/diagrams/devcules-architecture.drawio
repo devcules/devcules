@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e">
     <diagram id="arch1" name="Arch_1">
-        <mxGraphModel dx="2925" dy="601" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="1340" math="0" shadow="0">
+        <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1750" pageHeight="1340" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -58,13 +58,13 @@
                 <mxCell id="rel-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;release.yml — on: push tag v*&lt;/b&gt;&lt;br&gt;permissions: contents:read (job: contents:write · packages:write) · never cancels mid-publish" vertex="1">
                     <mxGeometry height="330" width="320" x="1020" y="620" as="geometry"/>
                 </mxCell>
-                <mxCell id="rel-steps" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11" value="&lt;b&gt;release&lt;/b&gt; (ubuntu-latest)&lt;br&gt;&lt;br&gt;1 · notes: pull CHANGELOG.md §tag&lt;br&gt;(placeholder if the section is missing)&lt;br&gt;2 · gate: cmd/devcules exists?&lt;br&gt;&lt;font color=&#39;#CC6600&#39;&gt;&lt;b&gt;SKIP → M0.2&lt;/b&gt;&lt;/font&gt; — bins=false today&lt;br&gt;3 · GoReleaser: linux · darwin · windows · amd64 + arm64 + checksums.txt&lt;br&gt;4 · gh release create + assets&lt;br&gt;5 · gate: Dockerfile? &lt;font color=&#39;#CC6600&#39;&gt;&lt;b&gt;SKIP → M0.5&lt;/b&gt;&lt;/font&gt;&lt;br&gt;6 · images :tag · :latest (unsigned)" vertex="1">
+                <mxCell id="rel-steps" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11" value="&lt;b&gt;release&lt;/b&gt; (ubuntu-latest)&lt;br&gt;&lt;br&gt;1 · notes: pull CHANGELOG.md §tag&lt;br&gt;(placeholder if the section is missing)&lt;br&gt;2 · gate: cmd/devcules exists? ✓ (since M0.2)&lt;br&gt;3 · GoReleaser: linux · darwin · windows · amd64 + arm64 + checksums.txt&lt;br&gt;4 · gh release create + assets&lt;br&gt;5 · gate: Dockerfile? &lt;font color=&#39;#CC6600&#39;&gt;&lt;b&gt;SKIP → M0.5&lt;/b&gt;&lt;/font&gt;&lt;br&gt;6 · images :tag · :latest (unsigned)" vertex="1">
                     <mxGeometry height="240" width="280" x="1040" y="690" as="geometry"/>
                 </mxCell>
                 <mxCell id="ghcr" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11" value="&lt;b&gt;GHCR&lt;/b&gt; — ghcr.io/devcules/devcules&lt;br&gt;&lt;br&gt;:edge · :sha-⟨SHA⟩ ← cd.yml (main) + SBOM + cosign&lt;br&gt;:&amp;lt;tag&amp;gt; · :latest ← release.yml (unsigned in this build)&lt;br&gt;all of it appears with the Dockerfile, M0.5" vertex="1">
                     <mxGeometry height="140" width="300" x="1400" y="180" as="geometry"/>
                 </mxCell>
-                <mxCell id="relart" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11" value="&lt;b&gt;GitHub Release&lt;/b&gt;&lt;br&gt;&lt;br&gt;tar.gz / zip per OS + arch · checksums.txt&lt;br&gt;notes from CHANGELOG.md&lt;br&gt;(binaries appear with cmd/devcules, M0.2)" vertex="1">
+                <mxCell id="relart" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11" value="&lt;b&gt;GitHub Release&lt;/b&gt;&lt;br&gt;&lt;br&gt;tar.gz / zip per OS + arch · checksums.txt&lt;br&gt;notes from CHANGELOG.md&lt;br&gt;(binaries real since M0.2 ✓)" vertex="1">
                     <mxGeometry height="140" width="300" x="1400" y="380" as="geometry"/>
                 </mxCell>
                 <mxCell id="zoom-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;Zoom — arch_test.go · TestModuleBoundaries (shipped in this build)&lt;/b&gt; — the future architecture&#39;s rules, locked in before any feature code exists" vertex="1">
@@ -278,15 +278,204 @@
             </root>
         </mxGraphModel>
     </diagram>
+    <diagram id="arch2" name="Arch_2">
+        <mxGraphModel dx="2562" dy="1310" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="1340" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="t3" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=18;fontStyle=1;fontColor=#333333" value="ARCH_2 — Build 2 (M0.2): config + cmd/devcules subcommands — the binary builds and validates; it runs nothing yet (roles are stubs that report what they would start)" vertex="1">
+                    <mxGeometry height="60" width="1150" x="40" y="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3B3B3;fontSize=11;align=left;verticalAlign=top;spacing=8" value="&lt;b&gt;How to read&lt;/b&gt;&lt;br&gt;• blue = shipped in this build (M0.2)&lt;br&gt;• solid grey = static relation / data flow&lt;br&gt;• grey dashed ghost = next milestone&lt;br&gt;• exit codes: 0 done · 1 config/run failed · 2 wrong invocation" vertex="1">
+                    <mxGeometry height="120" width="330" x="1380" y="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="bin-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;one binary — devcules&lt;/b&gt;&lt;br&gt;one role per invocation · Go 1.27 · version/commit/date via -ldflags" vertex="1">
+                    <mxGeometry height="560" width="340" x="60" y="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="bin" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12" value="&lt;b&gt;cmd/devcules&lt;/b&gt;&lt;br&gt;run(args, stdout, stderr) → exit code&lt;br&gt;writers injected, so tests need no subprocess" vertex="1">
+                    <mxGeometry height="90" width="300" x="80" y="290" as="geometry"/>
+                </mxCell>
+                <mxCell id="sub-serve" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;serve&lt;/b&gt;&lt;br&gt;control plane" vertex="1">
+                    <mxGeometry height="60" width="140" x="80" y="420" as="geometry"/>
+                </mxCell>
+                <mxCell id="sub-runner" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;runner&lt;/b&gt;&lt;br&gt;agent side" vertex="1">
+                    <mxGeometry height="60" width="140" x="240" y="420" as="geometry"/>
+                </mxCell>
+                <mxCell id="sub-machine" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;machine&lt;/b&gt;&lt;br&gt;helper" vertex="1">
+                    <mxGeometry height="60" width="140" x="80" y="500" as="geometry"/>
+                </mxCell>
+                <mxCell id="sub-hook" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;hook&lt;/b&gt;&lt;br&gt;approval hook" vertex="1">
+                    <mxGeometry height="60" width="140" x="240" y="500" as="geometry"/>
+                </mxCell>
+                <mxCell id="sub-health" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;health&lt;/b&gt;&lt;br&gt;GET /healthz" vertex="1">
+                    <mxGeometry height="60" width="140" x="80" y="580" as="geometry"/>
+                </mxCell>
+                <mxCell id="sub-version" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;version&lt;/b&gt;&lt;br&gt;build identity" vertex="1">
+                    <mxGeometry height="60" width="140" x="240" y="580" as="geometry"/>
+                </mxCell>
+                <mxCell id="role-env" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;fontSize=11" value="&lt;b&gt;DEVCULES_ROLE&lt;/b&gt; — subcommand wins · with no subcommand the env decides (default serve)" vertex="1">
+                    <mxGeometry height="70" width="300" x="80" y="670" as="geometry"/>
+                </mxCell>
+                <mxCell id="cfg-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;internal/config — config.Load()&lt;/b&gt;&lt;br&gt;env + *_FILE · validated at start · one error lists every problem" vertex="1">
+                    <mxGeometry height="560" width="620" x="460" y="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="cfg-parse" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;fontSize=11" value="&lt;b&gt;read env + defaults&lt;/b&gt;&lt;br&gt;unset → default (LISTEN 127.0.0.1:7659 · ROLE serve ·&lt;br&gt;DATA_DIR container-aware · WORKSPACE /workspace)" vertex="1">
+                    <mxGeometry height="110" width="270" x="480" y="290" as="geometry"/>
+                </mxCell>
+                <mxCell id="cfg-secrets" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;fontSize=11" value="&lt;b&gt;secrets: VAR or VAR_FILE&lt;/b&gt;&lt;br&gt;direct wins over *_FILE (file ignored&lt;br&gt;entirely — even missing)&lt;br&gt;VAULT_KEY required · RUNNER_TOKEN optional" vertex="1">
+                    <mxGeometry height="110" width="270" x="790" y="290" as="geometry"/>
+                </mxCell>
+                <mxCell id="cfg-checks" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11" value="&lt;b&gt;each value checked&lt;/b&gt;&lt;br&gt;ROLE ∈ {serve, runner, machine}&lt;br&gt;LISTEN host:port 1-65535&lt;br&gt;URLs http(s) with host&lt;br&gt;VAULT_KEY base64 → 32 bytes&lt;br&gt;tokens: no whitespace" vertex="1">
+                    <mxGeometry height="150" width="270" x="480" y="440" as="geometry"/>
+                </mxCell>
+                <mxCell id="cfg-error" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11" value="&lt;b&gt;all problems, one error&lt;/b&gt;&lt;br&gt;&quot;invalid config:\n  - …\n  - …&quot;&lt;br&gt;secret values never in errors&lt;br&gt;exit 1 on the first run, not&lt;br&gt;the first bad var" vertex="1">
+                    <mxGeometry height="150" width="270" x="790" y="440" as="geometry"/>
+                </mxCell>
+                <mxCell id="cfg-doc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;docs/config.md&lt;/b&gt;&lt;br&gt;every var · default · meaning&lt;br&gt;both-set rule documented" vertex="1">
+                    <mxGeometry height="110" width="270" x="480" y="620" as="geometry"/>
+                </mxCell>
+                <mxCell id="cfg-tests" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;table tests&lt;/b&gt;&lt;br&gt;every env var + bad-config&lt;br&gt;error messages asserted&lt;br&gt;(M0.2 test gate)" vertex="1">
+                    <mxGeometry height="110" width="270" x="790" y="620" as="geometry"/>
+                </mxCell>
+                <mxCell id="run-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;what a run does (M0.2)&lt;/b&gt;&lt;br&gt;validate → report → exit · nothing starts" vertex="1">
+                    <mxGeometry height="560" width="550" x="1140" y="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="run-version" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12" value="&lt;b&gt;version&lt;/b&gt;&lt;br&gt;no config needed — works&lt;br&gt;even when setup is broken" vertex="1">
+                    <mxGeometry height="90" width="240" x="1160" y="290" as="geometry"/>
+                </mxCell>
+                <mxCell id="run-role" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;serve · runner · machine · hook&lt;/b&gt;&lt;br&gt;&quot;NAME: listening on LISTEN,&lt;br&gt;data in DATA_DIR&quot; + stub note" vertex="1">
+                    <mxGeometry height="90" width="240" x="1430" y="290" as="geometry"/>
+                </mxCell>
+                <mxCell id="run-health" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;health&lt;/b&gt;&lt;br&gt;GET http://LISTEN/healthz (5s)&lt;br&gt;2xx → 0 · else exit 1&lt;br&gt;endpoint itself: &lt;font color=&#39;#CC6600&#39;&gt;&lt;b&gt;SKIP → M0.5&lt;/b&gt;&lt;/font&gt;" vertex="1">
+                    <mxGeometry height="100" width="240" x="1160" y="410" as="geometry"/>
+                </mxCell>
+                <mxCell id="run-badcfg" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;bad config&lt;/b&gt;&lt;br&gt;error to stderr, exit 1&lt;br&gt;usage only for wrong invocation&lt;br&gt;(exit 2)" vertex="1">
+                    <mxGeometry height="100" width="240" x="1430" y="410" as="geometry"/>
+                </mxCell>
+                <mxCell id="run-note" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82B366;fontSize=10;fontColor=#333333" value="&lt;b&gt;Why this ships in build 2&lt;/b&gt; — the trust split&#39;s first real seam: every role reads the same validated config, and the vault key is read only as bytes + a path — config never decodes, logs or passes it around; internal/vault does that in M2." vertex="1">
+                    <mxGeometry height="110" width="510" x="1160" y="540" as="geometry"/>
+                </mxCell>
+                <mxCell id="run-ldflags" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;fontSize=11" value="&lt;b&gt;release wiring&lt;/b&gt; — .goreleaser.yaml injects version · commit · date via -X flags; local builds say dev/none/unknown" vertex="1">
+                    <mxGeometry height="70" width="510" x="1160" y="670" as="geometry"/>
+                </mxCell>
+                <mxCell id="zoom2-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;Zoom — the both-set rule and container-aware defaults&lt;/b&gt; — the two behaviours most likely to surprise, locked in by tests" vertex="1">
+                    <mxGeometry height="240" width="1630" x="60" y="800" as="geometry"/>
+                </mxCell>
+                <mxCell id="z2-bothset" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11" value="&lt;b&gt;DEVCULES_VAULT_KEY vs DEVCULES_VAULT_KEY_FILE&lt;/b&gt;&lt;br&gt;direct set → file ignored entirely (even missing/unreadable)&lt;br&gt;only direct unset → file read (trimmed) · neither + required → one problem" vertex="1">
+                    <mxGeometry height="110" width="500" x="100" y="890" as="geometry"/>
+                </mxCell>
+                <mxCell id="z2-datadir" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11" value="&lt;b&gt;DEVCULES_DATA_DIR&lt;/b&gt;&lt;br&gt;unset → /data inside a container (marker file + PID 1 cgroup)&lt;br&gt;else ~/.local/share/devcules · set → must be absolute" vertex="1">
+                    <mxGeometry height="110" width="480" x="660" y="890" as="geometry"/>
+                </mxCell>
+                <mxCell id="z2-out" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;fontSize=11" value="&lt;b&gt;one error, all problems&lt;/b&gt;&lt;br&gt;invalid config:&lt;br&gt;&amp;nbsp;&amp;nbsp;- DEVCULES_ROLE invalid: &quot;root&quot; (want serve, runner or machine)&lt;br&gt;&amp;nbsp;&amp;nbsp;- DEVCULES_LISTEN invalid: …" vertex="1">
+                    <mxGeometry height="110" width="460" x="1200" y="890" as="geometry"/>
+                </mxCell>
+                <mxCell id="next-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;NEXT — enabled by this build&lt;/b&gt; — every later module parses the same config and grows one of these ghost boxes" vertex="1">
+                    <mxGeometry height="200" width="1630" x="60" y="1080" as="geometry"/>
+                </mxCell>
+                <mxCell id="n-store" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;store&lt;/b&gt; (M0.3)&lt;br&gt;SQLite at DATA_DIR · postgres:// at DATABASE_URL" vertex="1">
+                    <mxGeometry height="80" width="300" x="100" y="1170" as="geometry"/>
+                </mxCell>
+                <mxCell id="n-healthz" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;/healthz · /readyz&lt;/b&gt; (M0.5)&lt;br&gt;the endpoint devcules health probes" vertex="1">
+                    <mxGeometry height="80" width="300" x="440" y="1170" as="geometry"/>
+                </mxCell>
+                <mxCell id="n-serve" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;the real serve&lt;/b&gt; (M0.2+ stub → M0.5 up)&lt;br&gt;same binary, same config" vertex="1">
+                    <mxGeometry height="80" width="300" x="780" y="1170" as="geometry"/>
+                </mxCell>
+                <mxCell id="n-vault" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;vault decode&lt;/b&gt; (M2)&lt;br&gt;the key bytes config holds" vertex="1">
+                    <mxGeometry height="80" width="240" x="1120" y="1170" as="geometry"/>
+                </mxCell>
+                <mxCell id="n-gorel" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;releases carry identity&lt;/b&gt;&lt;br&gt;version · commit · date in every release tarball" vertex="1">
+                    <mxGeometry height="80" width="260" x="1400" y="1170" as="geometry"/>
+                </mxCell>
+                <mxCell id="a1" edge="1" parent="1" source="bin" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="cfg-parse" value="config.Load() before any role">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="230" y="250"/>
+                            <mxPoint x="615" y="250"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="a2" edge="1" parent="1" source="cfg-parse" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="cfg-checks" value="each var">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a3" edge="1" parent="1" source="cfg-secrets" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" target="cfg-checks" value="after the both-set rule">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="857.5" y="420"/>
+                            <mxPoint x="547.5" y="420"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="a4" edge="1" parent="1" source="cfg-checks" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="cfg-error" value="problems accumulate — not fail-fast">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a5" edge="1" parent="1" source="bin" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="sub-serve" value="serve · runner · machine · hook · health · version">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="230" y="400"/>
+                            <mxPoint x="150" y="400"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="a8" edge="1" parent="1" source="bin" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="role-env" value="no subcommand? DEVCULES_ROLE decides (default serve)">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="395" y="335"/>
+                            <mxPoint x="395" y="705"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="a10" edge="1" parent="1" source="cfg-checks" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.75;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="run-role" value="validated cfg → the role reports what it would start">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="682.5" y="410"/>
+                            <mxPoint x="1120" y="410"/>
+                            <mxPoint x="1120" y="260"/>
+                            <mxPoint x="1550" y="260"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="a12" edge="1" parent="1" source="cfg-error" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#CC0000;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="run-badcfg" value="invalid config → exit 1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1100" y="515"/>
+                            <mxPoint x="1100" y="390"/>
+                            <mxPoint x="1550" y="390"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="a14" edge="1" parent="1" source="cfg-tests" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="z2-bothset" value="both-set rule table-tested">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="925" y="845"/>
+                            <mxPoint x="350" y="845"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="a11" edge="1" parent="1" source="run-health" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6699CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="n-healthz" value="probes the future endpoint">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1280" y="385"/>
+                            <mxPoint x="1690" y="385"/>
+                            <mxPoint x="1690" y="1050"/>
+                            <mxPoint x="590" y="1050"/>
+                            <mxPoint x="590" y="1170"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
     <diagram id="archcombined" name="Arch_Combined">
         <mxGraphModel dx="2925" dy="601" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="1340" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
-                <mxCell id="t2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=18;fontStyle=1;fontColor=#333333" value="ARCH_COMBINED — Devcules today and where it grows — one modular monolith, one trust split; blue strip = shipped (M0.1), ghosts = planned (PLAN.md §9). This page gains a solid block every build." vertex="1">
+                <mxCell id="t2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=18;fontStyle=1;fontColor=#333333" value="ARCH_COMBINED — Devcules today and where it grows — one modular monolith, one trust split; blue = shipped (M0.1 CI/CD · M0.2 config + subcommands), ghosts = planned (PLAN.md §9). This page gains a solid block every build." vertex="1">
                     <mxGeometry height="60" width="1150" x="40" y="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="legend2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3B3B3;fontSize=11;align=left;verticalAlign=top;spacing=8" value="&lt;b&gt;How to read&lt;/b&gt;&lt;br&gt;• blue strip at the bottom = shipped in this build (M0.1)&lt;br&gt;• grey dashed ghost = planned module (milestone tag)&lt;br&gt;• dashed + animated = live traffic (plays in the draw.io app)&lt;br&gt;• red vertical bar = trust split — real keys never cross it; enforced today by arch_test.go (M0.1)" vertex="1">
+                <mxCell id="legend2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3B3B3;fontSize=11;align=left;verticalAlign=top;spacing=8" value="&lt;b&gt;How to read&lt;/b&gt;&lt;br&gt;• blue = shipped in this build (M0.1 CI/CD pipeline · M0.2 config + subcommands)&lt;br&gt;• grey dashed ghost = planned module (milestone tag)&lt;br&gt;• dashed + animated = live traffic (plays in the draw.io app)&lt;br&gt;• red vertical bar = trust split — real keys never cross it; enforced today by arch_test.go (M0.1)" vertex="1">
                     <mxGeometry height="130" width="470" x="1250" y="30" as="geometry"/>
                 </mxCell>
                 <mxCell id="phone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;phone / browser&lt;/b&gt;&lt;br&gt;PWA (M1.2)&lt;br&gt;approve risky steps from anywhere" vertex="1">
@@ -298,7 +487,7 @@
                 <mxCell id="serve-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#FBFBFB;strokeColor=#CCCCCC;dashed=1;fontColor=#777777;fontSize=13" value="&lt;b&gt;devcules serve — control plane (trusted) · M0.2+&lt;/b&gt;&lt;br&gt;one codebase · one binary · one image (PLAN.md §2)" vertex="1">
                     <mxGeometry height="780" width="730" x="320" y="180" as="geometry"/>
                 </mxCell>
-                <mxCell id="m-config" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;config&lt;/b&gt; (M0.2)&lt;br&gt;env + file, validated at start" vertex="1">
+                <mxCell id="m-config" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;config&lt;/b&gt; (M0.2 ✓)&lt;br&gt;env + file, validated at start" vertex="1">
                     <mxGeometry height="60" width="300" x="360" y="260" as="geometry"/>
                 </mxCell>
                 <mxCell id="m-store" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;store&lt;/b&gt; (M0.3)&lt;br&gt;Store interface · SQLite | Postgres" vertex="1">
@@ -379,32 +568,47 @@
                 <mxCell id="mach-note" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;install&lt;/b&gt;: curl …/install/machine.sh · machine.ps1 — SHA-256 checked, served by serve (M4)" vertex="1">
                     <mxGeometry height="100" width="520" x="1160" y="840" as="geometry"/>
                 </mxCell>
-                <mxCell id="strip-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=13;fontColor=#333333" value="&lt;b&gt;SHIPPED — M0.1: CI/CD pipeline (detail on page Arch_1)&lt;/b&gt; — these pipelines build and ship every future module above" vertex="1">
-                    <mxGeometry height="260" width="1710" x="40" y="1040" as="geometry"/>
+                <mxCell id="strip-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=13;fontColor=#333333" value="&lt;b&gt;SHIPPED — M0.1: CI/CD pipeline (Arch_1) · M0.2: config + subcommands (Arch_2)&lt;/b&gt; — these pipelines build and ship every future module above" vertex="1">
+                    <mxGeometry height="330" width="1710" x="40" y="1000" as="geometry"/>
                 </mxCell>
                 <mxCell id="s-repo" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;GitHub repo&lt;/b&gt;&lt;br&gt;PR · main · tag v*" vertex="1">
-                    <mxGeometry height="70" width="160" x="70" y="1110" as="geometry"/>
+                    <mxGeometry height="70" width="160" x="70" y="1070" as="geometry"/>
                 </mxCell>
                 <mxCell id="s-ci" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;ci.yml&lt;/b&gt; — lint · arch · unit · integration · security&lt;br&gt;(pinned actions · cancel-in-progress)" vertex="1">
-                    <mxGeometry height="70" width="330" x="280" y="1110" as="geometry"/>
+                    <mxGeometry height="70" width="330" x="280" y="1070" as="geometry"/>
                 </mxCell>
                 <mxCell id="s-main" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11" value="&lt;b&gt;main&lt;/b&gt;&lt;br&gt;branch protection" vertex="1">
-                    <mxGeometry height="70" width="140" x="660" y="1110" as="geometry"/>
+                    <mxGeometry height="70" width="140" x="660" y="1070" as="geometry"/>
                 </mxCell>
                 <mxCell id="s-cd" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=11" value="&lt;b&gt;cd.yml&lt;/b&gt; — image → GHCR&lt;br&gt;&lt;font color=&#39;#CC6600&#39;&gt;&lt;b&gt;SKIP → Dockerfile M0.5&lt;/b&gt;&lt;/font&gt;" vertex="1">
-                    <mxGeometry height="70" width="240" x="850" y="1110" as="geometry"/>
+                    <mxGeometry height="70" width="240" x="850" y="1070" as="geometry"/>
                 </mxCell>
                 <mxCell id="s-ghcr" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11" value="&lt;b&gt;GHCR&lt;/b&gt;&lt;br&gt;:edge · :sha" vertex="1">
-                    <mxGeometry height="70" width="150" x="1140" y="1110" as="geometry"/>
+                    <mxGeometry height="70" width="150" x="1140" y="1070" as="geometry"/>
                 </mxCell>
                 <mxCell id="s-tag" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12" value="&lt;b&gt;tag v*&lt;/b&gt;&lt;br&gt;cut from main" vertex="1">
-                    <mxGeometry height="70" width="140" x="660" y="1210" as="geometry"/>
+                    <mxGeometry height="70" width="140" x="660" y="1160" as="geometry"/>
                 </mxCell>
-                <mxCell id="s-rel" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11" value="&lt;b&gt;release.yml&lt;/b&gt; — GoReleaser + images&lt;br&gt;&lt;font color=&#39;#CC6600&#39;&gt;&lt;b&gt;SKIP → cmd M0.2 · Dockerfile M0.5&lt;/b&gt;&lt;/font&gt;" vertex="1">
-                    <mxGeometry height="70" width="240" x="850" y="1210" as="geometry"/>
+                <mxCell id="s-rel" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11" value="&lt;b&gt;release.yml&lt;/b&gt; — GoReleaser + images&lt;br&gt;&lt;font color=&#39;#CC6600&#39;&gt;&lt;b&gt;SKIP → Dockerfile M0.5&lt;/b&gt;&lt;/font&gt;" vertex="1">
+                    <mxGeometry height="70" width="240" x="850" y="1160" as="geometry"/>
                 </mxCell>
                 <mxCell id="s-relart" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11" value="&lt;b&gt;GitHub Release&lt;/b&gt;&lt;br&gt;binaries · checksums · notes" vertex="1">
-                    <mxGeometry height="70" width="240" x="1140" y="1210" as="geometry"/>
+                    <mxGeometry height="70" width="240" x="1140" y="1160" as="geometry"/>
+                </mxCell>
+                <mxCell id="s2-bin" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;devcules&lt;/b&gt; binary&lt;br&gt;linux · darwin · windows · amd64 + arm64" vertex="1">
+                    <mxGeometry height="70" width="250" x="70" y="1250" as="geometry"/>
+                </mxCell>
+                <mxCell id="s2-cmd" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;cmd/devcules&lt;/b&gt; — serve · runner · machine · hook · health · version&lt;br&gt;roles are stubs: validate + report, run nothing" vertex="1">
+                    <mxGeometry height="70" width="300" x="340" y="1250" as="geometry"/>
+                </mxCell>
+                <mxCell id="s2-conf" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;internal/config&lt;/b&gt;&lt;br&gt;every env var table-tested · one error lists all problems" vertex="1">
+                    <mxGeometry height="70" width="300" x="660" y="1250" as="geometry"/>
+                </mxCell>
+                <mxCell id="s2-doc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;docs/config.md&lt;/b&gt;&lt;br&gt;vars · defaults · both-set rule" vertex="1">
+                    <mxGeometry height="70" width="150" x="980" y="1250" as="geometry"/>
+                </mxCell>
+                <mxCell id="s2-relart" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11" value="&lt;b&gt;release identity&lt;/b&gt; — version · commit · date via -X ldflags" vertex="1">
+                    <mxGeometry height="70" width="240" x="1150" y="1250" as="geometry"/>
                 </mxCell>
                 <mxCell id="s1" edge="1" parent="1" source="s-repo" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s-ci" value="PR + push">
                     <mxGeometry relative="1" as="geometry"/>
@@ -430,10 +634,29 @@
                 <mxCell id="s8" edge="1" parent="1" source="s-rel" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="s-ghcr" value=":tag :latest">
                     <mxGeometry relative="1" as="geometry">
                         <Array as="points">
-                            <mxPoint x="970" y="1195"/>
-                            <mxPoint x="1215" y="1195"/>
+                            <mxPoint x="970" y="1155"/>
+                            <mxPoint x="1215" y="1155"/>
                         </Array>
                     </mxGeometry>
+                </mxCell>
+                <mxCell id="s9" edge="1" parent="1" source="s-relart" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s2-bin" value="binaries land in the release">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1120" y="1195"/>
+                            <mxPoint x="1120" y="1240"/>
+                            <mxPoint x="30" y="1240"/>
+                            <mxPoint x="30" y="1285"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="s10" edge="1" parent="1" source="s2-bin" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s2-cmd" value="go build">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s11" edge="1" parent="1" source="s2-cmd" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.35;exitDx=0;exitDy=0;entryX=0;entryY=0.35;entryDx=0;entryDy=0;" target="s2-conf" value="config.Load() validates all env vars">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s12" edge="1" parent="1" source="s2-conf" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s2-doc" value="documents">
+                    <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="f1" edge="1" parent="1" source="phone" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6699CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.35;entryDx=0;entryDy=0;" target="serve-zone" value="HTTPS over Tailscale (M1.2)">
                     <mxGeometry relative="1" as="geometry">

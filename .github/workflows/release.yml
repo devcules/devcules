@@ -1,0 +1,114 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+# Never cancel a release halfway: a cancelled run could leave a release
+# half-published.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Creating the GitHub release and pushing the images need these two
+    # and nothing else.
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Release notes from CHANGELOG.md
+        id: notes
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          notes="$RUNNER_TEMP/NOTES.md"
+          if awk -v tag="$tag" '
+            $0 == "## " tag { found = 1; print; next }
+            found && /^## / { exit }
+            found { print }
+            END { exit !found }' CHANGELOG.md > "$notes"; then
+            echo "Release notes taken from CHANGELOG.md ($tag)."
+          else
+            printf 'Release %s.\n\nSee CHANGELOG.md for details.\n' "$tag" > "$notes"
+            echo "SKIP: no CHANGELOG.md section for $tag yet; using a placeholder."
+          fi
+          echo "path=$notes" >> "$GITHUB_OUTPUT"
+      - name: Check for binaries to build
+        id: bins
+        run: |
+          if [ ! -d cmd/devcules ]; then
+            echo "SKIP: cmd/devcules does not exist yet (lands in M0.2); no binaries to build."
+            echo "built=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "built=true" >> "$GITHUB_OUTPUT"
+      - name: GoReleaser
+        if: steps.bins.outputs.built == 'true'
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
+        with:
+          version: v2.19.0
+          args: release --clean --skip=publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create GitHub release
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          shopt -s nullglob
+          assets=(dist/*.tar.gz dist/*.zip dist/checksums.txt)
+          if [ ${#assets[@]} -eq 0 ]; then
+            echo "SKIP: no build artifacts; publishing notes only."
+            gh release create "$tag" --title "$tag" --notes-file "${{ steps.notes.outputs.path }}"
+          else
+            gh release create "$tag" --title "$tag" --notes-file "${{ steps.notes.outputs.path }}" "${assets[@]}"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check for a Dockerfile
+        id: dockergate
+        run: |
+          if [ ! -f Dockerfile ]; then
+            echo "SKIP: no Dockerfile yet (the image lands with M0.5); no release images to publish."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "build=true" >> "$GITHUB_OUTPUT"
+      - name: Set up QEMU
+        if: steps.dockergate.outputs.build == 'true'
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - name: Set up Buildx
+        if: steps.dockergate.outputs.build == 'true'
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Log in to GHCR
+        if: steps.dockergate.outputs.build == 'true'
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish release images
+        if: steps.dockergate.outputs.build == 'true'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/devcules/devcules:${{ github.ref_name }}
+            ghcr.io/devcules/devcules:latest

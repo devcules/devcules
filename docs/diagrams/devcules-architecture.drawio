@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e">
     <diagram id="arch1" name="Arch_1">
-        <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1750" pageHeight="1340" math="0" shadow="0">
+        <mxGraphModel dx="2925" dy="601" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="1340" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -651,15 +651,186 @@
             </root>
         </mxGraphModel>
     </diagram>
-    <diagram id="archcombined" name="Arch_Combined">
-        <mxGraphModel dx="2925" dy="601" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="1440" math="0" shadow="0">
+    <diagram id="arch4" name="Arch_4">
+        <mxGraphModel dx="2562" dy="1310" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="1340" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
-                <mxCell id="t2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=18;fontStyle=1;fontColor=#333333" value="ARCH_COMBINED — Devcules today and where it grows — one modular monolith, one trust split; blue = shipped (M0.1 CI/CD · M0.2 config + subcommands · M0.3 store), ghosts = planned (PLAN.md §9). This page gains a solid block every build." vertex="1">
+                <mxCell id="t5" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=18;fontStyle=1;fontColor=#333333" value="ARCH_4 — Build 4 (M0.4): the event bus — internal/bus (the surface) · internal/bus/memory (the backend) · bustest (the contract suite). Nothing publishes yet: serve wires it in M0.5." vertex="1">
                     <mxGeometry height="60" width="1150" x="40" y="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="legend2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3B3B3;fontSize=11;align=left;verticalAlign=top;spacing=8" value="&lt;b&gt;How to read&lt;/b&gt;&lt;br&gt;• blue = shipped in this build (M0.1 CI/CD · M0.2 config + subcommands · M0.3 store)&lt;br&gt;• grey dashed ghost = planned module (milestone tag)&lt;br&gt;• dashed + animated = live traffic (plays in the draw.io app)&lt;br&gt;• red vertical bar = trust split — real keys never cross it; enforced today by arch_test.go (M0.1)" vertex="1">
+                <mxCell id="legend5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3B3B3;fontSize=11;align=left;verticalAlign=top;spacing=8" value="&lt;b&gt;How to read&lt;/b&gt;&lt;br&gt;• blue = shipped in this build (M0.4)&lt;br&gt;• solid grey = static relation&lt;br&gt;• grey dashed ghost = later module&lt;br&gt;• green = the deliberate contract, not a limitation" vertex="1">
+                    <mxGeometry height="120" width="330" x="1380" y="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="busif-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;internal/bus — the surface&lt;/b&gt;&lt;br&gt;three methods, two sentinels — the whole in-process messaging a role may use" vertex="1">
+                    <mxGeometry height="560" width="400" x="60" y="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="bu-if" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12" value="&lt;b&gt;Bus&lt;/b&gt; — the whole surface a role needs&lt;br&gt;Publish · Subscribe · Close — idempotent&lt;br&gt;transient events, nothing else" vertex="1">
+                    <mxGeometry height="90" width="360" x="80" y="290" as="geometry"/>
+                </mxCell>
+                <mxCell id="bu-pub" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;Publish — at-most-once, never blocks&lt;/b&gt;&lt;br&gt;delivers to every current subscriber of the topic&lt;br&gt;in publish order per subscriber · full buffer&lt;br&gt;→ drops for that subscriber only" vertex="1">
+                    <mxGeometry height="110" width="360" x="80" y="420" as="geometry"/>
+                </mxCell>
+                <mxCell id="bu-sent" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;ErrClosed · ErrBadTopic&lt;/b&gt; — typed errors&lt;br&gt;use after Close · empty topic —&lt;br&gt;wrapped with %w, matched with errors.Is" vertex="1">
+                    <mxGeometry height="90" width="360" x="80" y="560" as="geometry"/>
+                </mxCell>
+                <mxCell id="bu-rule" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;fontSize=11" value="&lt;b&gt;how a backend grows&lt;/b&gt; (docs/bus.md)&lt;br&gt;interface PR → contract suite → backend passes it" vertex="1">
+                    <mxGeometry height="80" width="360" x="80" y="670" as="geometry"/>
+                </mxCell>
+                <mxCell id="mem-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;internal/bus/memory — the backend&lt;/b&gt;&lt;br&gt;plain channels and one mutex — the standard library only, no goroutine leaks" vertex="1">
+                    <mxGeometry height="560" width="640" x="500" y="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="me-open" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;memory.New()&lt;/b&gt;&lt;br&gt;map[topic]map[*subscriber]struct{}&lt;br&gt;buffered 64 per subscriber&lt;br&gt;no persistence · no replay · no wildcards" vertex="1">
+                    <mxGeometry height="130" width="280" x="520" y="290" as="geometry"/>
+                </mxCell>
+                <mxCell id="me-copy" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;copies both ways&lt;/b&gt;&lt;br&gt;Publish clones the message per subscriber:&lt;br&gt;the caller reuses its buffer,&lt;br&gt;subscribers cannot corrupt each other" vertex="1">
+                    <mxGeometry height="130" width="280" x="840" y="290" as="geometry"/>
+                </mxCell>
+                <mxCell id="me-watch" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;one watcher goroutine per subscription&lt;/b&gt;&lt;br&gt;wakes on ctx.Done or Close,&lt;br&gt;removes the entry and closes the channel — once" vertex="1">
+                    <mxGeometry height="90" width="280" x="520" y="450" as="geometry"/>
+                </mxCell>
+                <mxCell id="me-drop" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;full buffer drops, never blocks&lt;/b&gt;&lt;br&gt;a non-blocking send that fails&lt;br&gt;is the drop — Publish returns instantly" vertex="1">
+                    <mxGeometry height="90" width="280" x="840" y="450" as="geometry"/>
+                </mxCell>
+                <mxCell id="me-close" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;Close: everything ends&lt;/b&gt;&lt;br&gt;closes every channel under the mutex,&lt;br&gt;so Publish never sends on a closed one&lt;br&gt;repeat → no-op · watchers exit" vertex="1">
+                    <mxGeometry height="110" width="280" x="520" y="570" as="geometry"/>
+                </mxCell>
+                <mxCell id="me-test" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;own tests beyond the suite&lt;/b&gt;&lt;br&gt;watchers drain · unsubscribe forgets&lt;br&gt;the topic map — no slow leak" vertex="1">
+                    <mxGeometry height="110" width="280" x="840" y="570" as="geometry"/>
+                </mxCell>
+                <mxCell id="busu-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;internal/bus/bustest — the contract suite&lt;/b&gt;&lt;br&gt;Run(t, newBus) wires one constructor — every backend, same behaviour" vertex="1">
+                    <mxGeometry height="560" width="560" x="1180" y="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="bt-run" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12" value="&lt;b&gt;Run(t, newBus)&lt;/b&gt; — one constructor, the same behaviour everywhere:&lt;br&gt;fan-out · no cross-topic leak · late subscriber misses history&lt;br&gt;copy isolation · slow-drop · unsubscribe closes · Close closes all&lt;br&gt;bad topic · cancelled ctx · concurrent publishers · no goroutine leak" vertex="1">
+                    <mxGeometry height="130" width="500" x="1200" y="290" as="geometry"/>
+                </mxCell>
+                <mxCell id="bt-fake" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;in-memory fake&lt;/b&gt;&lt;br&gt;the suite passes on a correct backend — its checks are not vacuous" vertex="1">
+                    <mxGeometry height="110" width="240" x="1200" y="450" as="geometry"/>
+                </mxCell>
+                <mxCell id="bt-probe" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;broken-bus probe&lt;/b&gt;&lt;br&gt;a child process proves the suite fails a bus that delivers nothing" vertex="1">
+                    <mxGeometry height="110" width="230" x="1470" y="450" as="geometry"/>
+                </mxCell>
+                <mxCell id="bt-note" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82B366;fontSize=10;fontColor=#333333" value="&lt;b&gt;Why this ships in build 4&lt;/b&gt; — every later module publishes on this surface; one shared suite proves the delivery rules once (drop · order · isolation) instead of each module re-testing its backend." vertex="1">
+                    <mxGeometry height="100" width="500" x="1200" y="590" as="geometry"/>
+                </mxCell>
+                <mxCell id="zoom4-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;Zoom — Publish meets a full buffer&lt;/b&gt; — and why the contract says drop, not block" vertex="1">
+                    <mxGeometry height="240" width="1630" x="60" y="800" as="geometry"/>
+                </mxCell>
+                <mxCell id="z4-pub" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;Publish(topic, msg)&lt;/b&gt;&lt;br&gt;clones the message, then delivers to each&lt;br&gt;subscriber with a non-blocking send" vertex="1">
+                    <mxGeometry height="110" width="350" x="100" y="890" as="geometry"/>
+                </mxCell>
+                <mxCell id="z4-slow" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11" value="&lt;b&gt;slow subscriber — buffer full&lt;/b&gt;&lt;br&gt;the send fails, the message drops&lt;br&gt;for that subscriber only" vertex="1">
+                    <mxGeometry height="110" width="350" x="500" y="890" as="geometry"/>
+                </mxCell>
+                <mxCell id="z4-fast" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11" value="&lt;b&gt;every other subscriber&lt;/b&gt;&lt;br&gt;still gets the message in publish order —&lt;br&gt;one slow reader never stalls the process" vertex="1">
+                    <mxGeometry height="110" width="350" x="900" y="890" as="geometry"/>
+                </mxCell>
+                <mxCell id="z4-why" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;fontSize=11" value="&lt;b&gt;why drop is the contract&lt;/b&gt;&lt;br&gt;backpressure would couple a terminal view&lt;br&gt;to a model call; lossless delivery is the&lt;br&gt;store&#39;s job, a different module" vertex="1">
+                    <mxGeometry height="110" width="360" x="1300" y="890" as="geometry"/>
+                </mxCell>
+                <mxCell id="next4-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;NEXT — enabled by this build&lt;/b&gt; — every later module publishes on this surface instead of growing its own queue" vertex="1">
+                    <mxGeometry height="200" width="1630" x="60" y="1080" as="geometry"/>
+                </mxCell>
+                <mxCell id="n4-pg" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;pg LISTEN/NOTIFY&lt;/b&gt; (stretch)&lt;br&gt;same contract, reads DATABASE_URL" vertex="1">
+                    <mxGeometry height="80" width="300" x="100" y="1170" as="geometry"/>
+                </mxCell>
+                <mxCell id="n4-serve" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;serve opens it&lt;/b&gt; (M0.5)&lt;br&gt;the first real publisher" vertex="1">
+                    <mxGeometry height="80" width="300" x="440" y="1170" as="geometry"/>
+                </mxCell>
+                <mxCell id="n4-term" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;terminal output frames&lt;/b&gt; (M1.4)&lt;br&gt;the relay&#39;s fan-out path" vertex="1">
+                    <mxGeometry height="80" width="300" x="780" y="1170" as="geometry"/>
+                </mxCell>
+                <mxCell id="n4-approv" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;approval events&lt;/b&gt; (M3)&lt;br&gt;pending-decision buzzes" vertex="1">
+                    <mxGeometry height="80" width="240" x="1120" y="1170" as="geometry"/>
+                </mxCell>
+                <mxCell id="n4-audit" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;audit trails&lt;/b&gt; (M2)&lt;br&gt;append-only, not the bus&#39;s job" vertex="1">
+                    <mxGeometry height="80" width="260" x="1400" y="1170" as="geometry"/>
+                </mxCell>
+                <mxCell id="b1" edge="1" parent="1" source="bu-if" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="bu-pub" value="the delivery rule">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="b2" edge="1" parent="1" source="bu-pub" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="bu-sent" value="empty topic / after Close">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="b12" edge="1" parent="1" source="bu-if" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="me-open" value="implements">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="490" y="335"/>
+                            <mxPoint x="490" y="355"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="b3" edge="1" parent="1" source="bu-pub" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.15;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="me-drop" value="never blocks">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="840" y="436.5"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="b4" edge="1" parent="1" source="me-open" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="me-copy" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="b5" edge="1" parent="1" source="me-open" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="me-watch" value="one goroutine each">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="b6" edge="1" parent="1" source="me-copy" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="me-drop" value="clone, then non-blocking send">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="b7" edge="1" parent="1" source="me-close" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="me-watch" value="watchers exit">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="b7b" edge="1" parent="1" source="me-test" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="me-close" value="no slow leak">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="b8" edge="1" parent="1" source="me-copy" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="bt-run" value="passes the suite">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="b9" edge="1" parent="1" source="bt-run" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.24;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="bt-fake" value="passes on the fake">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="b9b" edge="1" parent="1" source="bt-run" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.77;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="bt-probe" value="fails a broken one">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="z4a" edge="1" parent="1" source="z4-pub" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="z4-slow" value="non-blocking send">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="z4b" edge="1" parent="1" source="z4-slow" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="z4-fast" value="drop is per subscriber">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="z4c" edge="1" parent="1" source="z4-fast" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="z4-why" value="lossless = a different module">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="b10" edge="1" parent="1" source="bu-rule" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6699CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="n4-pg" value="the pg backend passes the same suite">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="260" y="770"/>
+                            <mxPoint x="475" y="770"/>
+                            <mxPoint x="475" y="1050"/>
+                            <mxPoint x="250" y="1050"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="b11" edge="1" parent="1" source="bu-pub" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6699CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.85;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="n4-approv" value="approval buzzes publish here (M3)">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="490" y="513.5"/>
+                            <mxPoint x="490" y="1050"/>
+                            <mxPoint x="1240" y="1050"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="archcombined" name="Arch_Combined">
+        <mxGraphModel dx="2925" dy="601" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="1540" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="t2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=18;fontStyle=1;fontColor=#333333" value="ARCH_COMBINED — Devcules today and where it grows — one modular monolith, one trust split; blue = shipped (M0.1 CI/CD · M0.2 config + subcommands · M0.3 store · M0.4 bus), ghosts = planned (PLAN.md §9). This page gains a solid block every build." vertex="1">
+                    <mxGeometry height="60" width="1150" x="40" y="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3B3B3;fontSize=11;align=left;verticalAlign=top;spacing=8" value="&lt;b&gt;How to read&lt;/b&gt;&lt;br&gt;• blue = shipped in this build (M0.1 CI/CD · M0.2 config + subcommands · M0.3 store · M0.4 bus)&lt;br&gt;• grey dashed ghost = planned module (milestone tag)&lt;br&gt;• dashed + animated = live traffic (plays in the draw.io app)&lt;br&gt;• red vertical bar = trust split — real keys never cross it; enforced today by arch_test.go (M0.1)" vertex="1">
                     <mxGeometry height="130" width="470" x="1250" y="30" as="geometry"/>
                 </mxCell>
                 <mxCell id="phone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;phone / browser&lt;/b&gt;&lt;br&gt;PWA (M1.2)&lt;br&gt;approve risky steps from anywhere" vertex="1">
@@ -677,7 +848,7 @@
                 <mxCell id="m-store" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;store&lt;/b&gt; (M0.3 ✓)&lt;br&gt;Store interface · SQLite · storetest" vertex="1">
                     <mxGeometry height="60" width="300" x="360" y="340" as="geometry"/>
                 </mxCell>
-                <mxCell id="m-bus" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;bus&lt;/b&gt; (M0.4)&lt;br&gt;Bus interface · memory | pg LISTEN/NOTIFY" vertex="1">
+                <mxCell id="m-bus" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;bus&lt;/b&gt; (M0.4 ✓)&lt;br&gt;Bus interface · memory · bustest" vertex="1">
                     <mxGeometry height="60" width="300" x="360" y="420" as="geometry"/>
                 </mxCell>
                 <mxCell id="m-redact" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;redact&lt;/b&gt; (M2)&lt;br&gt;Gitleaks + PII detectors · placeholders · restore" vertex="1">
@@ -752,8 +923,8 @@
                 <mxCell id="mach-note" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;install&lt;/b&gt;: curl …/install/machine.sh · machine.ps1 — SHA-256 checked, served by serve (M4)" vertex="1">
                     <mxGeometry height="100" width="520" x="1160" y="840" as="geometry"/>
                 </mxCell>
-                <mxCell id="strip-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=13;fontColor=#333333" value="&lt;b&gt;SHIPPED — M0.1: CI/CD pipeline (Arch_1) · M0.2: config + subcommands (Arch_2) · M0.3: the store (Arch_3)&lt;/b&gt; — these pipelines build and ship every future module above" vertex="1">
-                    <mxGeometry height="430" width="1710" x="40" y="1000" as="geometry"/>
+                <mxCell id="strip-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=13;fontColor=#333333" value="&lt;b&gt;SHIPPED — M0.1: CI/CD pipeline (Arch_1) · M0.2: config + subcommands (Arch_2) · M0.3: the store (Arch_3) · M0.4: the event bus (Arch_4)&lt;/b&gt; — these pipelines build and ship every future module above" vertex="1">
+                    <mxGeometry height="530" width="1710" x="40" y="1000" as="geometry"/>
                 </mxCell>
                 <mxCell id="s-repo" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;GitHub repo&lt;/b&gt;&lt;br&gt;PR · main · tag v*" vertex="1">
                     <mxGeometry height="70" width="160" x="70" y="1070" as="geometry"/>
@@ -808,6 +979,33 @@
                 </mxCell>
                 <mxCell id="s3-doc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;docs/store.md&lt;/b&gt; — shape · migrations ·&lt;br&gt;how a later module adds a repo" vertex="1">
                     <mxGeometry height="70" width="260" x="1300" y="1350" as="geometry"/>
+                </mxCell>
+                <mxCell id="s4-if" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;internal/bus&lt;/b&gt; — Publish · Subscribe · Close&lt;br&gt;at-most-once · never blocks · ErrClosed · ErrBadTopic" vertex="1">
+                    <mxGeometry height="70" width="260" x="70" y="1440" as="geometry"/>
+                </mxCell>
+                <mxCell id="s4-mem" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;internal/bus/memory&lt;/b&gt; — channels + one mutex&lt;br&gt;buffer 64 per subscriber · full → drop for that one" vertex="1">
+                    <mxGeometry height="70" width="300" x="370" y="1440" as="geometry"/>
+                </mxCell>
+                <mxCell id="s4-suite" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;bustest&lt;/b&gt; — shared contract suite,&lt;br&gt;proven on a fake + a broken probe" vertex="1">
+                    <mxGeometry height="70" width="240" x="710" y="1440" as="geometry"/>
+                </mxCell>
+                <mxCell id="s4-doc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;docs/bus.md&lt;/b&gt; — delivery rules" vertex="1">
+                    <mxGeometry height="70" width="180" x="990" y="1440" as="geometry"/>
+                </mxCell>
+                <mxCell id="s4-use" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;no publisher yet&lt;/b&gt; — serve wires it in M0.5; then terminals relay (M1.4) · approvals (M3) · audit (M2)" vertex="1">
+                    <mxGeometry height="70" width="390" x="1210" y="1440" as="geometry"/>
+                </mxCell>
+                <mxCell id="s30" edge="1" parent="1" source="s4-if" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s4-mem" value="implements">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s31" edge="1" parent="1" source="s4-mem" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s4-suite" value="contract-tested">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s32" edge="1" parent="1" source="s4-suite" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s4-doc" value="documents">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s33" edge="1" parent="1" source="s4-doc" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6699CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s4-use" value="rules for what comes next">
+                    <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="s20" edge="1" parent="1" source="s3-if" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s3-sqlite" value="implements">
                     <mxGeometry relative="1" as="geometry"/>

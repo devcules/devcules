@@ -4,6 +4,16 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-27, M0.4)
+
+- `internal/bus`: the `Bus` interface (publish, subscribe, close) with
+  `ErrClosed` and `ErrBadTopic` sentinels.
+- `internal/bus/memory`: in-process backend, stdlib only, with bounded
+  non-blocking fan-out.
+- `internal/bus/bustest`: the shared contract suite, proven on an
+  independent in-memory fake and against a bus that delivers nothing.
+- `docs/bus.md`: the delivery rules every backend honors.
+
 ### Added (2026-10-27, M0.3)
 
 - `internal/store`: the `Store` interface (lifecycle, schema version,

@@ -6,8 +6,22 @@ listed here with its licence.
 
 ## Runtime dependencies
 
-None yet. This is module M0.1: there is no feature code and no external
-Go or npm dependencies.
+M0.3 adds the SQLite backend. Every package below is pulled in by
+`modernc.org/sqlite` (pure Go, no cgo); all licences are permissive
+(`go-licenses report ./...` reproduces this list):
+
+| Package | Licence |
+|---|---|
+| `github.com/dustin/go-humanize` | MIT |
+| `github.com/google/uuid` | BSD-3-Clause |
+| `github.com/mattn/go-isatty` | MIT |
+| `github.com/ncruces/go-strftime` | MIT |
+| `github.com/remyoudompheng/bigfft` | BSD-3-Clause |
+| `golang.org/x/sys` | BSD-3-Clause |
+| `modernc.org/libc` | BSD-3-Clause |
+| `modernc.org/mathutil` | BSD-3-Clause |
+| `modernc.org/memory` | BSD-3-Clause |
+| `modernc.org/sqlite` v1.61.0 | BSD-3-Clause |
 
 ## Standing rules (PLAN.md §1)
 

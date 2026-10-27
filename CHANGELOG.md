@@ -4,6 +4,18 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-27, M0.3)
+
+- `internal/store`: the `Store` interface (lifecycle, schema version,
+  `Meta` key/value repo) with a typed not-found error.
+- `internal/store/sqlite`: pure-Go SQLite backend with embedded
+  numbered migrations, checksums, WAL, and 0700/0600 file layout.
+  Pragmas apply to every pooled connection, concurrent first opens
+  take turns, and duplicate migration versions are rejected.
+- `internal/store/storetest`: the shared contract suite, proven on an
+  in-memory fake and against a deliberately broken store.
+- `docs/store.md`: shape, migrations, and how later modules add repos.
+
 ### Added (2026-10-27, M0.2)
 
 - `internal/config`: env loading with `*_FILE` secret variants, all

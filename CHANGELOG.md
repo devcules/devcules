@@ -4,6 +4,15 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-27, M0.5)
+
+- `serve` really runs: SQLite store, memory bus, `/healthz` and
+  `/readyz` via `internal/api`, slog JSON logs, SIGTERM/SIGINT drain up
+  to 20 s. `runner` idles for the M1.3 link and refuses vault keys.
+- `Dockerfile` (multi-stage, pinned digests, non-root uid 10001),
+  `deploy/compose.yaml` (hardened serve + runner), `scripts/smoke.sh`.
+- `docs/deploy.md`; `docs/ci.md` and README quick start updated.
+
 ### Added (2026-10-27, M0.4)
 
 - `internal/bus`: the `Bus` interface (publish, subscribe, close) with

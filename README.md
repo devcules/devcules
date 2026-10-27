@@ -8,21 +8,19 @@ computers and browsers, and approve every risky step from your phone.
 Security first: secrets are redacted at the source, and access goes over
 Tailscale.
 
-## Quick start (coming soon)
+## Quick start
 
-Devcules is being built module by module: the CI/CD pipeline (M0.1)
-plus config and subcommands (M0.2). The binary builds but runs nothing
-yet: `devcules version` works and every other subcommand is a stub.
-
-The front door will be a single command:
+Prerequisites: Docker with the Compose plugin. From the repo root:
 
 ```sh
-docker compose -f deploy/compose.yaml up
+docker compose -f deploy/compose.yaml up -d --wait
+./scripts/smoke.sh
 ```
 
-Watch [CHANGELOG.md](CHANGELOG.md) and the
-[milestone issues](https://github.com/devcules/devcules/milestones) for
-progress. The full plan lives in [PLAN.md](PLAN.md).
+That starts `serve` on `127.0.0.1:7659` and an idle `runner`, then
+proves both are healthy. See [docs/deploy.md](docs/deploy.md) for
+environment, hardening and limits. The full plan lives in
+[PLAN.md](PLAN.md).
 
 ## How it is built
 

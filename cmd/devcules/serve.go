@@ -19,6 +19,7 @@ import (
 	"github.com/devcules/devcules/internal/link/hub"
 	"github.com/devcules/devcules/internal/store"
 	"github.com/devcules/devcules/internal/store/sqlite"
+	"github.com/devcules/devcules/internal/terminals/relay"
 	"github.com/devcules/devcules/internal/web"
 )
 
@@ -74,6 +75,10 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 		log.Info("runner token file created", "path", tokenPath)
 	}
 	h := hub.New(hub.HashToken(token), hub.Options{})
+	// The relay watches link membership from its first day: browser
+	// streams retire with 1012 when their runner unlinks.
+	terms := relay.New(h, cfg.PublicURL)
+	terms.Run()
 	authSvc := auth.New(s)
 	password, created, err := authSvc.EnsureAdmin(context.Background())
 	if err != nil {
@@ -87,7 +92,7 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 		fmt.Fprintln(stderr, "Admin password (shown once): "+password)
 	}
 	srv := &http.Server{
-		Handler:           api.Handler(api.Options{Store: s, Auth: authSvc, Web: web.Embedded(), PublicURL: cfg.PublicURL, Link: h}),
+		Handler:           api.Handler(api.Options{Store: s, Auth: authSvc, Web: web.Embedded(), PublicURL: cfg.PublicURL, Link: h, Terminals: terms}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,

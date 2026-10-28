@@ -36,11 +36,27 @@ AA (4.5:1). Change a colour and the test judges it.
    screen, in the visual suite below.
 
 CSP constraints (the server sends
-`default-src 'self'; base-uri 'none'; form-action 'self';
-frame-ancestors 'none'`): no inline scripts or
-styles, no `data:` URIs — `assetsInlineLimit` is 0 so the build
-emits files only. If a feature needs a new source, change the policy
-in `internal/api` first and say why in the PR.
+`default-src 'self'; style-src 'self' 'unsafe-inline'; base-uri
+'none'; form-action 'self'; frame-ancestors 'none'`): no inline
+scripts, no `data:` URIs — `assetsInlineLimit` is 0 so the build
+emits files only. The single `style-src` exception is xterm.js
+(M1.4): the terminal renderer sets style attributes and a `<style>`
+element at runtime, proven by `grep setAttribute("style")` over its
+bundle and watched at runtime by the CSP assertion in
+`e2e/tests/terminals.spec.js`. `script-src` stays `default-src
+'self'`: no inline script, ever. If a feature needs a new source,
+change the policy in `internal/api` first and say why in the PR.
+
+The Terminals tab (`web/src/screens/Terminals.tsx`) lists the
+runner's shells, opens one per `TerminalView` (xterm.js plus the
+`FitAddon`), and closes with a confirm. `TerminalView` forwards
+keystrokes as binary frames (never text: the server reads text as
+resize controls), applies the sticky Ctrl to the next letter, and
+reattaches on close with backoff — 1012 waits for the runner, 1013
+reattaches at once, 4404 stops. The key strip (`KeyStrip.tsx`)
+rides above the software keyboard through `visualViewport`. Every
+`/api` 401 calls `onSessionExpired`, which unmounts the shell back
+to sign-in.
 
 ## Building
 

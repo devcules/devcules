@@ -16,6 +16,9 @@ import (
 //     another package. Agent-side code gets per-launch tokens, never
 //     real keys, so the ban is transitive: the runner's full dependency
 //     closure (.Deps) must not contain internal/vault.
+//  3. The serve-side terminal relay never imports the tmux driver
+//     (internal/terminals/pty) in non-test code. Serve reaches
+//     terminals only through link frames.
 //
 // The runner role is any package on the agent side of the trust split:
 // anything under internal/terminals/ or with a "runner" path element.
@@ -56,6 +59,22 @@ func TestModuleBoundaries(t *testing.T) {
 			for _, dep := range deps {
 				if dep == module+"/internal/vault" {
 					violations = append(violations, path+" depends on "+dep)
+				}
+			}
+		}
+
+		// The serve-side relay talks to terminals only through link
+		// frames; importing the tmux driver would drag process control
+		// into serve. Only the runner side (internal/terminals/pty and
+		// cmd/devcules) may depend on it. Test files may wire both
+		// sides together, so only non-test imports count here.
+		if path == module+"/internal/terminals/relay" ||
+			strings.HasPrefix(path, module+"/internal/terminals/relay/") {
+			direct := strings.FieldsFunc(parts[1], comma)
+			for _, imp := range direct {
+				if imp == module+"/internal/terminals/pty" ||
+					strings.HasPrefix(imp, module+"/internal/terminals/pty/") {
+					violations = append(violations, path+" imports "+imp)
 				}
 			}
 		}

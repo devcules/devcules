@@ -1768,15 +1768,209 @@
             </root>
         </mxGraphModel>
     </diagram>
-    <diagram id="archcombined" name="Arch_Combined">
-        <mxGraphModel dx="3745" dy="1026" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="1960" math="0" shadow="0">
+    <diagram id="arch9" name="Arch_9">
+        <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1750" pageHeight="1420" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
-                <mxCell id="t2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=18;fontStyle=1;fontColor=#333333" value="&lt;b&gt;ARCH_COMBINED&lt;/b&gt; — Devcules today and where it grows — one modular monolith, one trust split; blue = shipped (M0.1 → M1.3: CI/CD · config · store · bus · image + compose · auth · web shell · link), ghosts = planned (PLAN.md §9). This page gains a solid block every build." vertex="1">
+                <mxCell id="t10" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=17;fontStyle=1;fontColor=#333333" value="&lt;b&gt;ARCH_9&lt;/b&gt; — Build 9 (M1.4): real terminals. The runner drives one private tmux server, serve relays each browser&#x27;s stream over the link, and the Terminals tab renders it with xterm.js and a phone key strip. tmux is the only buffer: every attach redraws, so reloads, phone locks and relinks resume." vertex="1">
+                    <mxGeometry height="60" width="1090" x="40" y="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend10" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3B3B3;fontSize=11;align=left;verticalAlign=top;spacing=8" value="&lt;b&gt;How to read&lt;/b&gt;&lt;br&gt;• blue = shipped in this build (M1.4, plus step 0 hub events in PR #41)&lt;br&gt;• grey dashed = planned module (milestone tag)&lt;br&gt;• dashed + animated = keystrokes and output on their way (plays in the draw.io app)&lt;br&gt;• red = a stream cut off, or a known limit" vertex="1">
+                    <mxGeometry height="94" width="570" x="1140" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-z-web" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;1 · TERMINALS TAB&lt;/b&gt; — web/src/screens: xterm.js renders, the key strip types" vertex="1">
+                    <mxGeometry height="330" width="820" x="40" y="118" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-w1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;Terminals list&lt;/b&gt;&lt;br&gt;New terminal · open · close with a confirm&lt;br&gt;GET / POST / DELETE /api/terminals" vertex="1">
+                    <mxGeometry height="86" width="260" x="70" y="186" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-w2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;TerminalView&lt;/b&gt;&lt;br&gt;@xterm/xterm + addon-fit (MIT)&lt;br&gt;binary = bytes · text = resize" vertex="1">
+                    <mxGeometry height="86" width="240" x="350" y="186" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-w3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;phone key strip&lt;/b&gt;&lt;br&gt;Esc · Tab · sticky Ctrl · arrows · Enter&lt;br&gt;44 px · keeps focus · rides the keyboard" vertex="1">
+                    <mxGeometry height="86" width="220" x="610" y="186" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-w4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;reconnect by close code&lt;/b&gt;&lt;br&gt;1012 offline → wait · 1013 → at once&lt;br&gt;1000 / 4404 → gone · 1006 → check /auth/me" vertex="1">
+                    <mxGeometry height="86" width="260" x="70" y="312" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-w5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;resume&lt;/b&gt;&lt;br&gt;visibilitychange + online reattach&lt;br&gt;locking the phone loses nothing" vertex="1">
+                    <mxGeometry height="86" width="240" x="350" y="312" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-w6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;any /api 401&lt;/b&gt;&lt;br&gt;returns to sign-in&lt;br&gt;(the M1.2 TODO, closed)" vertex="1">
+                    <mxGeometry height="86" width="220" x="610" y="312" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-q1" edge="1" parent="1" source="a9-w1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a9-w2" value="open">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-q2" edge="1" parent="1" source="a9-w3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0" target="a9-w2" value="keys">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-q3" edge="1" parent="1" source="a9-w2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" target="a9-w5" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-q4" edge="1" parent="1" source="a9-w5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0" target="a9-w4" value="on close">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-z-relay" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;2 · SERVE RELAY&lt;/b&gt; — internal/terminals/relay + /api/terminals: never imports pty (arch_test.go)" vertex="1">
+                    <mxGeometry height="330" width="820" x="890" y="118" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-s1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;/api/terminals/{id}/stream&lt;/b&gt;&lt;br&gt;session cookie + Origin check&lt;br&gt;(same host or DEVCULES_PUBLIC_URL)" vertex="1">
+                    <mxGeometry height="86" width="250" x="920" y="186" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-s2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;pick the runner&lt;/b&gt;&lt;br&gt;0 → 503 / 1012 · 1 → it&lt;br&gt;2+ → ?runner=" vertex="1">
+                    <mxGeometry height="86" width="230" x="1190" y="186" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-s3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;attach (5 s)&lt;/b&gt;&lt;br&gt;stream registered first, so tmux’s&lt;br&gt;first redraw is never dropped" vertex="1">
+                    <mxGeometry height="86" width="240" x="1440" y="186" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-s4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;browser queue&lt;/b&gt;&lt;br&gt;256 frames or 4 MiB&lt;br&gt;full → 1013, reattach redraws" vertex="1">
+                    <mxGeometry height="86" width="240" x="1440" y="312" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-s5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;hub events (step 0)&lt;/b&gt;&lt;br&gt;unlinked, or a replaced runner&lt;br&gt;→ every stream gets 1012" vertex="1">
+                    <mxGeometry height="86" width="230" x="1190" y="312" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-s6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;never blocks the link&lt;/b&gt;&lt;br&gt;reads hand off · the detach for a&lt;br&gt;dropped browser sends off-loop" vertex="1">
+                    <mxGeometry height="86" width="250" x="920" y="312" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-q5" edge="1" parent="1" source="a9-s1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a9-s2" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-q6" edge="1" parent="1" source="a9-s2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a9-s3" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-q7" edge="1" parent="1" source="a9-s3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" target="a9-s4" value="output">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-q8" edge="1" parent="1" source="a9-s5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#B85450;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0" target="a9-s6" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-z-frames" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;3 · FRAMES OVER THE LINK&lt;/b&gt; — internal/terminals: payloads and validation, shared by both ends" vertex="1">
+                    <mxGeometry height="470" width="1090" x="40" y="484" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-f1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;serve → runner&lt;/b&gt;&lt;br&gt;term.open · attach · input · resize&lt;br&gt;detach · close · list" vertex="1">
+                    <mxGeometry height="86" width="240" x="70" y="552" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-f2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;runner → serve&lt;/b&gt;&lt;br&gt;term.ok / error (same id)&lt;br&gt;output · exit · listed" vertex="1">
+                    <mxGeometry height="86" width="250" x="340" y="552" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-f3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;ids&lt;/b&gt;&lt;br&gt;16 hex chars minted by serve&lt;br&gt;checked on both ends · dvc-&amp;lt;id&amp;gt;" vertex="1">
+                    <mxGeometry height="86" width="240" x="620" y="552" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-f4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;limits&lt;/b&gt;&lt;br&gt;16 terminals · cols/rows 1–500&lt;br&gt;input ≤ 64 KiB per frame" vertex="1">
+                    <mxGeometry height="86" width="220" x="890" y="552" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-f5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;input is one-way&lt;/b&gt;&lt;br&gt;only a failure answers; it is&lt;br&gt;the busiest frame" vertex="1">
+                    <mxGeometry height="86" width="240" x="70" y="664" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-f6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;output batches&lt;/b&gt;&lt;br&gt;32 KiB or 10 ms, whichever first&lt;br&gt;base64 inside the JSON frame" vertex="1">
+                    <mxGeometry height="86" width="250" x="340" y="664" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-f7" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;replies by frame id&lt;/b&gt;&lt;br&gt;the relay waits ≤ 5 s → 504&lt;br&gt;late replies are dropped" vertex="1">
+                    <mxGeometry height="86" width="240" x="620" y="664" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-f8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;never logged&lt;/b&gt;&lt;br&gt;terminal bytes can hold secrets&lt;br&gt;reasons are fixed strings" vertex="1">
+                    <mxGeometry height="86" width="220" x="890" y="664" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-f9" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;the link’s read loops never wait&lt;/b&gt; — a runner mid-write cannot answer a ping, so any blocking write from a read loop stalls both ends until the heartbeat cuts the link" vertex="1">
+                    <mxGeometry height="66" width="1040" x="70" y="780" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-f10" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;resume model&lt;/b&gt; — no replay buffer of ours: a new attach makes tmux redraw the screen; tmux sessions die with the runner container" vertex="1">
+                    <mxGeometry height="66" width="1040" x="70" y="864" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-q9" edge="1" parent="1" source="a9-f1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a9-f2" value="answers">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-q10" edge="1" parent="1" source="a9-f2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a9-f3" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-q11" edge="1" parent="1" source="a9-f3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a9-f4" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-z-pty" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;4 · RUNNER SIDE&lt;/b&gt; — internal/terminals/pty: tmux is the source of truth" vertex="1">
+                    <mxGeometry height="470" width="560" x="1150" y="484" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-p1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;tmux -L devcules&lt;/b&gt;&lt;br&gt;status off · history 10000&lt;br&gt;escape-time 0 · window-size latest" vertex="1">
+                    <mxGeometry height="86" width="250" x="1180" y="552" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-p2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;attach per browser&lt;/b&gt;&lt;br&gt;creack/pty (MIT) · phone and&lt;br&gt;desktop share one terminal" vertex="1">
+                    <mxGeometry height="86" width="230" x="1450" y="552" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-p3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;off the read loop&lt;/b&gt;&lt;br&gt;tmux calls in goroutines (≤ 4)&lt;br&gt;input via a 256-frame queue" vertex="1">
+                    <mxGeometry height="86" width="250" x="1180" y="664" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-p4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;closing an attach&lt;/b&gt;&lt;br&gt;SIGHUP the client, then reap once&lt;br&gt;(no hang on a blocked PTY read)" vertex="1">
+                    <mxGeometry height="86" width="230" x="1450" y="664" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-p5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;environment scrubbed&lt;/b&gt; — TERM, HOME, PATH, LANG, SHELL only: no DEVCULES_* reaches a shell" vertex="1">
+                    <mxGeometry height="66" width="500" x="1180" y="780" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-p6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#B85450;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;known limit&lt;/b&gt; — a shell runs as the runner’s uid and can read /link/runner.token; separate uids come with M3" vertex="1">
+                    <mxGeometry height="66" width="500" x="1180" y="864" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-q12" edge="1" parent="1" source="a9-p1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a9-p2" value="attach">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-q13" edge="1" parent="1" source="a9-p2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" target="a9-p4" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-z-tests" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;5 · TESTS&lt;/b&gt; — real tmux everywhere; CI installs it and fails if it is missing" vertex="1">
+                    <mxGeometry height="400" width="820" x="40" y="974" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-t1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;pty (real tmux)&lt;/b&gt;&lt;br&gt;round trip · resume redraw · two viewers&lt;br&gt;close kills · env scrubbed · cap of 16" vertex="1">
+                    <mxGeometry height="86" width="360" x="70" y="1042" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-t2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;relay + api (in-process)&lt;/b&gt;&lt;br&gt;round trip · slow browser · offline 1012&lt;br&gt;replaced runner · Origin 403 · 401" vertex="1">
+                    <mxGeometry height="86" width="370" x="460" y="1042" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-t3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;hub events (PR #41)&lt;/b&gt;&lt;br&gt;sorted list · ordered events&lt;br&gt;never blocks reads" vertex="1">
+                    <mxGeometry height="86" width="360" x="70" y="1164" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-t4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;e2e (Chromium, 390 px + desktop)&lt;/b&gt;&lt;br&gt;echo · reload resumes · Ctrl-C&lt;br&gt;from the strip · close · no CSP errors" vertex="1">
+                    <mxGeometry height="86" width="370" x="460" y="1164" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-t5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;smoke.sh on compose&lt;/b&gt; — POST, GET lists it, DELETE 204, list empty again, 401 without a session" vertex="1">
+                    <mxGeometry height="66" width="760" x="70" y="1286" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-q14" edge="1" parent="1" source="a9-t1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a9-t2" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-q15" edge="1" parent="1" source="a9-t3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a9-t4" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-z-next" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;6 · NOT IN THIS BUILD, AND NEXT&lt;/b&gt;" vertex="1">
+                    <mxGeometry height="400" width="820" x="890" y="974" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-x1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;M1.5 passkeys&lt;/b&gt;&lt;br&gt;WebAuthn sign-in&lt;br&gt;beside the password" vertex="1">
+                    <mxGeometry height="86" width="360" x="920" y="1042" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-x2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;M2 per-launch tokens&lt;/b&gt;&lt;br&gt;agents get scoped tokens&lt;br&gt;never real keys" vertex="1">
+                    <mxGeometry height="86" width="370" x="1310" y="1042" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-x3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;M3 agent launches&lt;/b&gt;&lt;br&gt;agent CLIs start in these&lt;br&gt;tmux terminals" vertex="1">
+                    <mxGeometry height="86" width="360" x="920" y="1164" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-x4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;separate uid for shells&lt;/b&gt;&lt;br&gt;closes the runner-token limit&lt;br&gt;(tracked TODO, trigger M3)" vertex="1">
+                    <mxGeometry height="86" width="370" x="1310" y="1164" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-x5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;visual baselines&lt;/b&gt; — the Terminals tab and the new Home tab indicator need the e2e-baselines workflow re-shot on Linux before merge" vertex="1">
+                    <mxGeometry height="66" width="760" x="920" y="1286" as="geometry"/>
+                </mxCell>
+                <mxCell id="a9-q16" edge="1" parent="1" source="a9-x2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" target="a9-x4" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="archcombined" name="Arch_Combined">
+        <mxGraphModel dx="3745" dy="1026" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="2040" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="t2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=18;fontStyle=1;fontColor=#333333" value="&lt;b&gt;ARCH_COMBINED&lt;/b&gt; — Devcules today and where it grows — one modular monolith, one trust split; blue = shipped (M0.1 → M1.4: CI/CD · config · store · bus · image + compose · auth · web shell · link · terminals), ghosts = planned (PLAN.md §9). This page gains a solid block every build." vertex="1">
                     <mxGeometry height="76" width="1150" x="40" y="22" as="geometry"/>
                 </mxCell>
-                <mxCell id="legend2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3B3B3;fontSize=11;align=left;verticalAlign=top;spacing=8" value="&lt;b&gt;How to read&lt;/b&gt;&lt;br&gt;• blue = shipped in this build (M0.1 CI/CD · M0.2 config + subcommands · M0.3 store · M0.4 bus · M0.5 image + compose · M1.1 auth · M1.2 web shell · M1.3 link)&lt;br&gt;• grey dashed ghost = planned module (milestone tag)&lt;br&gt;• dashed + animated = live traffic (plays in the draw.io app)&lt;br&gt;• red vertical bar = trust split — real keys never cross it; enforced today by arch_test.go (M0.1)" vertex="1">
+                <mxCell id="legend2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3B3B3;fontSize=11;align=left;verticalAlign=top;spacing=8" value="&lt;b&gt;How to read&lt;/b&gt;&lt;br&gt;• blue = shipped in this build (M0.1 CI/CD · M0.2 config + subcommands · M0.3 store · M0.4 bus · M0.5 image + compose · M1.1 auth · M1.2 web shell · M1.3 link · M1.4 terminals)&lt;br&gt;• grey dashed ghost = planned module (milestone tag)&lt;br&gt;• dashed + animated = live traffic (plays in the draw.io app)&lt;br&gt;• red vertical bar = trust split — real keys never cross it; enforced today by arch_test.go (M0.1)" vertex="1">
                     <mxGeometry height="130" width="470" x="1250" y="30" as="geometry"/>
                 </mxCell>
                 <mxCell id="phone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;phone / browser&lt;/b&gt; — PWA (M1.2 ✓)&lt;br&gt;approve risky steps from anywhere" vertex="1">
@@ -1821,10 +2015,10 @@
                 <mxCell id="m-web" parent="1" style="rounded=1;whiteSpace=wrap;html=1;rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;web&lt;/b&gt; (M1.2 ✓)&lt;br&gt;React 18 PWA · theme tokens · app shell&lt;br&gt;embedded via go:embed" vertex="1">
                     <mxGeometry height="60" width="300" x="680" y="420" as="geometry"/>
                 </mxCell>
-                <mxCell id="m-link" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;link&lt;/b&gt; (M1.3 ✓)&lt;br&gt;hub at GET /link · strict frames · machine role in M4" vertex="1">
+                <mxCell id="m-link" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;link&lt;/b&gt; (M1.3 ✓)&lt;br&gt;hub at GET /link · strict frames · Runners + OnChange (M1.4 ✓)" vertex="1">
                     <mxGeometry height="60" width="300" x="680" y="500" as="geometry"/>
                 </mxCell>
-                <mxCell id="m-terminals" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;terminals&lt;/b&gt; (M1.4)&lt;br&gt;tmux PTYs · serve-side relay" vertex="1">
+                <mxCell id="m-terminals" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;terminals&lt;/b&gt; (M1.4 ✓)&lt;br&gt;relay · /api/terminals + WS stream · 1012 / 1013" vertex="1">
                     <mxGeometry height="60" width="300" x="680" y="580" as="geometry"/>
                 </mxCell>
                 <mxCell id="m-router" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;router&lt;/b&gt; (M2)&lt;br&gt;/llm/{provider} · OpenAI + Anthropic style" vertex="1">
@@ -1842,10 +2036,10 @@
                 <mxCell id="divider" parent="1" style="rounded=0;fillColor=#CC0000;strokeColor=none;" value="" vertex="1">
                     <mxGeometry height="780" width="6" x="1076" y="180" as="geometry"/>
                 </mxCell>
-                <mxCell id="runner-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#FBFBFB;strokeColor=#CCCCCC;dashed=1;fontColor=#777777;fontSize=13" value="&lt;b&gt;devcules runner — untrusted zone · M1.3+&lt;/b&gt;&lt;br&gt;links to serve today · tmux terminals · agent CLIs · workspace next" vertex="1">
+                <mxCell id="runner-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#FBFBFB;strokeColor=#CCCCCC;dashed=1;fontColor=#777777;fontSize=13" value="&lt;b&gt;devcules runner — untrusted zone · M1.3+&lt;/b&gt;&lt;br&gt;links to serve · tmux terminals today · agent CLIs · workspace next" vertex="1">
                     <mxGeometry height="420" width="580" x="1130" y="180" as="geometry"/>
                 </mxCell>
-                <mxCell id="r-tmux" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;tmux PTY terminals&lt;/b&gt; (M1.4)&lt;br&gt;resume + replay sessions" vertex="1">
+                <mxCell id="r-tmux" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;tmux PTY terminals&lt;/b&gt; (M1.4 ✓)&lt;br&gt;tmux -L devcules · resume by redraw, no replay buffer" vertex="1">
                     <mxGeometry height="80" width="250" x="1160" y="260" as="geometry"/>
                 </mxCell>
                 <mxCell id="r-tokens" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;per-launch tokens&lt;/b&gt; only — never real keys" vertex="1">
@@ -1869,8 +2063,8 @@
                 <mxCell id="mach-note" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;install&lt;/b&gt;: curl …/install/machine.sh · machine.ps1 — SHA-256 checked, served by serve (M4)" vertex="1">
                     <mxGeometry height="100" width="520" x="1160" y="840" as="geometry"/>
                 </mxCell>
-                <mxCell id="strip-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=13;fontColor=#333333" value="&lt;b&gt;SHIPPED — M0.1: CI/CD pipeline (Arch_1) · M0.2: config + subcommands (Arch_2) · M0.3: the store (Arch_3) · M0.4: the event bus (Arch_4) · M0.5: image + compose + health (Arch_5) · M1.1: auth (Arch_6) · M1.2: web shell (Arch_7) · M1.3: the link (Arch_8)&lt;/b&gt; — these builds ship every future module above" vertex="1">
-                    <mxGeometry height="900" width="1710" x="40" y="1000" as="geometry"/>
+                <mxCell id="strip-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=13;fontColor=#333333" value="&lt;b&gt;SHIPPED — M0.1: CI/CD pipeline (Arch_1) · M0.2: config + subcommands (Arch_2) · M0.3: the store (Arch_3) · M0.4: the event bus (Arch_4) · M0.5: image + compose + health (Arch_5) · M1.1: auth (Arch_6) · M1.2: web shell (Arch_7) · M1.3: the link (Arch_8) · M1.4: terminals (Arch_9)&lt;/b&gt; — these builds ship every future module above" vertex="1">
+                    <mxGeometry height="980" width="1710" x="40" y="1000" as="geometry"/>
                 </mxCell>
                 <mxCell id="s-repo" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;GitHub repo&lt;/b&gt;&lt;br&gt;PR · main · tag v*" vertex="1">
                     <mxGeometry height="70" width="160" x="70" y="1070" as="geometry"/>
@@ -2136,6 +2330,33 @@
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="s43" edge="1" parent="1" source="s8-token" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="s8-docs" value="documents">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s9-tab" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;Terminals tab&lt;/b&gt;&lt;br&gt;— xterm.js · key strip&lt;br&gt;reconnect by close code" vertex="1">
+                    <mxGeometry height="70" width="280" x="70" y="1890" as="geometry"/>
+                </mxCell>
+                <mxCell id="s9-relay" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;internal/terminals/relay&lt;/b&gt;&lt;br&gt;— REST + WS stream · Origin check&lt;br&gt;256 frames / 4 MiB → 1013" vertex="1">
+                    <mxGeometry height="70" width="330" x="370" y="1890" as="geometry"/>
+                </mxCell>
+                <mxCell id="s9-frames" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;internal/terminals&lt;/b&gt;&lt;br&gt;— term.* frames · 16 hex ids&lt;br&gt;limits shared by both ends" vertex="1">
+                    <mxGeometry height="70" width="300" x="720" y="1890" as="geometry"/>
+                </mxCell>
+                <mxCell id="s9-pty" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;internal/terminals/pty&lt;/b&gt;&lt;br&gt;— tmux -L devcules · attach per browser&lt;br&gt;env scrubbed · off the read loop" vertex="1">
+                    <mxGeometry height="70" width="320" x="1040" y="1890" as="geometry"/>
+                </mxCell>
+                <mxCell id="s9-hub" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;hub events (#41)&lt;/b&gt;&lt;br&gt;— Runners() · ordered OnChange&lt;br&gt;1012 when a runner goes" vertex="1">
+                    <mxGeometry height="70" width="360" x="1380" y="1890" as="geometry"/>
+                </mxCell>
+                <mxCell id="s44" edge="1" parent="1" source="s9-tab" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="s9-relay" value="stream">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s45" edge="1" parent="1" source="s9-relay" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="s9-frames" value="frames">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s46" edge="1" parent="1" source="s9-frames" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="s9-pty" value="link">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s47" edge="1" parent="1" source="s9-hub" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0" target="s9-relay" value="watched by">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
             </root>

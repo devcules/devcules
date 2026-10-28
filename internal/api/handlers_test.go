@@ -517,7 +517,7 @@ func TestSecurityHeaders(t *testing.T) {
 		}
 		w := httptest.NewRecorder()
 		mux.ServeHTTP(w, r)
-		if csp := w.Header().Get("Content-Security-Policy"); csp != "default-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'" {
+		if csp := w.Header().Get("Content-Security-Policy"); csp != "default-src 'self'; style-src 'self' 'unsafe-inline'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'" {
 			t.Fatalf("%s CSP = %q", target, csp)
 		}
 		if v := w.Header().Get("X-Content-Type-Options"); v != "nosniff" {

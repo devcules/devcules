@@ -16,10 +16,10 @@ use `persist-credentials: false` (no job pushes via git) and run with
 | Job | What it checks | Fails when |
 |---|---|---|
 | `lint` | `gofmt -l`, `go vet`, `staticcheck`, plus `eslint` and `tsc --noEmit` once `web/package.json` exists | any finding |
-| `arch` | `TestModuleBoundaries`: `internal/` never imports `plugins/`; the runner role never depends on `vault`, directly or transitively | a forbidden import or dependency |
-| `unit` | `go test -race -cover ./...` with a 70%-per-package coverage gate, plus `vitest run` once `web/package.json` exists, plus a 30 s `FuzzDecode` run over `internal/link` (M1.3) | a failing test, a package below 70%, or a fuzz crash |
-| `integration` | `docker compose up` plus `scripts/smoke.sh`, once `deploy/compose.yaml` exists | any smoke step |
-| `e2e` | Playwright sign-in (success and wrong password) at phone (390 px) and desktop sizes on Chromium, against the compose stack | a failing flow or a dropped session cookie |
+| `arch` | `TestModuleBoundaries`: `internal/` never imports `plugins/`; the runner role never depends on `vault`, directly or transitively; the terminal relay never imports the pty driver in non-test code (M1.4) | a forbidden import or dependency |
+| `unit` | `go test -race -cover ./...` with a 70%-per-package coverage gate, plus `vitest run` once `web/package.json` exists, plus a 30 s `FuzzDecode` run over `internal/link` (M1.3). Installs tmux first (M1.4): the pty suite skips locally without it and fails under `CI=true` | a failing test, a package below 70%, a fuzz crash, or a tmux-gated skip in CI |
+| `integration` | `docker compose up` plus `scripts/smoke.sh`, once `deploy/compose.yaml` exists. Since M1.4 the smoke script also opens/lists/deletes a terminal with the cookie jar | any smoke step |
+| `e2e` | Playwright sign-in (success and wrong password) plus the terminal flows (open, echo, reload resume, key-strip Ctrl-C, close, CSP-violation watch) at phone (390 px) and desktop sizes on Chromium, against the compose stack | a failing flow, a dropped session cookie, or a CSP violation |
 | `security` | Gitleaks, `govulncheck`, `npm audit --omit=dev` (once `web/` exists), and a `go-licenses check` allow-list (MIT, BSD, ISC and Apache-2.0 only) | a secret, a known vulnerability or a disallowed licence |
 
 Note: the coverage gate checks every package, which is stricter than

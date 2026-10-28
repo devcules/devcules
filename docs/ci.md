@@ -26,10 +26,10 @@ Note: the coverage gate checks every package, which is stricter than
 §8's "touched package" wording — on an empty tree it logs a skip until
 the first package with coverable statements lands.
 
-Jobs with nothing to check yet pass and log why they skipped:
-
-- The web parts of `lint`, `unit` and `security` skip until `web/`
-  exists (M1.2).
+Since M1.2 the web checks run for real: `eslint`, `tsc --noEmit`
+and `vitest run` (with a 70% coverage threshold) in `lint`/`unit`,
+`npm audit --omit=dev` plus a `license-checker` production allowlist
+in `security`.
 
 Since M0.5 the integration job really runs: `docker compose up -d
 --wait` followed by `scripts/smoke.sh` (health endpoints, non-root
@@ -40,11 +40,14 @@ binaries run too (`Dockerfile` and `cmd/devcules` both exist).
 Since M1.1 the e2e job really runs: `docker compose up -d --wait`,
 then the Playwright suite with the bootstrap password read from the
 serve logs (`scripts/get-admin-password.sh`), then `down -v`.
-Screenshot baselines stay out until the M1.2 React UI; until then the
-suite asserts flows and cookies only. WebKit dropped the `Secure`
-cookie on plain-http loopback (CI-proven), so its projects left
-`e2e/playwright.config.js`: Chromium-only, with the finding noted in
-`docs/auth.md`. There is no insecure-cookie option.
+Since M1.2 it runs the flow suite plus the visual suite, which
+compares screenshot baselines (sign-in screen and Home shell, dark
+and light, at both sizes). Baselines come from the manual
+`e2e-baselines` workflow (Linux only — Mac fonts differ — via
+`--update-snapshots` plus an artifact upload); see `docs/web.md`.
+WebKit dropped the `Secure` cookie on plain-http loopback
+(CI-proven), so flow projects are Chromium-only, with the finding
+noted in `docs/auth.md`. There is no insecure-cookie option.
 
 ## cd.yml — merge to `main`
 
@@ -85,6 +88,8 @@ requiring actions pinned to full-length commit SHAs.
 
 ```sh
 gofmt -l . && go vet ./... && go test -race ./...
+npm --prefix web run lint && npm --prefix web exec -- tsc --noEmit
+npm --prefix web test
 actionlint
 gitleaks detect --source . --verbose
 ```

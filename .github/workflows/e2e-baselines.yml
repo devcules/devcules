@@ -1,0 +1,50 @@
+name: e2e-baselines
+
+# Manual only: regenerates the Playwright screenshot baselines on
+# Linux (Mac fonts differ, so baselines must never come from a Mac)
+# and uploads them as an artifact. Download the artifact, keep the
+# -linux files under e2e/tests/, commit them on the module branch.
+on:
+  workflow_dispatch
+
+permissions:
+  contents: read
+
+jobs:
+  baselines:
+    name: baselines
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - name: Install Playwright
+        run: |
+          npm --prefix e2e ci
+          npx --prefix e2e playwright install --with-deps chromium
+      - name: Start the stack
+        run: |
+          if ! docker compose -f deploy/compose.yaml up -d --wait; then
+            docker compose -f deploy/compose.yaml logs --no-color
+            docker compose -f deploy/compose.yaml down -v
+            exit 1
+          fi
+      - name: Update snapshots
+        run: E2E_ADMIN_PASSWORD="$(./scripts/get-admin-password.sh)" npm --prefix e2e run test:visual -- --update-snapshots
+      - name: Upload baselines
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: e2e-baselines
+          path: e2e/tests/visual.spec.js-snapshots/
+          if-no-files-found: error
+      - name: Tear down
+        if: always()
+        run: docker compose -f deploy/compose.yaml down -v

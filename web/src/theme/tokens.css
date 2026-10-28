@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+/* The one visual system (PLAN.md §1a). Tokens live here and nowhere
+else: Tailwind reads them through @theme below, and the WCAG test
+parses this file so the values it checks are these values. Dark is
+the default; light follows the OS. */
+
+:root {
+  color-scheme: dark;
+  --c-base: #101418;
+  --c-surface: #1a212b;
+  --c-text: #e8e6e1;
+  --c-muted: #9aa3ad;
+  --c-accent: #e0a63f;
+  --c-on-accent: #1a1408;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --c-base: #ffffff;
+    --c-surface: #f1f2f4;
+    --c-text: #17191d;
+    --c-muted: #5b6470;
+    --c-accent: #8a5a00;
+    --c-on-accent: #ffffff;
+  }
+}
+
+@theme {
+  --color-base: var(--c-base);
+  --color-surface: var(--c-surface);
+  --color-text: var(--c-text);
+  --color-muted: var(--c-muted);
+  --color-accent: var(--c-accent);
+  --color-on-accent: var(--c-on-accent);
+  /* Two body sizes. Titles reuse lead semibold; nothing else grows. */
+  --text-body: 1rem;
+  --text-body--line-height: 1.5rem;
+  --text-lead: 1.125rem;
+  --text-lead--line-height: 1.75rem;
+}
+
+/* Motion with meaning, and none without: short transitions only, all
+off under reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation: none !important;
+  }
+}

@@ -3,6 +3,7 @@
 *.test
 *.out
 coverage.txt
+coverage/
 dist/
 /bin/
 
@@ -20,3 +21,10 @@ Thumbs.db
 # Local env
 .env
 .env.local
+
+# The built PWA is an artifact, except the placeholder that keeps Go
+# builds working without Node. (The dir itself must be un-excluded
+# first: a file cannot be re-included inside an excluded directory.)
+!internal/web/dist/
+internal/web/dist/*
+!internal/web/dist/.gitkeep

@@ -8,15 +8,26 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/devcules/devcules/internal/auth"
 	"github.com/devcules/devcules/internal/store"
 	"github.com/devcules/devcules/internal/store/sqlite"
+	"github.com/devcules/devcules/internal/web"
 )
+
+// testWeb is a built app in miniature: an entry point plus one
+// hashed asset.
+func testWeb() http.Handler {
+	return web.Handler(fstest.MapFS{
+		"index.html":           {Data: []byte("<div id=\"root\"></div>")},
+		"assets/app-abc123.js": {Data: []byte("console.log(1)")},
+	})
+}
 
 // fixture opens an isolated store with a bootstrapped admin and
 // returns the mux plus the one-time password.
-func fixture(t *testing.T, publicURL string) (*http.ServeMux, string) {
+func fixture(t *testing.T, publicURL string) (http.Handler, string) {
 	t.Helper()
 	s, err := sqlite.Open(context.Background(), filepath.Join(t.TempDir(), "t.db"))
 	if err != nil {
@@ -31,7 +42,7 @@ func fixture(t *testing.T, publicURL string) (*http.ServeMux, string) {
 	if !created {
 		t.Fatal("EnsureAdmin created = false on a fresh store")
 	}
-	return Handler(Options{Store: s, Auth: svc, PublicURL: publicURL}), password
+	return Handler(Options{Store: s, Auth: svc, Web: testWeb(), PublicURL: publicURL}), password
 }
 
 // postForm posts a urlencoded form to target.
@@ -52,8 +63,8 @@ func signInCredentials(password string) url.Values {
 func sessionCookie(t *testing.T, mux http.Handler, password string) string {
 	t.Helper()
 	w := postForm(mux, "/auth/sign-in", signInCredentials(password))
-	if w.Code != http.StatusSeeOther {
-		t.Fatalf("sign-in status = %d, want 303 (body %q)", w.Code, w.Body.String())
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("sign-in status = %d, want 204 (body %q)", w.Code, w.Body.String())
 	}
 	for _, c := range w.Result().Cookies() {
 		if c.Name == auth.CookieName {
@@ -81,8 +92,6 @@ func TestHealthRoutes(t *testing.T) {
 		{"healthz get", http.MethodGet, "/healthz", http.StatusOK, "ok"},
 		{"healthz wrong method", http.MethodPost, "/healthz", http.StatusMethodNotAllowed, ""},
 		{"readyz wrong method", http.MethodPost, "/readyz", http.StatusMethodNotAllowed, ""},
-		{"sign-in form", http.MethodGet, "/sign-in", http.StatusOK, ""},
-		{"sign-in wrong method", http.MethodPost, "/sign-in", http.StatusMethodNotAllowed, ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -114,8 +123,8 @@ func TestReadyzStates(t *testing.T) {
 	if err := down.Close(); err != nil {
 		t.Fatalf("Close: %s", err)
 	}
-	muxUp := Handler(Options{Store: up, Auth: auth.New(up)})
-	muxDown := Handler(Options{Store: down, Auth: auth.New(down)})
+	muxUp := Handler(Options{Store: up, Auth: auth.New(up), Web: testWeb()})
+	muxDown := Handler(Options{Store: down, Auth: auth.New(down), Web: testWeb()})
 	r := httptest.NewRequest(http.MethodGet, "/readyz", nil)
 	w := httptest.NewRecorder()
 	muxUp.ServeHTTP(w, r)
@@ -129,32 +138,14 @@ func TestReadyzStates(t *testing.T) {
 	}
 }
 
-func TestSignInForm(t *testing.T) {
-	mux, _ := fixture(t, "")
-	r := httptest.NewRequest(http.MethodGet, "/sign-in", nil)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, r)
-	if ct := w.Header().Get("Content-Type"); ct != "text/html; charset=utf-8" {
-		t.Fatalf("content type = %q, want html", ct)
-	}
-	for _, want := range []string{`<form method="post" action="/auth/sign-in">`, `name="username"`, `name="password"`, `<button type="submit">`} {
-		if !strings.Contains(w.Body.String(), want) {
-			t.Fatalf("form body misses %q", want)
-		}
-	}
-	if strings.Contains(w.Body.String(), "<script") {
-		t.Fatal("form contains JavaScript: M1.1 is no-JS by design")
-	}
-}
-
 func TestSignInSuccess(t *testing.T) {
 	mux, password := fixture(t, "")
 	w := postForm(mux, "/auth/sign-in", signInCredentials(password))
-	if w.Code != http.StatusSeeOther {
-		t.Fatalf("status = %d, want 303 (body %q)", w.Code, w.Body.String())
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204 (body %q)", w.Code, w.Body.String())
 	}
-	if loc := w.Header().Get("Location"); loc != "/" {
-		t.Fatalf("Location = %q, want /", loc)
+	if loc := w.Header().Get("Location"); loc != "" {
+		t.Fatalf("Location = %q, want none (JS is in charge now)", loc)
 	}
 	var session *http.Cookie
 	for _, c := range w.Result().Cookies() {
@@ -376,18 +367,66 @@ func TestSignOutWithoutMiddleware(t *testing.T) {
 
 func TestRootGuard(t *testing.T) {
 	mux, password := fixture(t, "")
+	// A page navigation gets the app, no session needed: the app
+	// holds no data and checks the session itself.
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r.Header.Set("Accept", "text/html")
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, r)
-	if w.Code != http.StatusUnauthorized {
-		t.Fatalf("anonymous / status = %d, want 401", w.Code)
+	if w.Code != http.StatusOK || w.Body.String() != `<div id="root"></div>` {
+		t.Fatalf("anonymous page / = %d %q, want the app", w.Code, w.Body.String())
 	}
-	value := sessionCookie(t, mux, password)
-	r = withSession(httptest.NewRequest(http.MethodGet, "/", nil), value)
+	// Unknown reads belong to the static app (public: they carry
+	// no data), so they 404 with or without a session. Known
+	// protected routes still 401.
+	r = httptest.NewRequest(http.MethodGet, "/unknown.json", nil)
 	w = httptest.NewRecorder()
 	mux.ServeHTTP(w, r)
 	if w.Code != http.StatusNotFound {
-		t.Fatalf("authenticated / status = %d, want 404 (the M1.2 shell is not here yet)", w.Code)
+		t.Fatalf("anonymous /unknown.json status = %d, want 404", w.Code)
+	}
+	value := sessionCookie(t, mux, password)
+	r = withSession(httptest.NewRequest(http.MethodGet, "/unknown.json", nil), value)
+	w = httptest.NewRecorder()
+	mux.ServeHTTP(w, r)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("authenticated /unknown.json status = %d, want 404", w.Code)
+	}
+	// Unknown auth paths never fall back to the app.
+	r = httptest.NewRequest(http.MethodGet, "/auth/nope", nil)
+	r.Header.Set("Accept", "text/html")
+	w = httptest.NewRecorder()
+	mux.ServeHTTP(w, r)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous /auth/nope status = %d, want 401, never the app", w.Code)
+	}
+	// Unknown writes need a session too, even with a cookie missing.
+	r = httptest.NewRequest(http.MethodPost, "/unknown", nil)
+	w = httptest.NewRecorder()
+	mux.ServeHTTP(w, r)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous POST /unknown status = %d, want 401", w.Code)
+	}
+}
+
+func TestSecurityHeaders(t *testing.T) {
+	mux, _ := fixture(t, "")
+	for _, target := range []string{"/healthz", "/auth/me", "/"} {
+		r := httptest.NewRequest(http.MethodGet, target, nil)
+		if target == "/" {
+			r.Header.Set("Accept", "text/html")
+		}
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, r)
+		if csp := w.Header().Get("Content-Security-Policy"); csp != "default-src 'self'; frame-ancestors 'none'" {
+			t.Fatalf("%s CSP = %q", target, csp)
+		}
+		if v := w.Header().Get("X-Content-Type-Options"); v != "nosniff" {
+			t.Fatalf("%s nosniff = %q", target, v)
+		}
+		if v := w.Header().Get("Referrer-Policy"); v != "no-referrer" {
+			t.Fatalf("%s referrer = %q", target, v)
+		}
 	}
 }
 
@@ -463,7 +502,7 @@ func TestCSRF(t *testing.T) {
 func TestCSRFTrustedPublicURL(t *testing.T) {
 	// Each attempt burns its session, so the helper signs into the
 	// given mux fresh and posts sign-out with the given Origin.
-	attempt := func(t *testing.T, mux *http.ServeMux, password, origin string) int {
+	attempt := func(t *testing.T, mux http.Handler, password, origin string) int {
 		t.Helper()
 		value := sessionCookie(t, mux, password)
 		r := withSession(httptest.NewRequest(http.MethodPost, "/auth/sign-out", nil), value)

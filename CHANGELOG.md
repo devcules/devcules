@@ -4,6 +4,25 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-28, M1.2)
+
+- `web/`: React 18 PWA shell (theme tokens dark-first, bottom tab
+  bar on phones, sidebar on desktop, calm Home/Terminals empty
+  states, Settings with sign-out), sign-in screen posting to
+  `/auth/sign-in` (204 now, not 303), plain-word errors, `/auth/me`
+  bootstrap with return-to-sign-in on 401. Installable manifest
+  plus from-scratch icons; no service worker yet.
+- `internal/web`: serves the embedded build with SPA fallback,
+  immutable hashed assets, no-cache entry points, and a 503 with
+  the build command when unbuilt.
+- Security headers on every response (strict CSP, nosniff,
+  no-referrer). Sign-in success is 204; the no-JS form and its
+  route are gone.
+- Node build stage in the Dockerfile (pinned digest), real web
+  steps in CI (eslint, tsc, vitest, audit, licence check), e2e
+  sign-out/keyboard flows plus Linux screenshot baselines.
+- `docs/web.md`; `docs/ci.md` and `docs/auth.md` updated.
+
 ### Added (2026-10-27, M1.1)
 
 - `internal/auth`: admin bootstrap (one-time 24-char password on

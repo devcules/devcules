@@ -2,6 +2,8 @@
 # everything else stays out of the image context.
 .git
 dist/
+node_modules/
+coverage/
 coverage.txt
 coverage.out
 *.test

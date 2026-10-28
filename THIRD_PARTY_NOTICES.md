@@ -6,6 +6,8 @@ listed here with its licence.
 
 ## Runtime dependencies
 
+### Go
+
 M0.3 adds the SQLite backend. Every package below is pulled in by
 `modernc.org/sqlite` (pure Go, no cgo); all licences are permissive
 (`go-licenses report ./...` reproduces this list):
@@ -30,6 +32,23 @@ vulnerability scanner flags is never used); nothing else new is a
 runtime dependency. The Playwright suite (`e2e/`) is dev-only test
 tooling and ships in no image: `@playwright/test` (Apache-2.0) with
 its browser downloads happens at test time.
+
+### Web (M1.2)
+
+The built PWA ships these production dependencies, all MIT
+(`license-checker --production` reproduces this list):
+
+| Package | Licence |
+|---|---|
+| `react` 18.3.1 | MIT |
+| `react-dom` 18.3.1 | MIT |
+| `scheduler` 0.23.2 | MIT |
+| `loose-envify` 1.4.0 | MIT |
+| `js-tokens` 4.0.0 | MIT |
+
+System fonts only: no remote fonts, CDNs or analytics. Dev-only
+tooling (Vite, Vitest, Playwright, ESLint and friends) ships in no
+image.
 
 ## Container image contents
 

@@ -169,6 +169,11 @@ jobs:
           npm --prefix e2e ci
           npx --prefix e2e playwright install --with-deps chromium webkit
       - name: Start the stack
+        env:
+          # WebAuthn needs https or http://localhost, never an IP: the
+          # passkeys spec serves from this name. The 127.0.0.1 specs
+          # keep their base URL and still pass with it set.
+          DEVCULES_PUBLIC_URL: http://localhost:7659
         run: |
           if ! docker compose -f deploy/compose.yaml up -d --wait; then
             docker compose -f deploy/compose.yaml logs --no-color

@@ -130,8 +130,8 @@ func TestRunServeShutdown(t *testing.T) {
 		t.Fatal("bus subscriber channel never closed by shutdown")
 	}
 	lines := jsonLines(t, stdout)
-	if len(lines) != 4 {
-		t.Fatalf("got %d log lines, want token-created/listening/shutdown/stopped", len(lines))
+	if len(lines) != 5 {
+		t.Fatalf("got %d log lines, want token-created/passkeys/listening/shutdown/stopped", len(lines))
 	}
 	if lines[0]["msg"] != "runner token file created" {
 		t.Fatalf("first line = %v, want the token mint note", lines[0])
@@ -139,8 +139,16 @@ func TestRunServeShutdown(t *testing.T) {
 	if lines[0]["path"] != dir+string(filepath.Separator)+"runner.token" {
 		t.Fatalf("token path = %v, want the default file in the data dir", lines[0])
 	}
-	if lines[1]["addr"] != "127.0.0.1:1" {
-		t.Fatalf("second line = %v, want the listen address and nothing else", lines[1])
+	// The fixture sets no public URL, so passkeys stay off with the
+	// reason in plain words.
+	if lines[1]["msg"] != "passkeys disabled" {
+		t.Fatalf("second line = %v, want the passkeys decision", lines[1])
+	}
+	if reason, _ := lines[1]["reason"].(string); !strings.Contains(reason, "DEVCULES_PUBLIC_URL") {
+		t.Fatalf("passkeys reason = %v, want next steps", lines[1])
+	}
+	if lines[2]["addr"] != "127.0.0.1:1" {
+		t.Fatalf("third line = %v, want the listen address and nothing else", lines[2])
 	}
 	for _, line := range lines {
 		for _, v := range line {

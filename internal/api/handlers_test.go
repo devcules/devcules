@@ -33,7 +33,8 @@ func testWeb() http.Handler {
 }
 
 // fixture opens an isolated store with a bootstrapped admin and
-// returns the mux plus the one-time password.
+// returns the mux plus the one-time password. Passkeys follow the
+// public URL, as in serve.
 func fixture(t *testing.T, publicURL string) (http.Handler, string) {
 	t.Helper()
 	s, err := sqlite.Open(context.Background(), filepath.Join(t.TempDir(), "t.db"))
@@ -41,7 +42,7 @@ func fixture(t *testing.T, publicURL string) (http.Handler, string) {
 		t.Fatalf("Open: %s", err)
 	}
 	t.Cleanup(func() { _ = s.Close() })
-	svc := auth.New(s)
+	svc := auth.New(s, auth.WithPasskeys(publicURL, nil))
 	password, created, err := svc.EnsureAdmin(context.Background())
 	if err != nil {
 		t.Fatalf("EnsureAdmin: %s", err)

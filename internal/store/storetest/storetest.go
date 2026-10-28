@@ -1,9 +1,11 @@
 package storetest
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -60,6 +62,23 @@ func mustExists(t *testing.T, err error, msg string) {
 	}
 }
 
+// checkPasskey requires got to equal want field by field. Times
+// compare by instant: storage drops monotonic clocks.
+func checkPasskey(t *testing.T, got, want store.Passkey, msg string) {
+	t.Helper()
+	check(t, bytes.Equal(got.ID, want.ID), fmt.Sprintf("%s id %x, want %x", msg, got.ID, want.ID))
+	check(t, got.Username == want.Username, fmt.Sprintf("%s username %q, want %q", msg, got.Username, want.Username))
+	check(t, bytes.Equal(got.PublicKey, want.PublicKey), fmt.Sprintf("%s public key %x, want %x", msg, got.PublicKey, want.PublicKey))
+	check(t, got.SignCount == want.SignCount, fmt.Sprintf("%s sign count %d, want %d", msg, got.SignCount, want.SignCount))
+	check(t, bytes.Equal(got.AAGUID, want.AAGUID), fmt.Sprintf("%s AAGUID %x, want %x", msg, got.AAGUID, want.AAGUID))
+	check(t, slices.Equal(got.Transports, want.Transports), fmt.Sprintf("%s transports %q, want %q", msg, got.Transports, want.Transports))
+	check(t, got.BackupEligible == want.BackupEligible, fmt.Sprintf("%s backup eligible %v, want %v", msg, got.BackupEligible, want.BackupEligible))
+	check(t, got.BackupState == want.BackupState, fmt.Sprintf("%s backup state %v, want %v", msg, got.BackupState, want.BackupState))
+	check(t, got.Name == want.Name, fmt.Sprintf("%s name %q, want %q", msg, got.Name, want.Name))
+	check(t, got.CreatedAt.Equal(want.CreatedAt), fmt.Sprintf("%s created %s, want %s", msg, got.CreatedAt, want.CreatedAt))
+	check(t, got.LastUsedAt.Equal(want.LastUsedAt), fmt.Sprintf("%s last used %s, want %s", msg, got.LastUsedAt, want.LastUsedAt))
+}
+
 // Run executes the shared store.Store contract suite. newStore opens a
 // store; every call in one Run shares the same database, so subtests use
 // unique keys and the reopen subtest owns the close/reopen sequence.
@@ -71,6 +90,10 @@ func Run(t *testing.T, newStore func(t *testing.T) store.Store) {
 	key := func(t *testing.T, name string) string {
 		t.Helper()
 		return t.Name() + "/" + name
+	}
+	id := func(t *testing.T, name string) []byte {
+		t.Helper()
+		return []byte(t.Name() + "/" + name)
 	}
 
 	t.Run("FreshMigrates", func(t *testing.T) {
@@ -178,6 +201,122 @@ func Run(t *testing.T, newStore func(t *testing.T) store.Store) {
 		mustf(t, r.Delete(ctx, sess.TokenHash), "Delete missing (must be a no-op)")
 	})
 
+	t.Run("Passkeys", func(t *testing.T) {
+		s := newStore(t)
+		defer s.Close()
+		r := s.Passkeys()
+		user := key(t, "dana")
+		mustf(t, s.Users().Create(ctx, user, "hash"), "Create user for passkeys")
+		at := time.Now().UTC().Truncate(time.Second)
+		aaguid := bytes.Repeat([]byte{0x7a}, 16)
+		first := store.Passkey{
+			ID: id(t, "first"), Username: user, PublicKey: []byte("cose-key-one"),
+			SignCount: 3, AAGUID: aaguid, Transports: []string{"internal", "hybrid"},
+			BackupEligible: true, BackupState: false,
+			Name: "Phone", CreatedAt: at, LastUsedAt: at,
+		}
+
+		_, err := r.Get(ctx, id(t, "missing"))
+		mustNotFound(t, err, "Get unknown passkey")
+		got, err := r.ListByUser(ctx, key(t, "nobody"))
+		mustf(t, err, "ListByUser unknown user")
+		check(t, len(got) == 0, fmt.Sprintf("ListByUser unknown user has %d entries, want none", len(got)))
+		bad := first
+		bad.ID = nil
+		mustFail(t, r.Create(ctx, bad), "Create empty id")
+		bad = first
+		bad.Username = ""
+		mustFail(t, r.Create(ctx, bad), "Create empty username")
+		bad = first
+		bad.PublicKey = nil
+		mustFail(t, r.Create(ctx, bad), "Create empty public key")
+		bad = first
+		bad.Name = ""
+		mustFail(t, r.Create(ctx, bad), "Create empty name")
+
+		mustf(t, r.Create(ctx, first), "Create")
+		gotOne, err := r.Get(ctx, first.ID)
+		mustf(t, err, "Get")
+		checkPasskey(t, gotOne, first, "stored passkey")
+		mustExists(t, r.Create(ctx, first), "Create duplicate passkey")
+		gotOne, err = r.Get(ctx, first.ID)
+		mustf(t, err, "Get after duplicate Create")
+		checkPasskey(t, gotOne, first, "passkey after duplicate Create (duplicates must not overwrite)")
+
+		second := first
+		second.ID = id(t, "second")
+		second.PublicKey = []byte("cose-key-two")
+		second.Transports = nil
+		second.BackupEligible = false
+		second.Name = "Laptop"
+		second.CreatedAt = at.Add(time.Hour)
+		second.LastUsedAt = at.Add(time.Hour)
+		mustf(t, r.Create(ctx, second), "Create second passkey")
+		// Same-instant tie: the credential id orders the list.
+		tieA := second
+		tieA.ID = []byte(key(t, "tie/a"))
+		tieA.PublicKey = []byte("cose-key-tie-a")
+		tieA.Name = "Tie A"
+		tieB := second
+		tieB.ID = []byte(key(t, "tie/b"))
+		tieB.PublicKey = []byte("cose-key-tie-b")
+		tieB.Name = "Tie B"
+		mustf(t, r.Create(ctx, tieB), "Create tie B first")
+		mustf(t, r.Create(ctx, tieA), "Create tie A second")
+		listed, err := r.ListByUser(ctx, user)
+		mustf(t, err, "ListByUser")
+		check(t, len(listed) == 4, fmt.Sprintf("ListByUser has %d entries, want 4", len(listed)))
+		if len(listed) == 4 {
+			checkPasskey(t, listed[0], first, "ListByUser oldest")
+			checkPasskey(t, listed[1], second, "ListByUser second")
+			checkPasskey(t, listed[2], tieA, "ListByUser tie broken by id")
+			checkPasskey(t, listed[3], tieB, "ListByUser tie broken by id")
+		}
+
+		used := at.Add(2 * time.Hour)
+		mustNotFound(t, r.UpdateAfterLogin(ctx, id(t, "missing"), 9, true, used), "UpdateAfterLogin missing passkey")
+		mustf(t, r.UpdateAfterLogin(ctx, first.ID, 9, true, used), "UpdateAfterLogin")
+		after := first
+		after.SignCount = 9
+		after.BackupState = true
+		after.LastUsedAt = used
+		gotOne, err = r.Get(ctx, first.ID)
+		mustf(t, err, "Get after UpdateAfterLogin")
+		checkPasskey(t, gotOne, after, "passkey after UpdateAfterLogin (only count, backup state and use time change)")
+
+		mustFail(t, r.Rename(ctx, first.ID, ""), "Rename empty name")
+		mustNotFound(t, r.Rename(ctx, id(t, "missing"), "Ghost"), "Rename missing passkey")
+		mustf(t, r.Rename(ctx, first.ID, "Tablet"), "Rename")
+		after.Name = "Tablet"
+		gotOne, err = r.Get(ctx, first.ID)
+		mustf(t, err, "Get after Rename")
+		checkPasskey(t, gotOne, after, "passkey after Rename (only the name changes)")
+
+		mustf(t, r.Delete(ctx, first.ID), "Delete")
+		_, err = r.Get(ctx, first.ID)
+		mustNotFound(t, err, "Get after Delete")
+		mustf(t, r.Delete(ctx, first.ID), "Delete missing (must be a no-op)")
+	})
+
+	t.Run("WebAuthnHandle", func(t *testing.T) {
+		s := newStore(t)
+		defer s.Close()
+		u := s.Users()
+		_, err := u.EnsureWebAuthnHandle(ctx, key(t, "ghost"))
+		mustNotFound(t, err, "EnsureWebAuthnHandle unknown user")
+		mustf(t, u.Create(ctx, key(t, "erin"), "hash"), "Create user for handle")
+		first, err := u.EnsureWebAuthnHandle(ctx, key(t, "erin"))
+		mustf(t, err, "EnsureWebAuthnHandle")
+		check(t, len(first) == 32, fmt.Sprintf("handle length = %d, want 32 random bytes", len(first)))
+		again, err := u.EnsureWebAuthnHandle(ctx, key(t, "erin"))
+		mustf(t, err, "EnsureWebAuthnHandle again")
+		check(t, bytes.Equal(again, first), "second EnsureWebAuthnHandle minted a new handle, want the stored one")
+		mustf(t, u.Create(ctx, key(t, "fred"), "hash"), "Create second user for handle")
+		other, err := u.EnsureWebAuthnHandle(ctx, key(t, "fred"))
+		mustf(t, err, "EnsureWebAuthnHandle second user")
+		check(t, !bytes.Equal(other, first), "two users share one handle, want distinct handles")
+	})
+
 	t.Run("Ping", func(t *testing.T) {
 		s := newStore(t)
 		mustf(t, s.Ping(ctx), "Ping")
@@ -225,6 +364,22 @@ func Run(t *testing.T, newStore func(t *testing.T) store.Store) {
 					if race(s.Sessions().Delete(ctx, k)) {
 						return
 					}
+					pk := store.Passkey{ID: []byte(k), Username: user, PublicKey: []byte("pk"), AAGUID: make([]byte, 16), Name: "n", CreatedAt: at, LastUsedAt: at}
+					if race(s.Passkeys().Create(ctx, pk)) {
+						return
+					}
+					if _, err := s.Passkeys().Get(ctx, pk.ID); race(err) {
+						return
+					}
+					if race(s.Passkeys().UpdateAfterLogin(ctx, pk.ID, 2, false, at)) {
+						return
+					}
+					if race(s.Passkeys().Rename(ctx, pk.ID, "m")) {
+						return
+					}
+					if race(s.Passkeys().Delete(ctx, pk.ID)) {
+						return
+					}
 					if race(s.Ping(ctx)) {
 						return
 					}
@@ -252,5 +407,16 @@ func Run(t *testing.T, newStore func(t *testing.T) store.Store) {
 		mustCancel(t, err, "Users.PasswordHash with canceled context")
 		_, err = s.Sessions().Get(canceled, key(t, "h"))
 		mustCancel(t, err, "Sessions.Get with canceled context")
+		_, err = s.Users().EnsureWebAuthnHandle(canceled, key(t, "u"))
+		mustCancel(t, err, "Users.EnsureWebAuthnHandle with canceled context")
+		valid := store.Passkey{ID: id(t, "pk"), Username: key(t, "u"), PublicKey: []byte("pk"), Name: "n"}
+		mustCancel(t, s.Passkeys().Create(canceled, valid), "Passkeys.Create with canceled context")
+		_, err = s.Passkeys().Get(canceled, id(t, "pk"))
+		mustCancel(t, err, "Passkeys.Get with canceled context")
+		_, err = s.Passkeys().ListByUser(canceled, key(t, "u"))
+		mustCancel(t, err, "Passkeys.ListByUser with canceled context")
+		mustCancel(t, s.Passkeys().UpdateAfterLogin(canceled, id(t, "pk"), 1, false, time.Now()), "Passkeys.UpdateAfterLogin with canceled context")
+		mustCancel(t, s.Passkeys().Rename(canceled, id(t, "pk"), "n"), "Passkeys.Rename with canceled context")
+		mustCancel(t, s.Passkeys().Delete(canceled, id(t, "pk")), "Passkeys.Delete with canceled context")
 	})
 }

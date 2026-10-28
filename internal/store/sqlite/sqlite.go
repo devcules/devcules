@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
 	"embed"
@@ -124,6 +125,11 @@ func (s *sqliteStore) Sessions() store.SessionsRepo {
 	return sessionsRepo{db: s.db}
 }
 
+// Passkeys returns auth's passkey repo.
+func (s *sqliteStore) Passkeys() store.PasskeysRepo {
+	return passkeysRepo{db: s.db}
+}
+
 // usersRepo implements store.UsersRepo on the users table.
 type usersRepo struct {
 	db *sql.DB
@@ -162,6 +168,36 @@ func (u usersRepo) PasswordHash(ctx context.Context, username string) (string, e
 		return "", fmt.Errorf("store: user lookup %q failed: %w", username, err)
 	}
 	return hash, nil
+}
+
+// webauthnHandleBytes is the minted user handle length: 32 random
+// bytes, well under WebAuthn's 64-byte ceiling.
+const webauthnHandleBytes = 32
+
+// EnsureWebAuthnHandle returns the user's handle, minting it on first
+// call. The UPDATE only fills a NULL handle and every caller reads
+// the stored value back, so concurrent first calls converge on one
+// handle instead of racing. An unknown username wraps
+// store.ErrNotFound.
+func (u usersRepo) EnsureWebAuthnHandle(ctx context.Context, username string) ([]byte, error) {
+	var fresh [webauthnHandleBytes]byte
+	if _, err := rand.Read(fresh[:]); err != nil {
+		return nil, fmt.Errorf("store: cannot mint webauthn handle: %w", err)
+	}
+	if _, err := u.db.ExecContext(ctx,
+		`UPDATE users SET webauthn_handle = ? WHERE username = ? AND webauthn_handle IS NULL`,
+		fresh[:], username); err != nil {
+		return nil, fmt.Errorf("store: webauthn handle mint %q failed: %w", username, err)
+	}
+	var handle []byte
+	err := u.db.QueryRowContext(ctx, `SELECT webauthn_handle FROM users WHERE username = ?`, username).Scan(&handle)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("store: user %q not found: %w", username, store.ErrNotFound)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("store: webauthn handle lookup %q failed: %w", username, err)
+	}
+	return handle, nil
 }
 
 // sessionsRepo implements store.SessionsRepo on the sessions table.
@@ -240,6 +276,179 @@ func (r sessionsRepo) Touch(ctx context.Context, hash string, at time.Time) erro
 func (r sessionsRepo) Delete(ctx context.Context, hash string) error {
 	if _, err := r.db.ExecContext(ctx, `DELETE FROM sessions WHERE token_hash = ?`, hash); err != nil {
 		return fmt.Errorf("store: session delete failed: %w", err)
+	}
+	return nil
+}
+
+// passkeysRepo implements store.PasskeysRepo on the passkeys table.
+// Transports cross as one comma-joined string: the values come from
+// the WebAuthn transport enum, which holds no commas. Times cross as
+// UTC RFC 3339 strings, as with sessions.
+type passkeysRepo struct {
+	db *sql.DB
+}
+
+func joinTransports(transports []string) string {
+	return strings.Join(transports, ",")
+}
+
+func splitTransports(raw string) []string {
+	if raw == "" {
+		return nil
+	}
+	return strings.Split(raw, ",")
+}
+
+func boolInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+// Create stores a passkey. A taken credential id wraps
+// store.ErrExists; the duplicate never overwrites the stored row.
+func (r passkeysRepo) Create(ctx context.Context, p store.Passkey) error {
+	switch {
+	case len(p.ID) == 0:
+		return fmt.Errorf("store: passkey id must not be empty")
+	case p.Username == "":
+		return fmt.Errorf("store: passkey username must not be empty")
+	case len(p.PublicKey) == 0:
+		return fmt.Errorf("store: passkey public key must not be empty")
+	case p.Name == "":
+		return fmt.Errorf("store: passkey name must not be empty")
+	}
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO passkeys (credential_id, username, public_key, sign_count, aaguid, transports,
+		  backup_eligible, backup_state, name, created_at, last_used_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.ID, p.Username, p.PublicKey, p.SignCount, p.AAGUID, joinTransports(p.Transports),
+		boolInt(p.BackupEligible), boolInt(p.BackupState), p.Name,
+		formatTime(p.CreatedAt), formatTime(p.LastUsedAt))
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			return fmt.Errorf("store: passkey already exists: %w", store.ErrExists)
+		}
+		return fmt.Errorf("store: passkey create failed: %w", err)
+	}
+	return nil
+}
+
+// ListByUser returns the user's passkeys, oldest first. The
+// credential id breaks created_at ties: two keys registered in one
+// second still come back in a stable order.
+func (r passkeysRepo) ListByUser(ctx context.Context, username string) ([]store.Passkey, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT credential_id, username, public_key, sign_count, aaguid, transports,
+			backup_eligible, backup_state, name, created_at, last_used_at
+		 FROM passkeys WHERE username = ? ORDER BY created_at, credential_id`, username)
+	if err != nil {
+		return nil, fmt.Errorf("store: passkey list failed: %w", err)
+	}
+	var out []store.Passkey
+	for rows.Next() {
+		var p store.Passkey
+		if err := scanPasskey(rows, &p); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("store: passkey list failed: %w", err)
+	}
+	return out, nil
+}
+
+// Get returns the passkey, or an error wrapping store.ErrNotFound.
+func (r passkeysRepo) Get(ctx context.Context, id []byte) (store.Passkey, error) {
+	var p store.Passkey
+	err := scanPasskey(r.db.QueryRowContext(ctx,
+		`SELECT credential_id, username, public_key, sign_count, aaguid, transports,
+			backup_eligible, backup_state, name, created_at, last_used_at
+		 FROM passkeys WHERE credential_id = ?`, id), &p)
+	if errors.Is(err, sql.ErrNoRows) {
+		return store.Passkey{}, fmt.Errorf("store: passkey not found: %w", store.ErrNotFound)
+	}
+	if err != nil {
+		return store.Passkey{}, fmt.Errorf("store: passkey lookup failed: %w", err)
+	}
+	return p, nil
+}
+
+// UpdateAfterLogin records the new sign count, backup state and use
+// time. A missing passkey wraps store.ErrNotFound.
+func (r passkeysRepo) UpdateAfterLogin(ctx context.Context, id []byte, signCount uint32, backedUp bool, lastUsed time.Time) error {
+	res, err := r.db.ExecContext(ctx,
+		`UPDATE passkeys SET sign_count = ?, backup_state = ?, last_used_at = ? WHERE credential_id = ?`,
+		signCount, boolInt(backedUp), formatTime(lastUsed), id)
+	if err != nil {
+		return fmt.Errorf("store: passkey update failed: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("store: passkey update failed: %w", err)
+	}
+	if n == 0 {
+		return fmt.Errorf("store: passkey not found: %w", store.ErrNotFound)
+	}
+	return nil
+}
+
+// Rename changes the label. An empty name is an error; a missing
+// passkey wraps store.ErrNotFound.
+func (r passkeysRepo) Rename(ctx context.Context, id []byte, name string) error {
+	if name == "" {
+		return fmt.Errorf("store: passkey name must not be empty")
+	}
+	res, err := r.db.ExecContext(ctx, `UPDATE passkeys SET name = ? WHERE credential_id = ?`, name, id)
+	if err != nil {
+		return fmt.Errorf("store: passkey rename failed: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("store: passkey rename failed: %w", err)
+	}
+	if n == 0 {
+		return fmt.Errorf("store: passkey not found: %w", store.ErrNotFound)
+	}
+	return nil
+}
+
+// Delete removes the passkey. A missing passkey is not an error.
+func (r passkeysRepo) Delete(ctx context.Context, id []byte) error {
+	if _, err := r.db.ExecContext(ctx, `DELETE FROM passkeys WHERE credential_id = ?`, id); err != nil {
+		return fmt.Errorf("store: passkey delete failed: %w", err)
+	}
+	return nil
+}
+
+// passkeyScanner is the Scan both QueryRow and Rows offer, so one
+// function reads a passkey row from either.
+type passkeyScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanPasskey(row passkeyScanner, p *store.Passkey) error {
+	var signCount int64
+	var eligible, backedUp int
+	var transports, created, used string
+	if err := row.Scan(&p.ID, &p.Username, &p.PublicKey, &signCount, &p.AAGUID,
+		&transports, &eligible, &backedUp, &p.Name, &created, &used); err != nil {
+		return err
+	}
+	p.SignCount = uint32(signCount)
+	p.Transports = splitTransports(transports)
+	p.BackupEligible = eligible != 0
+	p.BackupState = backedUp != 0
+	var err error
+	if p.CreatedAt, err = parseTime(created, "created_at"); err != nil {
+		return err
+	}
+	if p.LastUsedAt, err = parseTime(used, "last_used_at"); err != nil {
+		return err
 	}
 	return nil
 }

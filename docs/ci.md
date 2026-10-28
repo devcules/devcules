@@ -16,10 +16,10 @@ use `persist-credentials: false` (no job pushes via git) and run with
 | Job | What it checks | Fails when |
 |---|---|---|
 | `lint` | `gofmt -l`, `go vet`, `staticcheck`, plus `eslint` and `tsc --noEmit` once `web/package.json` exists | any finding |
-| `arch` | `TestModuleBoundaries`: `internal/` never imports `plugins/`; the runner role never depends on `vault`, directly or transitively; the terminal relay never imports the pty driver in non-test code (M1.4) | a forbidden import or dependency |
+| `arch` | `TestModuleBoundaries`: `internal/` never imports `plugins/`; the runner role never depends on `vault`, directly or transitively; the terminal relay never imports the pty driver in non-test code (M1.4); auth's repos stay with auth and the store backends (M1.5) | a forbidden import or dependency |
 | `unit` | `go test -race -cover ./...` with a 70%-per-package coverage gate, plus `vitest run` once `web/package.json` exists, plus a 30 s `FuzzDecode` run over `internal/link` (M1.3). Installs tmux first (M1.4): the pty suite skips locally without it and fails under `CI=true` | a failing test, a package below 70%, a fuzz crash, or a tmux-gated skip in CI |
 | `integration` | `docker compose up` plus `scripts/smoke.sh`, once `deploy/compose.yaml` exists. Since M1.4 the smoke script also opens/lists/deletes a terminal with the cookie jar | any smoke step |
-| `e2e` | Playwright sign-in (success and wrong password) plus the terminal flows (open, echo, reload resume, key-strip Ctrl-C, close, CSP-violation watch) at phone (390 px) and desktop sizes on Chromium, against the compose stack | a failing flow, a dropped session cookie, or a CSP violation |
+| `e2e` | Playwright sign-in (success and wrong password), the terminal flows (open, echo, reload resume, key-strip Ctrl-C, close, CSP-violation watch), and the passkey flows (register, sign in, remove via a CDP virtual authenticator, M1.5) at phone (390 px) and desktop sizes on Chromium, against the compose stack | a failing flow, a dropped session cookie, or a CSP violation |
 | `security` | Gitleaks, `govulncheck`, `npm audit --omit=dev` (once `web/` exists), and a `go-licenses check` allow-list (MIT, BSD, ISC and Apache-2.0 only) | a secret, a known vulnerability or a disallowed licence |
 
 Note: the coverage gate checks every package, which is stricter than
@@ -51,6 +51,11 @@ and light, at both sizes). Baselines come from the manual
 WebKit dropped the `Secure` cookie on plain-http loopback
 (CI-proven), so flow projects are Chromium-only, with the finding
 noted in `docs/auth.md`. There is no insecure-cookie option.
+Since M1.5 the job starts the stack with
+`DEVCULES_PUBLIC_URL=http://localhost:7659` so the passkeys spec
+(WebAuthn needs https or `http://localhost`, never an IP) can run
+against its own `localhost` base URL; the 127.0.0.1 specs keep
+passing with it set.
 
 ## cd.yml — merge to `main`
 

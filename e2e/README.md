@@ -1,22 +1,34 @@
 # e2e
 
-Playwright sign-in flows (PLAN.md §8). No screenshot baselines yet:
-those wait for the M1.2 React UI. Until then the suite asserts flows
-and cookies at phone (390 px) and desktop sizes, on Chromium
-(WebKit drops `Secure` cookies on plain-http loopback — see
-`docs/auth.md` — so it is out until HTTPS).
+Playwright flows against a running stack (compose in CI, or a local
+`devcules serve`): sign-in, terminals, and passkeys, at 390 px and
+desktop on Chromium. The visual suite (`test:visual`, Linux only)
+compares screenshot baselines, which the `e2e-baselines` workflow
+refreshes — never generate them on a Mac.
 
-## Run
-
-Against an already-up stack (compose, or a local `devcules serve`
-on 127.0.0.1:7659):
+## Run it
 
 ```sh
-npm --prefix e2e ci
-npx --prefix e2e playwright install chromium webkit
-E2E_ADMIN_PASSWORD="$(./scripts/get-admin-password.sh)" npm --prefix e2e test
+DEVCULES_PUBLIC_URL=http://localhost:7659 docker compose -f ../deploy/compose.yaml up -d --wait
+E2E_ADMIN_PASSWORD="$(../scripts/get-admin-password.sh)" npm --prefix . test
 ```
 
-`get-admin-password.sh` reads the bootstrap password from the serve
-logs. It only exists on a fresh volume: reset a local stack with
-`docker compose -f deploy/compose.yaml down -v` first.
+The public URL matters: the passkeys spec carries its own
+`http://localhost:7659` base URL because WebAuthn needs https or
+`http://localhost`, never `127.0.0.1` (a CDP virtual authenticator
+stands in for a phone). Headless Chromium answers the autofill
+(conditional) request without a user pick, so the spec turns it off
+and drives every ceremony through the button. The other flow specs
+keep the default `http://127.0.0.1:7659` base URL (`E2E_BASE_URL`
+overrides it) and pass with the public URL set. The visual suite
+defaults to `http://localhost:7659`, so its baselines show the
+passkey UI.
+
+## Layout
+
+- `playwright.config.js`: the flow suite (`signin`, `terminals`,
+  `passkeys`), Chromium desktop and mobile projects.
+- `playwright.visual.config.js`: the screenshot suite (dark and
+  light, both sizes).
+- `tests/`: one spec per area, plus the committed Linux baselines
+  under `tests/visual.spec.js-snapshots/`.

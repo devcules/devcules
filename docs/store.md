@@ -11,8 +11,12 @@ contract suite every implementation runs.
 ships only Meta. Repos are deliberately small interfaces so each module
 can own exactly one. M1.1 adds auth's two repos by exactly the
 procedure below: `Users()` (one argon2id hash per username; passwords
-never reach the store) and `Sessions()` (sessions by token SHA-256;
-values never reach the store), with migration `0002`.
+never reach the store, plus the `webauthn_handle` from M1.5) and
+`Sessions()` (sessions by token SHA-256;
+values never reach the store), with migration `0002`. M1.5 adds
+auth's third repo the same way: `Passkeys()` (one row per credential:
+id, COSE public key, sign count, AAGUID, transports, backup flags,
+name, both timestamps), with migration `0003`.
 
 ## How a later module adds a repo
 

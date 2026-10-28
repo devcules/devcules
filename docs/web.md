@@ -58,6 +58,17 @@ rides above the software keyboard through `visualViewport`. Every
 `/api` 401 calls `onSessionExpired`, which unmounts the shell back
 to sign-in.
 
+Passkeys (M1.5) need no library: `web/src/webauthn.ts` holds the
+base64url helpers and the conversions between the server's JSON and
+the `navigator.credentials` shapes. The sign-in screen offers `Sign
+in with a passkey` only when `/auth/passkeys/status` says enabled
+and the browser speaks WebAuthn, and never at an IP address
+(`passkeysUsableHere`), with conditional mediation
+(`autocomplete="username webauthn"`) where supported; the accent
+stays on the one primary action. Settings lists the keys (rename,
+remove with a confirm), and says why Add is missing when passkeys
+are off or the page is at an IP address. CSP is unchanged.
+
 ## Building
 
 ```sh

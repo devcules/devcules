@@ -1,10 +1,13 @@
 package storetest
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -20,7 +23,9 @@ type memDB struct {
 	mu       sync.Mutex
 	data     map[string]string
 	users    map[string]string
+	handles  map[string][]byte
 	sessions map[string]store.Session
+	passkeys map[string]store.Passkey
 	closed   map[*memStore]bool
 }
 
@@ -34,7 +39,14 @@ type memMeta struct {
 }
 
 func newMemDB() *memDB {
-	return &memDB{data: map[string]string{}, users: map[string]string{}, sessions: map[string]store.Session{}, closed: map[*memStore]bool{}}
+	return &memDB{
+		data:     map[string]string{},
+		users:    map[string]string{},
+		handles:  map[string][]byte{},
+		sessions: map[string]store.Session{},
+		passkeys: map[string]store.Passkey{},
+		closed:   map[*memStore]bool{},
+	}
 }
 
 func (s *memStore) Users() store.UsersRepo {
@@ -43,6 +55,10 @@ func (s *memStore) Users() store.UsersRepo {
 
 func (s *memStore) Sessions() store.SessionsRepo {
 	return memSessions{db: s.db, s: s}
+}
+
+func (s *memStore) Passkeys() store.PasskeysRepo {
+	return memPasskeys{db: s.db, s: s}
 }
 
 type memUsers struct {
@@ -86,6 +102,29 @@ func (m memUsers) PasswordHash(ctx context.Context, username string) (string, er
 		return "", fmt.Errorf("store: user %q not found: %w", username, store.ErrNotFound)
 	}
 	return hash, nil
+}
+
+func (m memUsers) EnsureWebAuthnHandle(ctx context.Context, username string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	m.db.mu.Lock()
+	defer m.db.mu.Unlock()
+	if m.db.closed[m.s] {
+		return nil, fmt.Errorf("store: memStore is closed")
+	}
+	if _, ok := m.db.users[username]; !ok {
+		return nil, fmt.Errorf("store: user %q not found: %w", username, store.ErrNotFound)
+	}
+	if handle, ok := m.db.handles[username]; ok {
+		return append([]byte(nil), handle...), nil
+	}
+	handle := make([]byte, 32)
+	if _, err := rand.Read(handle); err != nil {
+		return nil, fmt.Errorf("store: cannot mint webauthn handle: %w", err)
+	}
+	m.db.handles[username] = handle
+	return append([]byte(nil), handle...), nil
 }
 
 type memSessions struct {
@@ -153,6 +192,131 @@ func (m memSessions) Delete(ctx context.Context, hash string) error {
 		return fmt.Errorf("store: memStore is closed")
 	}
 	delete(m.db.sessions, hash)
+	return nil
+}
+
+type memPasskeys struct {
+	db *memDB
+	s  *memStore
+}
+
+func (m memPasskeys) Create(ctx context.Context, p store.Passkey) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	switch {
+	case len(p.ID) == 0:
+		return fmt.Errorf("store: passkey id must not be empty")
+	case p.Username == "":
+		return fmt.Errorf("store: passkey username must not be empty")
+	case len(p.PublicKey) == 0:
+		return fmt.Errorf("store: passkey public key must not be empty")
+	case p.Name == "":
+		return fmt.Errorf("store: passkey name must not be empty")
+	}
+	m.db.mu.Lock()
+	defer m.db.mu.Unlock()
+	if m.db.closed[m.s] {
+		return fmt.Errorf("store: memStore is closed")
+	}
+	if _, ok := m.db.passkeys[string(p.ID)]; ok {
+		return fmt.Errorf("store: passkey already exists: %w", store.ErrExists)
+	}
+	m.db.passkeys[string(p.ID)] = p
+	return nil
+}
+
+func (m memPasskeys) ListByUser(ctx context.Context, username string) ([]store.Passkey, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	m.db.mu.Lock()
+	defer m.db.mu.Unlock()
+	if m.db.closed[m.s] {
+		return nil, fmt.Errorf("store: memStore is closed")
+	}
+	var out []store.Passkey
+	for _, p := range m.db.passkeys {
+		if p.Username == username {
+			out = append(out, p)
+		}
+	}
+	slices.SortFunc(out, func(a, b store.Passkey) int {
+		if c := a.CreatedAt.Compare(b.CreatedAt); c != 0 {
+			return c
+		}
+		return bytes.Compare(a.ID, b.ID)
+	})
+	return out, nil
+}
+
+func (m memPasskeys) Get(ctx context.Context, id []byte) (store.Passkey, error) {
+	if err := ctx.Err(); err != nil {
+		return store.Passkey{}, err
+	}
+	m.db.mu.Lock()
+	defer m.db.mu.Unlock()
+	if m.db.closed[m.s] {
+		return store.Passkey{}, fmt.Errorf("store: memStore is closed")
+	}
+	p, ok := m.db.passkeys[string(id)]
+	if !ok {
+		return store.Passkey{}, fmt.Errorf("store: passkey not found: %w", store.ErrNotFound)
+	}
+	return p, nil
+}
+
+func (m memPasskeys) UpdateAfterLogin(ctx context.Context, id []byte, signCount uint32, backedUp bool, lastUsed time.Time) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	m.db.mu.Lock()
+	defer m.db.mu.Unlock()
+	if m.db.closed[m.s] {
+		return fmt.Errorf("store: memStore is closed")
+	}
+	p, ok := m.db.passkeys[string(id)]
+	if !ok {
+		return fmt.Errorf("store: passkey not found: %w", store.ErrNotFound)
+	}
+	p.SignCount = signCount
+	p.BackupState = backedUp
+	p.LastUsedAt = lastUsed
+	m.db.passkeys[string(id)] = p
+	return nil
+}
+
+func (m memPasskeys) Rename(ctx context.Context, id []byte, name string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if name == "" {
+		return fmt.Errorf("store: passkey name must not be empty")
+	}
+	m.db.mu.Lock()
+	defer m.db.mu.Unlock()
+	if m.db.closed[m.s] {
+		return fmt.Errorf("store: memStore is closed")
+	}
+	p, ok := m.db.passkeys[string(id)]
+	if !ok {
+		return fmt.Errorf("store: passkey not found: %w", store.ErrNotFound)
+	}
+	p.Name = name
+	m.db.passkeys[string(id)] = p
+	return nil
+}
+
+func (m memPasskeys) Delete(ctx context.Context, id []byte) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	m.db.mu.Lock()
+	defer m.db.mu.Unlock()
+	if m.db.closed[m.s] {
+		return fmt.Errorf("store: memStore is closed")
+	}
+	delete(m.db.passkeys, string(id))
 	return nil
 }
 
@@ -254,6 +418,15 @@ func TestMemStoreClosedHandles(t *testing.T) {
 		"GetSess":      func() error { _, err := s.Sessions().Get(ctx, "h"); return err },
 		"TouchSess":    func() error { return s.Sessions().Touch(ctx, "h", time.Now()) },
 		"DeleteSess":   func() error { return s.Sessions().Delete(ctx, "h") },
+		"Handle":       func() error { _, err := s.Users().EnsureWebAuthnHandle(ctx, "u"); return err },
+		"CreateKey": func() error {
+			return s.Passkeys().Create(ctx, store.Passkey{ID: []byte("i"), Username: "u", PublicKey: []byte("p"), Name: "n"})
+		},
+		"GetKey":    func() error { _, err := s.Passkeys().Get(ctx, []byte("i")); return err },
+		"ListKeys":  func() error { _, err := s.Passkeys().ListByUser(ctx, "u"); return err },
+		"UpdateKey": func() error { return s.Passkeys().UpdateAfterLogin(ctx, []byte("i"), 1, false, time.Now()) },
+		"RenameKey": func() error { return s.Passkeys().Rename(ctx, []byte("i"), "n") },
+		"DeleteKey": func() error { return s.Passkeys().Delete(ctx, []byte("i")) },
 	}
 	for name, op := range ops {
 		if err := op(); err == nil || !strings.Contains(err.Error(), "closed") {

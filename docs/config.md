@@ -19,7 +19,7 @@ forms are set, the direct value wins and the file is ignored entirely.
 | `DEVCULES_SERVE_URL` | `http://serve:7659` | What runner and machine dial. Must be an `http(s)` URL with a host. |
 | `DEVCULES_RUNNER_TOKEN` / `_FILE` | empty, file defaults to `<DataDir>/runner.token` | Runner link token (a single whitespace-free string). Direct value wins; else the explicit file is read; else the default file is read when it exists. A missing file is not a config error (serve mints it on first start, and compose names the path before it exists); any other read failure is. Serve mints the file (`0400`) when nothing is set and logs the path, never the value; the runner only reads and fails with next steps when missing. An explicit `_FILE` must be absolute. See `docs/link.md`. |
 | `DEVCULES_WORKSPACE` | `/workspace` | The code folder the runner may touch. Must be an absolute path. |
-| `DEVCULES_PUBLIC_URL` | empty | External URL for push and links, e.g. the Tailscale HTTPS name. Must be an `http(s)` URL with a host when set. |
+| `DEVCULES_PUBLIC_URL` | empty | External URL for push and links, e.g. the Tailscale HTTPS name. Must be an `http(s)` URL with a host when set. Also the WebAuthn relying party (M1.5): passkeys work on `http://localhost:7659` and https names, and stay off without it or on an IP host (see `docs/auth.md`). |
 | `META_API_KEY` / `_FILE` | empty | Stored into the vault on first start (a later module). A single whitespace-free string. |
 
 ## Subcommands

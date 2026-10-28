@@ -1,7 +1,12 @@
 package devcules
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"io/fs"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -19,6 +24,9 @@ import (
 //  3. The serve-side terminal relay never imports the tmux driver
 //     (internal/terminals/pty) in non-test code. Serve reaches
 //     terminals only through link frames.
+//  4. Auth's repos (store Users, Sessions, Passkeys) are used only
+//     by internal/auth and the store backends. Test files may wire
+//     anything, so only non-test call sites count here.
 //
 // The runner role is any package on the agent side of the trust split:
 // anything under internal/terminals/ or with a "runner" path element.
@@ -106,4 +114,54 @@ func isRunnerRole(module, path string) bool {
 		}
 	}
 	return false
+}
+
+// TestAuthReposStayWithAuth enforces rule 4: the Users, Sessions and
+// Passkeys selectors belong to auth's repos, so non-test code calls
+// them only under internal/auth and internal/store. These names are
+// reserved: anything else must not grow a Users, Sessions or
+// Passkeys method, or this test names it.
+func TestAuthReposStayWithAuth(t *testing.T) {
+	t.Parallel()
+
+	reserved := map[string]bool{"Users": true, "Sessions": true, "Passkeys": true}
+	var bad []string
+	fset := token.NewFileSet()
+	err := filepath.WalkDir(".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if d.Name() == "node_modules" || d.Name() == ".git" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		slashed := filepath.ToSlash(path)
+		if strings.HasPrefix(slashed, "internal/auth/") || strings.HasPrefix(slashed, "internal/store/") {
+			return nil
+		}
+		file, err := parser.ParseFile(fset, path, nil, 0)
+		if err != nil {
+			return err
+		}
+		ast.Inspect(file, func(n ast.Node) bool {
+			sel, ok := n.(*ast.SelectorExpr)
+			if !ok || !reserved[sel.Sel.Name] {
+				return true
+			}
+			bad = append(bad, fset.Position(sel.Pos()).String())
+			return true
+		})
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk Go sources: %s", err)
+	}
+	if len(bad) != 0 {
+		t.Fatalf("auth repos used outside internal/auth and internal/store:\n%s", strings.Join(bad, "\n"))
+	}
 }

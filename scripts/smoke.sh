@@ -75,10 +75,26 @@ esac
 [ "$(curl -fsS -b "$jar2" "$URL/api/terminals")" = '{"terminals":[]}' ] || fail "GET /api/terminals not empty after delete"
 [ "$(curl -sS -o /dev/null -w '%{http_code}' "$URL/api/terminals")" = "401" ] || fail "GET /api/terminals without session is not 401"
 
+# M1.5 passkeys: without DEVCULES_PUBLIC_URL the stack reports
+# disabled with a reason (password sign-in above already proved the
+# fallback works).
+case "$(curl -fsS "$URL/auth/passkeys/status")" in
+  '{"enabled":false,"reason":"'?*'"}') ;;
+  *) fail "passkey status without a public URL is not disabled with a reason" ;;
+esac
+
 # M1.3 serve restart: the runner's dialer backs off and relinks on its
 # own; readyz returns to 1 with a fresh session underneath.
 $COMPOSE restart serve >/dev/null
 poll_readyz 1 90 || fail "/readyz never returned to runners_linked 1 after restart"
+
+# M1.5 passkeys: with DEVCULES_PUBLIC_URL=http://localhost:7659 the
+# status reports enabled. Recreating serve changes nothing else (the
+# token and bootstrap stay on their volumes), and the stack is torn
+# down below, so no restore is needed.
+DEVCULES_PUBLIC_URL=http://localhost:7659 $COMPOSE up -d --wait serve >/dev/null || fail "recreate serve with a public URL"
+[ "$(curl -fsS "$URL/auth/passkeys/status")" = '{"enabled":true}' ] || fail "passkey status with a localhost URL is not enabled"
+poll_readyz 1 90 || fail "/readyz never returned to runners_linked 1 after the public URL recreate"
 
 serve_id=$($COMPOSE ps -q serve)
 start=$SECONDS

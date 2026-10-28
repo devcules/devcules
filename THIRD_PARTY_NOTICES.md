@@ -47,6 +47,24 @@ M1.4 adds the PTY driver below (MIT, verified from the module zip's
 |---|---|
 | `github.com/creack/pty` v1.1.24 | MIT |
 
+M1.5 adds the WebAuthn server below with its linked transitive
+dependencies (verified from each module zip's `LICENSE`; only the
+`webauthn` and `protocol` packages are imported, the `metadata`
+package is not). The browser side uses no library. (`go-licenses
+report ./...` reproduces this list):
+
+| Package | Licence |
+|---|---|
+| `github.com/go-webauthn/webauthn` v0.18.2 | BSD-3-Clause |
+| `github.com/fxamacker/cbor/v2` v2.9.4 | MIT |
+| `github.com/go-viper/mapstructure/v2` v2.5.0 | MIT |
+| `github.com/go-webauthn/x` v0.3.1 | BSD-3-Clause, ISC, BSD-2-Clause |
+| `github.com/golang-jwt/jwt/v5` v5.3.1 | MIT |
+| `github.com/google/go-tpm` v0.9.8 | Apache-2.0 |
+| `github.com/philhofer/fwd` v1.2.0 | MIT |
+| `github.com/tinylib/msgp` v1.6.4 | MIT |
+| `github.com/x448/float16` v0.8.4 | MIT |
+
 ### Web (M1.2)
 
 The built PWA ships these production dependencies, all MIT

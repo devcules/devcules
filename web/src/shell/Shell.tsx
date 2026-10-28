@@ -37,7 +37,9 @@ export default function Shell({
       <main className="flex flex-1 flex-col pt-[env(safe-area-inset-top)] pb-20 md:pb-0">
         {tab === 'home' && <Home />}
         {tab === 'terminals' && <Terminals onSessionExpired={onSessionExpired} />}
-        {tab === 'settings' && <Settings username={username} onSignedOut={onSignedOut} />}
+        {tab === 'settings' && (
+          <Settings username={username} onSignedOut={onSignedOut} onSessionExpired={onSessionExpired} />
+        )}
       </main>
       <nav
         aria-label="Tabs"

@@ -31,6 +31,10 @@ jobs:
           npm --prefix e2e ci
           npx --prefix e2e playwright install --with-deps chromium
       - name: Start the stack
+        env:
+          # Same stack as the CI e2e job: baselines must show the UI
+          # the visual run asserts, including the passkey button.
+          DEVCULES_PUBLIC_URL: http://localhost:7659
         run: |
           if ! docker compose -f deploy/compose.yaml up -d --wait; then
             docker compose -f deploy/compose.yaml logs --no-color

@@ -11,7 +11,9 @@ async function signIn(page, username, secret) {
   await page.getByLabel('Password').fill(secret);
   const [response] = await Promise.all([
     page.waitForResponse((r) => r.request().method() === 'POST' && r.url().endsWith('/auth/sign-in')),
-    page.getByRole('button', { name: 'Sign in' }).click(),
+    // Exact: with passkeys enabled the screen also offers
+    // "Sign in with a passkey".
+    page.getByRole('button', { name: 'Sign in', exact: true }).click(),
   ]);
   return response;
 }

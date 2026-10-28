@@ -74,6 +74,13 @@ func isRunnerRole(module, path string) bool {
 		strings.HasPrefix(path, module+"/internal/terminals/") {
 		return true
 	}
+	// The link dialer runs in the runner process (and later on
+	// machines); it may never reach the vault, while the hub stays on
+	// the serve side and is not listed here.
+	if path == module+"/internal/link/dial" ||
+		strings.HasPrefix(path, module+"/internal/link/dial/") {
+		return true
+	}
 	for seg := range strings.SplitSeq(path, "/") {
 		if seg == "runner" {
 			return true

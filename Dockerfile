@@ -37,8 +37,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   tmux git bash ca-certificates \
   && rm -rf /var/lib/apt/lists/* \
   && useradd --uid 10001 --create-home --shell /bin/bash devcules \
-  && mkdir -p /data /workspace \
-  && chown devcules:devcules /data /workspace
+  && mkdir -p /data /workspace /link \
+  && chown devcules:devcules /data /workspace /link
+# /link carries the runner token file between serve (read-write, mints
+# it) and runner (read-only). It is owned by uid 10001 so a fresh
+# named volume inherits that ownership (M1.3).
 COPY --from=build /out/devcules /usr/local/bin/devcules
 USER devcules
 # Set explicitly: cgroup v2 hides the container from auto-detection.

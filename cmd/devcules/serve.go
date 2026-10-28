@@ -16,6 +16,7 @@ import (
 	"github.com/devcules/devcules/internal/auth"
 	"github.com/devcules/devcules/internal/bus"
 	"github.com/devcules/devcules/internal/config"
+	"github.com/devcules/devcules/internal/link/hub"
 	"github.com/devcules/devcules/internal/store"
 	"github.com/devcules/devcules/internal/store/sqlite"
 	"github.com/devcules/devcules/internal/web"
@@ -37,11 +38,13 @@ func openSQLite(path string) (store.Store, error) {
 // runServe runs serve to completion and returns its exit code. The store
 // opens at <DataDir>/devcules.db; a set DEVCULES_DATABASE_URL names the
 // Postgres store, which does not exist yet, so it fails with next steps
-// instead of silently falling back to SQLite. First start creates the
-// admin user and prints its one-time password to stderr as a plain
-// line, never through the JSON logger; later starts print nothing.
-// The listener, signals, store opener and bus are parameters so tests
-// drive shutdown without real ports or process signals.
+// instead of silently falling back to SQLite. The runner token resolves
+// from DEVCULES_RUNNER_TOKEN, the token file, or a fresh mint (logged by
+// path, never by value); only the hash reaches the hub. First start
+// creates the admin user and prints its one-time password to stderr as
+// a plain line, never through the JSON logger; later starts print
+// nothing. The listener, signals, store opener and bus are parameters
+// so tests drive shutdown without real ports or process signals.
 func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs <-chan os.Signal, open storeOpener, b bus.Bus) int {
 	log := slog.New(slog.NewJSONHandler(stdout, nil))
 
@@ -54,10 +57,28 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 		fmt.Fprintln(stderr, err.Error())
 		return exitError
 	}
+	tokenPath := cfg.RunnerTokenFile
+	if tokenPath == "" {
+		tokenPath = filepath.Join(cfg.DataDir, "runner.token")
+	}
+	token, minted, err := hub.EnsureTokenFile(tokenPath, cfg.RunnerToken)
+	if err != nil {
+		fmt.Fprintln(stderr, err.Error())
+		b.Close()
+		s.Close()
+		return exitError
+	}
+	if minted {
+		// The path, never the value: anyone with the logs gets no
+		// link access from this line.
+		log.Info("runner token file created", "path", tokenPath)
+	}
+	h := hub.New(hub.HashToken(token), hub.Options{})
 	authSvc := auth.New(s)
 	password, created, err := authSvc.EnsureAdmin(context.Background())
 	if err != nil {
 		fmt.Fprintln(stderr, err.Error())
+		h.Close()
 		b.Close()
 		s.Close()
 		return exitError
@@ -66,7 +87,7 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 		fmt.Fprintln(stderr, "Admin password (shown once): "+password)
 	}
 	srv := &http.Server{
-		Handler:           api.Handler(api.Options{Store: s, Auth: authSvc, Web: web.Embedded(), PublicURL: cfg.PublicURL}),
+		Handler:           api.Handler(api.Options{Store: s, Auth: authSvc, Web: web.Embedded(), PublicURL: cfg.PublicURL, Link: h}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,
@@ -84,10 +105,12 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 	case err := <-serveErr:
 		if !errors.Is(err, http.ErrServerClosed) {
 			log.Error("serve failed", "err", err.Error())
+			h.Close()
 			b.Close()
 			s.Close()
 			return exitError
 		}
+		h.Close()
 		b.Close()
 		s.Close()
 		return exitOK
@@ -97,10 +120,14 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 	defer stop()
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Error("drain failed", "err", err.Error())
+		h.Close()
 		b.Close()
 		s.Close()
 		return exitError
 	}
+	// Links close with 1001 inside the drain: HTTP Shutdown cannot
+	// reach hijacked WebSockets, so the hub retires them explicitly.
+	h.Close()
 	b.Close()
 	s.Close()
 	log.Info("serve stopped")

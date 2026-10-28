@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -9,8 +10,14 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
+
+	"github.com/coder/websocket"
 
 	"github.com/devcules/devcules/internal/auth"
+	"github.com/devcules/devcules/internal/link"
+	"github.com/devcules/devcules/internal/link/hub"
+	"github.com/devcules/devcules/internal/link/linktest"
 	"github.com/devcules/devcules/internal/store"
 	"github.com/devcules/devcules/internal/store/sqlite"
 	"github.com/devcules/devcules/internal/web"
@@ -128,13 +135,105 @@ func TestReadyzStates(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/readyz", nil)
 	w := httptest.NewRecorder()
 	muxUp.ServeHTTP(w, r)
-	if w.Code != http.StatusOK || w.Body.String() != "ok" {
-		t.Fatalf("readyz up = %d %q, want 200 ok", w.Code, w.Body.String())
+	if w.Code != http.StatusOK || w.Body.String() != "{\"status\":\"ok\",\"runners_linked\":0}\n" {
+		t.Fatalf("readyz up = %d %q, want 200 JSON with zero runners", w.Code, w.Body.String())
+	}
+	if ct := w.Header().Get("Content-Type"); ct != "application/json" {
+		t.Fatalf("readyz content type = %q, want application/json", ct)
 	}
 	w = httptest.NewRecorder()
 	muxDown.ServeHTTP(w, r)
 	if w.Code != http.StatusServiceUnavailable || w.Body.String() != "not ready: store unreachable" {
 		t.Fatalf("readyz down = %d %q, want 503 fixed reason", w.Code, w.Body.String())
+	}
+}
+
+// TestReadyzCountsRunners wires a real hub with one live link and
+// requires the count in the JSON. The link itself runs over the
+// in-process pipe harness (see internal/link/linktest).
+func TestReadyzCountsRunners(t *testing.T) {
+	up, err := sqlite.Open(context.Background(), filepath.Join(t.TempDir(), "t.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer up.Close()
+	h := hub.New(hub.HashToken("api-test-token"), hub.Options{HelloTimeout: 5 * time.Second})
+	mux := Handler(Options{Store: up, Auth: auth.New(up), Web: testWeb(), Link: h})
+	s := linktest.Serve(t, mux)
+
+	conn, _, err := websocket.Dial(context.Background(), "ws://pipe/link", &websocket.DialOptions{
+		HTTPClient: s.Client(),
+		HTTPHeader: http.Header{"Authorization": {"Bearer api-test-token"}},
+	})
+	if err != nil {
+		t.Fatalf("dial: %s", err)
+	}
+	defer conn.CloseNow()
+	hello, err := link.Encode(link.Frame{V: 1, Type: "hello", ID: "1", Data: json.RawMessage(`{"role":"runner","name":"r","version":"t"}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, stop := context.WithTimeout(context.Background(), 10*time.Second)
+	defer stop()
+	if err := conn.Write(ctx, websocket.MessageText, hello); err != nil {
+		t.Fatalf("write hello: %s", err)
+	}
+	if _, _, err := conn.Read(ctx); err != nil {
+		t.Fatalf("read welcome: %s", err)
+	}
+
+	// The link registers just after its welcome goes out, so poll
+	// with a deadline instead of reading once.
+	want := "{\"status\":\"ok\",\"runners_linked\":1}\n"
+	var w *httptest.ResponseRecorder
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(5 * time.Millisecond) {
+		w = httptest.NewRecorder()
+		mux.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+		if w.Code == http.StatusOK && w.Body.String() == want {
+			break
+		}
+	}
+	if w.Code != http.StatusOK || w.Body.String() != want {
+		t.Fatalf("readyz linked = %d %q, want runners_linked 1", w.Code, w.Body.String())
+	}
+}
+
+// TestLinkRoutePublic proves GET /link reaches the hub without a
+// session: a missing token answers 401 (not the catch-all's 401 for
+// missing sessions — the status matches but the hub owns this path,
+// proven by the 403 on Origin below), and an Origin header answers
+// 403 instead of falling through to the app.
+func TestLinkRoutePublic(t *testing.T) {
+	up, err := sqlite.Open(context.Background(), filepath.Join(t.TempDir(), "t.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer up.Close()
+	h := hub.New(hub.HashToken("api-test-token"), hub.Options{})
+	mux := Handler(Options{Store: up, Auth: auth.New(up), Web: testWeb(), Link: h})
+
+	r := httptest.NewRequest(http.MethodGet, "/link", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, r)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("/link without token = %d, want 401 from the hub", w.Code)
+	}
+	r = httptest.NewRequest(http.MethodGet, "/link", nil)
+	r.Header.Set("Origin", "https://browser.example")
+	r.Header.Set("Authorization", "Bearer api-test-token")
+	w = httptest.NewRecorder()
+	mux.ServeHTTP(w, r)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("/link with Origin = %d, want 403 from the hub", w.Code)
+	}
+
+	// Without a hub the route explains itself instead of 404ing into
+	// the app shell.
+	muxNoLink := Handler(Options{Store: up, Auth: auth.New(up), Web: testWeb()})
+	w = httptest.NewRecorder()
+	muxNoLink.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/link", nil))
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("/link without hub = %d, want 503", w.Code)
 	}
 }
 

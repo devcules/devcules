@@ -56,14 +56,17 @@ func setEnv(t *testing.T, vars map[string]string) {
 }
 
 // baseConfig is the expected Config when only the vault key is set.
+// The token file defaults into the data dir, like Load does.
 func baseConfig() Config {
+	dataDir := filepath.Join("/test/home", ".local", "share", "devcules")
 	return Config{
-		Role:      "serve",
-		Listen:    "127.0.0.1:7659",
-		DataDir:   filepath.Join("/test/home", ".local", "share", "devcules"),
-		ServeURL:  "http://serve:7659",
-		VaultKey:  validKey,
-		Workspace: "/workspace",
+		Role:            "serve",
+		Listen:          "127.0.0.1:7659",
+		DataDir:         dataDir,
+		ServeURL:        "http://serve:7659",
+		VaultKey:        validKey,
+		RunnerTokenFile: filepath.Join(dataDir, "runner.token"),
+		Workspace:       "/workspace",
 	}
 }
 
@@ -124,7 +127,10 @@ func TestLoad(t *testing.T) {
 		{
 			name: "data dir explicit",
 			env:  merge(key, map[string]string{"DEVCULES_DATA_DIR": "/data/x"}),
-			want: with(baseConfig(), func(c *Config) { c.DataDir = "/data/x" }),
+			want: with(baseConfig(), func(c *Config) {
+				c.DataDir = "/data/x"
+				c.RunnerTokenFile = "/data/x/runner.token"
+			}),
 		},
 		{
 			name:    "data dir empty",

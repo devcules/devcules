@@ -91,11 +91,30 @@ func TestLoadSecretFiles(t *testing.T) {
 			},
 		},
 		{
-			name: "runner token file unreadable",
+			// A missing file is not an error: serve mints it on first
+			// start, and compose sets the path on serve before it exists.
+			name: "runner token file missing is not yet minted",
 			setup: func(t *testing.T) map[string]string {
 				return map[string]string{
 					"DEVCULES_VAULT_KEY":         validKey,
 					"DEVCULES_RUNNER_TOKEN_FILE": filepath.Join(t.TempDir(), "missing"),
+				}
+			},
+			check: func(t *testing.T, got Config) {
+				if got.RunnerToken != "" {
+					t.Fatalf("RunnerToken = %q, want empty until serve mints the file", got.RunnerToken)
+				}
+				if filepath.Base(got.RunnerTokenFile) != "missing" {
+					t.Fatalf("RunnerTokenFile = %q, want the configured path", got.RunnerTokenFile)
+				}
+			},
+		},
+		{
+			name: "runner token file unreadable",
+			setup: func(t *testing.T) map[string]string {
+				return map[string]string{
+					"DEVCULES_VAULT_KEY":         validKey,
+					"DEVCULES_RUNNER_TOKEN_FILE": t.TempDir(), // a directory
 				}
 			},
 			wantErr: "prefix:invalid config:\n  - DEVCULES_RUNNER_TOKEN_FILE unreadable: ",
@@ -114,6 +133,92 @@ func TestLoadSecretFiles(t *testing.T) {
 					t.Fatalf("RunnerToken = %q, want direct value", got.RunnerToken)
 				}
 			},
+		},
+		{
+			name: "runner token file defaults into data dir",
+			setup: func(t *testing.T) map[string]string {
+				return map[string]string{
+					"DEVCULES_VAULT_KEY": validKey,
+					"DEVCULES_DATA_DIR":  t.TempDir(),
+				}
+			},
+			check: func(t *testing.T, got Config) {
+				if got.RunnerToken != "" {
+					t.Fatalf("RunnerToken = %q, want empty (no token anywhere)", got.RunnerToken)
+				}
+				// RunnerTokenFile is derived from DataDir, which the
+				// setup pinned to a temp dir; only the suffix is
+				// asserted so the test never depends on TempDir.
+				if !strings.HasSuffix(got.RunnerTokenFile, string(filepath.Separator)+"runner.token") {
+					t.Fatalf("RunnerTokenFile = %q, want <DataDir>/runner.token", got.RunnerTokenFile)
+				}
+			},
+		},
+		{
+			name: "runner token read from default file",
+			setup: func(t *testing.T) map[string]string {
+				dir := t.TempDir()
+				if err := os.WriteFile(filepath.Join(dir, "runner.token"), []byte("tok-default\n"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				return map[string]string{
+					"DEVCULES_VAULT_KEY": validKey,
+					"DEVCULES_DATA_DIR":  dir,
+				}
+			},
+			check: func(t *testing.T, got Config) {
+				if got.RunnerToken != "tok-default" {
+					t.Fatalf("RunnerToken = %q, want the default file content", got.RunnerToken)
+				}
+			},
+		},
+		{
+			name: "runner token default file invalid",
+			setup: func(t *testing.T) map[string]string {
+				dir := t.TempDir()
+				if err := os.WriteFile(filepath.Join(dir, "runner.token"), []byte("has space"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				return map[string]string{
+					"DEVCULES_VAULT_KEY": validKey,
+					"DEVCULES_DATA_DIR":  dir,
+				}
+			},
+			wantErr: "prefix:invalid config:\n  - DEVCULES_RUNNER_TOKEN invalid: must be a single token without whitespace (fix or delete ",
+		},
+		{
+			name: "runner token explicit file honored",
+			setup: func(t *testing.T) map[string]string {
+				path := filepath.Join(t.TempDir(), "custom.token")
+				if err := os.WriteFile(path, []byte("tok-explicit"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				return map[string]string{
+					"DEVCULES_VAULT_KEY":         validKey,
+					"DEVCULES_RUNNER_TOKEN_FILE": path,
+				}
+			},
+			check: func(t *testing.T, got Config) {
+				if got.RunnerToken != "tok-explicit" {
+					t.Fatalf("RunnerToken = %q, want the explicit file content", got.RunnerToken)
+				}
+				if !strings.HasSuffix(got.RunnerTokenFile, "custom.token") {
+					t.Fatalf("RunnerTokenFile = %q, want the explicit path", got.RunnerTokenFile)
+				}
+			},
+		},
+		{
+			name: "runner token file relative rejected",
+			setup: func(t *testing.T) map[string]string {
+				return map[string]string{
+					"DEVCULES_VAULT_KEY":         validKey,
+					"DEVCULES_RUNNER_TOKEN_FILE": "relative/runner.token",
+				}
+			},
+			// A token file must be absolute because serve may have
+			// to (re)create it; the relative path is never read.
+			wantErr: "invalid config:\n" +
+				`  - DEVCULES_RUNNER_TOKEN_FILE invalid: "relative/runner.token" (want an absolute path)`,
 		},
 		{
 			name: "meta api key from file",

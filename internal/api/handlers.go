@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net"
 	"net/http"
@@ -11,33 +12,46 @@ import (
 	"time"
 
 	"github.com/devcules/devcules/internal/auth"
+	"github.com/devcules/devcules/internal/link/hub"
 	"github.com/devcules/devcules/internal/store"
 )
 
 // Options wires the mux. Store serves readiness, Auth serves the auth
-// routes, Web serves the built PWA, and PublicURL (when set) joins
-// the CSRF trusted origins so the browser UI can post from outside
-// the serve host.
+// routes, Web serves the built PWA, PublicURL (when set) joins the
+// CSRF trusted origins so the browser UI can post from outside the
+// serve host, and Link serves the runner WebSocket at GET /link.
+// A nil Link answers /link with 503 and reports zero runners; serve
+// always passes a real hub.
 type Options struct {
 	Store     store.Store
 	Auth      *auth.Service
 	Web       http.Handler
 	PublicURL string
+	Link      *hub.Hub
 }
 
-// Handler returns the M1.2 mux. /healthz and /readyz stay public;
-// POST /auth/sign-in is the public login call; the static app (Web)
-// is public too, since it holds no data; everything else needs a
-// live session and answers 401 without one. Only GET routes are
-// registered for reads: the mux itself answers 405 to wrong methods.
-// Every response carries the security headers.
+// Handler returns the M1.3 mux. /healthz, /readyz and GET /link stay
+// public (/link authenticates with its own credential, never the session
+// cookie); POST /auth/sign-in is the public login call; the static
+// app (Web) is public too, since it holds no data; everything else
+// needs a live session and answers 401 without one. Only GET routes
+// are registered for reads: the mux itself answers 405 to wrong
+// methods. Every response carries the security headers.
 func Handler(o Options) http.Handler {
 	// Patterns carry no method on purpose: the "/" catch-all below
 	// would swallow method-mismatched requests before the mux could
 	// answer 405, so each handler enforces its own method instead.
+	// "/link" still wins over "/": the mux prefers the longer pattern.
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", healthz)
-	mux.HandleFunc("/readyz", readyz(o.Store))
+	mux.HandleFunc("/readyz", readyz(o.Store, o.Link))
+	if o.Link != nil {
+		mux.Handle("/link", o.Link.Handler())
+	} else {
+		mux.HandleFunc("/link", func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "link not configured", http.StatusServiceUnavailable)
+		})
+	}
 	mux.Handle("/auth/sign-in", csrf(o.PublicURL, signIn(o.Auth)))
 	mux.Handle("/auth/sign-out", csrf(o.PublicURL, requireSession(o.Auth, signOut(o.Auth))))
 	mux.Handle("/auth/me", requireSession(o.Auth, me()))
@@ -98,11 +112,22 @@ func healthz(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("ok"))
 }
 
-// readyz answers 200 when the store answers. Open already applied
-// migrations, so reachable means migrated. A down store answers 503
-// with a fixed reason: the underlying error can name paths, so it is
-// never repeated to the caller.
-func readyz(s store.Store) http.HandlerFunc {
+// readyzBody is the /readyz JSON shape. Field order is stable by
+// construction so smoke tests and docs can quote exact bytes.
+type readyzBody struct {
+	Status        string `json:"status"`
+	RunnersLinked int    `json:"runners_linked"`
+}
+
+// readyz answers 503 only when the store is down, with a fixed reason:
+// the underlying error can name paths, so it is never repeated to the
+// caller. Otherwise it answers JSON with the linked runner count, so
+// the UI can show "runner offline" instead of failing readiness — a
+// deliberate deviation from PLAN.md §6, which wanted readiness to
+// require a linked runner when runners are configured. That would
+// deadlock the compose healthcheck (the runner waits for serve to be
+// healthy) and hide the UI that reports the outage.
+func readyz(s store.Store, link *hub.Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !requireMethod(w, r, http.MethodGet) {
 			return
@@ -112,8 +137,13 @@ func readyz(s store.Store) http.HandlerFunc {
 			_, _ = w.Write([]byte("not ready: store unreachable"))
 			return
 		}
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok"))
+		runners := 0
+		if link != nil {
+			runners = link.Count()
+		}
+		// A struct (not a map) keeps the documented key order stable.
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(readyzBody{Status: "ok", RunnersLinked: runners})
 	}
 }
 

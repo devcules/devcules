@@ -75,8 +75,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, err.Error())
 		return exitError
 	}
-	// serve binds the listener and runner idles for the M1.3 link, so
-	// both block: tests drive runServe/runRunner directly with fakes.
+	// serve binds the listener and runner links to serve, so both
+	// block: tests drive runServe/runRunner directly with fakes.
 	if role == "serve" || role == "runner" {
 		return runBlockingRole(cfg, role, stdout, stderr, sigs)
 	}

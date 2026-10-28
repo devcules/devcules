@@ -2,7 +2,9 @@ package config
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/url"
 	"os"
@@ -29,9 +31,14 @@ type Config struct {
 	VaultKey    string // optional: serve generates one on first start (M2.1)
 	ServeURL    string
 	RunnerToken string
-	Workspace   string
-	PublicURL   string
-	MetaAPIKey  string
+	// RunnerTokenFile names the token file for both roles. It defaults
+	// to <DataDir>/runner.token so single-binary deploys share one
+	// mechanism with compose (which sets /link/runner.token); serve
+	// mints the file when it is missing, the runner only reads it.
+	RunnerTokenFile string
+	Workspace       string
+	PublicURL       string
+	MetaAPIKey      string
 }
 
 // ForRole returns c for the named role. The vault key lives only in serve,
@@ -116,10 +123,48 @@ func Load() (Config, error) {
 		}
 	}
 
-	if v, problem := readSecret("DEVCULES_RUNNER_TOKEN", checkToken); problem != "" {
-		fail(`%s`, problem)
-	} else {
-		cfg.RunnerToken = v
+	// The runner token is the one secret whose file may not exist yet:
+	// serve mints it on first start, so a missing file is not a config
+	// error (readSecret would make it one, and serve could then never
+	// start on a fresh compose volume). The file defaults into the data
+	// dir so both roles name the same file without configuration; an
+	// explicit _FILE must be absolute because serve writes it. A direct
+	// value beats the file, as with every secret. The runner reports a
+	// still-missing token with next steps when it starts.
+	if v, set := os.LookupEnv("DEVCULES_RUNNER_TOKEN"); set && strings.TrimSpace(v) != "" {
+		v = strings.TrimSpace(v)
+		if problem := checkToken(v); problem != "" {
+			fail(`DEVCULES_RUNNER_TOKEN invalid: %s`, problem)
+		} else {
+			cfg.RunnerToken = v
+		}
+	}
+	cfg.RunnerTokenFile = filepath.Join(cfg.DataDir, "runner.token")
+	tokenFileOK := true
+	if v, set := os.LookupEnv("DEVCULES_RUNNER_TOKEN_FILE"); set {
+		if !filepath.IsAbs(v) {
+			fail(`DEVCULES_RUNNER_TOKEN_FILE invalid: %q (want an absolute path)`, v)
+			tokenFileOK = false
+		} else {
+			cfg.RunnerTokenFile = v
+		}
+	}
+	if tokenFileOK && cfg.RunnerToken == "" {
+		raw, err := os.ReadFile(cfg.RunnerTokenFile)
+		switch {
+		case err == nil:
+			if t := strings.TrimSpace(string(raw)); t != "" {
+				if problem := checkToken(t); problem != "" {
+					fail(`DEVCULES_RUNNER_TOKEN invalid: %s (fix or delete %s)`, problem, cfg.RunnerTokenFile)
+				} else {
+					cfg.RunnerToken = t
+				}
+			}
+		case errors.Is(err, fs.ErrNotExist):
+			// Not minted yet: serve creates it on start.
+		default:
+			fail(`DEVCULES_RUNNER_TOKEN_FILE unreadable: %s: %s`, cfg.RunnerTokenFile, err.Error())
+		}
 	}
 
 	cfg.Workspace = "/workspace"

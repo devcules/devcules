@@ -13,7 +13,26 @@ fail() {
 }
 
 [ "$(curl -fsS "$URL/healthz")" = "ok" ] || fail "/healthz"
-[ "$(curl -fsS "$URL/readyz")" = "ok" ] || fail "/readyz"
+
+# M1.3 link: readyz is JSON with the linked runner count. Poll bounded
+# (compose --wait only gates on /healthz); the runner links shortly
+# after serve turns healthy.
+poll_readyz() {
+  local want=$1 timeout=$2 start=$SECONDS
+  while [ $((SECONDS - start)) -lt "$timeout" ]; do
+    if [ "$(curl -fsS "$URL/readyz")" = "{\"status\":\"ok\",\"runners_linked\":$want}" ]; then
+      return 0
+    fi
+    sleep 0.5
+  done
+  return 1
+}
+poll_readyz 1 60 || fail "/readyz never showed runners_linked 1"
+
+# The token file is minted 0400 and both /link and the file belong to
+# uid 10001, so the read-only runner mount can read it.
+[ "$($COMPOSE exec -T serve stat -c '%a %u' /link/runner.token)" = "400 10001" ] || fail "token file not 0400/uid 10001"
+[ "$($COMPOSE exec -T serve stat -c '%u' /link)" = "10001" ] || fail "/link not owned by uid 10001"
 [ "$($COMPOSE exec -T serve id -u)" = "10001" ] || fail "serve is not uid 10001"
 for svc in serve runner; do
   cid=$($COMPOSE ps -q "$svc")
@@ -39,6 +58,11 @@ curl -fsS -H 'Accept: text/html' "$URL/" | grep -q '<div id="root"></div>' || fa
 [ "$(curl -fsS -b "$jar" "$URL/auth/me")" = '{"username":"admin"}' ] || fail "/auth/me after sign-in"
 [ "$(curl -sS -o /dev/null -w '%{http_code}' -b "$jar" -X POST "$URL/auth/sign-out")" = "200" ] || fail "sign-out"
 [ "$(curl -sS -o /dev/null -w '%{http_code}' -b "$jar" "$URL/auth/me")" = "401" ] || fail "/auth/me after sign-out is not 401"
+
+# M1.3 serve restart: the runner's dialer backs off and relinks on its
+# own; readyz returns to 1 with a fresh session underneath.
+$COMPOSE restart serve >/dev/null
+poll_readyz 1 90 || fail "/readyz never returned to runners_linked 1 after restart"
 
 serve_id=$($COMPOSE ps -q serve)
 start=$SECONDS

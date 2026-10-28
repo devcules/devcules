@@ -172,8 +172,17 @@ jobs:
           fi
       - name: Playwright sign-in
         run: E2E_ADMIN_PASSWORD="$(./scripts/get-admin-password.sh)" npm --prefix e2e test
+      # ONE-SHOT baseline capture (temporary, reverted once the real
+      # baselines land): writes the -linux PNGs instead of comparing,
+      # then uploads them. Squash-merge keeps main clean.
       - name: Playwright visual baselines
-        run: E2E_ADMIN_PASSWORD="$(./scripts/get-admin-password.sh)" npm --prefix e2e run test:visual
+        run: E2E_ADMIN_PASSWORD="$(./scripts/get-admin-password.sh)" npm --prefix e2e run test:visual -- --update-snapshots
+      - name: Upload fresh baselines
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: e2e-baselines
+          path: e2e/tests/visual.spec.js-snapshots/
+          if-no-files-found: error
       - name: Tear down
         if: always()
         run: docker compose -f deploy/compose.yaml down -v

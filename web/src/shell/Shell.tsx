@@ -49,11 +49,18 @@ export default function Shell({
             type="button"
             aria-current={tab === t.id ? 'page' : undefined}
             onClick={() => setTab(t.id)}
-            className={`min-h-11 flex-1 text-body transition-colors duration-150 ${
-              tab === t.id ? 'text-accent' : 'text-muted'
+            className={`flex min-h-11 flex-1 flex-col items-center justify-center text-body transition-colors duration-150 ${
+              tab === t.id ? 'text-text' : 'text-muted'
             }`}
           >
             {t.label}
+            {/* The active tab reads as text with an indicator, never
+                the accent: the accent means primary actions and
+                "needs you" only. */}
+            <span
+              aria-hidden="true"
+              className={`mt-0.5 h-1 w-6 rounded-full ${tab === t.id ? 'bg-current' : 'bg-transparent'}`}
+            />
           </button>
         ))}
       </nav>

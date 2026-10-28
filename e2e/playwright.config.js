@@ -6,6 +6,11 @@ import { defineConfig } from '@playwright/test';
 // React UI, so this suite asserts flows and cookies only.
 export default defineConfig({
   testDir: './tests',
+  // Flows only: the visual suite has its own config (different
+  // projects), so the default run must not collect it — otherwise a
+  // missing baseline fails the flow job, and a present one gets
+  // compared twice under the wrong project names.
+  testMatch: 'signin.spec.js',
   timeout: 30_000,
   fullyParallel: true,
   reporter: 'list',

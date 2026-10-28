@@ -33,6 +33,13 @@ runtime dependency. The Playwright suite (`e2e/`) is dev-only test
 tooling and ships in no image: `@playwright/test` (Apache-2.0) with
 its browser downloads happens at test time.
 
+M1.3 adds the link WebSocket transport below (`go-licenses report
+./...` reproduces this list):
+
+| Package | Licence |
+|---|---|
+| `github.com/coder/websocket` v1.8.15 | ISC |
+
 ### Web (M1.2)
 
 The built PWA ships these production dependencies, all MIT

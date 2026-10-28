@@ -17,7 +17,7 @@ use `persist-credentials: false` (no job pushes via git) and run with
 |---|---|---|
 | `lint` | `gofmt -l`, `go vet`, `staticcheck`, plus `eslint` and `tsc --noEmit` once `web/package.json` exists | any finding |
 | `arch` | `TestModuleBoundaries`: `internal/` never imports `plugins/`; the runner role never depends on `vault`, directly or transitively | a forbidden import or dependency |
-| `unit` | `go test -race -cover ./...` with a 70%-per-package coverage gate, plus `vitest run` once `web/package.json` exists | a failing test or a package below 70% |
+| `unit` | `go test -race -cover ./...` with a 70%-per-package coverage gate, plus `vitest run` once `web/package.json` exists, plus a 30 s `FuzzDecode` run over `internal/link` (M1.3) | a failing test, a package below 70%, or a fuzz crash |
 | `integration` | `docker compose up` plus `scripts/smoke.sh`, once `deploy/compose.yaml` exists | any smoke step |
 | `e2e` | Playwright sign-in (success and wrong password) at phone (390 px) and desktop sizes on Chromium, against the compose stack | a failing flow or a dropped session cookie |
 | `security` | Gitleaks, `govulncheck`, `npm audit --omit=dev` (once `web/` exists), and a `go-licenses check` allow-list (MIT, BSD, ISC and Apache-2.0 only) | a secret, a known vulnerability or a disallowed licence |
@@ -36,6 +36,9 @@ Since M0.5 the integration job really runs: `docker compose up -d
 user, read-only rootfs, loopback-only port, SIGTERM drain), then
 `down -v` on every exit path. The CD image build and the release
 binaries run too (`Dockerfile` and `cmd/devcules` both exist).
+Since M1.3 smoke also checks the link: `/readyz` reaches
+`runners_linked` 1, the token file is `0400`/uid 10001, and readyz
+returns to 1 after a serve restart (runner relink).
 
 Since M1.1 the e2e job really runs: `docker compose up -d --wait`,
 then the Playwright suite with the bootstrap password read from the

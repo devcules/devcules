@@ -4,6 +4,27 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-28, M1.3)
+
+- Link protocol between serve and runner at `GET /link`
+  (`github.com/coder/websocket` v1.8.15, ISC). Strict frames
+  (`{"v":1,"type":"…","id":"…","data":{…}}`, 1 MiB limit) shared by
+  `internal/link`, with a serve-side hub (`internal/link/hub`) and a
+  runner-side dialer with reconnect (`internal/link/dial`).
+- Handshake (`hello`/`welcome`), close codes (1008 variants, 4000
+  replace-on-duplicate, 1001 drain), token auth before upgrade (401),
+  `Origin` rejection (403), 10 s hello timeout, 15 s ping with drop
+  after 2 missed pongs, and backoff with full jitter (0.5–30 s).
+- Runner token lifecycle: `DEVCULES_RUNNER_TOKEN_FILE` (default
+  `<DataDir>/runner.token`), minted `0400` by serve and read by the
+  runner; compose shares it over a `link` volume at `/link`
+  (read-write serve, read-only runner, uid 10001).
+- `/readyz` answers `{"status":"ok","runners_linked":N}` and stays
+  200 with zero runners (deliberate deviation from PLAN §6, so the UI
+  stays up to report "runner offline" and the healthcheck cannot
+  deadlock); see `docs/link.md` and `docs/deploy.md`.
+- `FuzzDecode` seed corpus plus a 30 s fuzz step in the CI unit job.
+
 ### Added (2026-10-28, M1.2)
 
 - `web/`: React 18 PWA shell (theme tokens dark-first, bottom tab

@@ -6,6 +6,10 @@
 # not exist until the first release, so there is nothing to pull yet.
 # No vault, provider or Tailscale configuration exists at this stage;
 # the vault key stays optional and the runner carries no secrets at all.
+#
+# M1.3 link: the `link` volume carries the runner token file. Serve
+# mints it at /link/runner.token (read-write); the runner reads it
+# (read-only). Rotation is delete-the-file plus restart both services.
 
 services:
   serve:
@@ -17,8 +21,10 @@ services:
     environment:
       DEVCULES_LISTEN: "0.0.0.0:7659"
       DEVCULES_PUBLIC_URL: ${DEVCULES_PUBLIC_URL:-}
+      DEVCULES_RUNNER_TOKEN_FILE: /link/runner.token
     volumes:
       - devcules-data:/data
+      - link:/link
     ports:
       - "127.0.0.1:7659:7659"
     healthcheck:
@@ -44,9 +50,11 @@ services:
     command: ["runner"]
     environment:
       DEVCULES_SERVE_URL: http://serve:7659
+      DEVCULES_RUNNER_TOKEN_FILE: /link/runner.token
     volumes:
       - ${DEVCULES_CODE_DIR:-~/code}:/workspace
       - runner-home:/home/devcules
+      - link:/link:ro
     depends_on:
       serve:
         condition: service_healthy
@@ -62,3 +70,4 @@ services:
 volumes:
   devcules-data:
   runner-home:
+  link:

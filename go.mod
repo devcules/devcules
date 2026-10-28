@@ -3,6 +3,7 @@ module github.com/devcules/devcules
 go 1.27
 
 require (
+	github.com/coder/websocket v1.8.15
 	golang.org/x/crypto v0.58.0
 	modernc.org/sqlite v1.61.0
 )

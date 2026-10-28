@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("{\"v\":2,\"type\":\"Hello\",\"id\":\"\",\"data\":null,\"extra\":true}")

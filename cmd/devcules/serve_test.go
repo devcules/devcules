@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -129,11 +130,17 @@ func TestRunServeShutdown(t *testing.T) {
 		t.Fatal("bus subscriber channel never closed by shutdown")
 	}
 	lines := jsonLines(t, stdout)
-	if len(lines) != 3 {
-		t.Fatalf("got %d log lines, want listening/shutdown/stopped", len(lines))
+	if len(lines) != 4 {
+		t.Fatalf("got %d log lines, want token-created/listening/shutdown/stopped", len(lines))
 	}
-	if lines[0]["addr"] != "127.0.0.1:1" {
-		t.Fatalf("first line = %v, want the listen address and nothing else", lines[0])
+	if lines[0]["msg"] != "runner token file created" {
+		t.Fatalf("first line = %v, want the token mint note", lines[0])
+	}
+	if lines[0]["path"] != dir+string(filepath.Separator)+"runner.token" {
+		t.Fatalf("token path = %v, want the default file in the data dir", lines[0])
+	}
+	if lines[1]["addr"] != "127.0.0.1:1" {
+		t.Fatalf("second line = %v, want the listen address and nothing else", lines[1])
 	}
 	for _, line := range lines {
 		for _, v := range line {
@@ -141,6 +148,19 @@ func TestRunServeShutdown(t *testing.T) {
 				t.Fatalf("log line leaks a secret: %v", line)
 			}
 		}
+	}
+	// The minted token value appears neither in the logs nor on stderr:
+	// only its path is logged.
+	raw, err := os.ReadFile(dir + string(filepath.Separator) + "runner.token")
+	if err != nil {
+		t.Fatalf("read minted token: %s", err)
+	}
+	minted := strings.TrimSpace(string(raw))
+	if minted == "" {
+		t.Fatal("minted token file is empty")
+	}
+	if strings.Contains(stdout, minted) || strings.Contains(stderr, minted) {
+		t.Fatal("output leaks the minted runner token value")
 	}
 	// First start bootstraps the admin and prints the one-time
 	// password as a single plain line on stderr.
@@ -235,6 +255,7 @@ func TestRunServeBadDataDir(t *testing.T) {
 func TestRunBlockingRoleRunner(t *testing.T) {
 	cfg := serveConfig(t.TempDir())
 	cfg.VaultKey = ""
+	cfg.RunnerToken = "test-token"
 	sigs := make(chan os.Signal, 1)
 	var stdout, stderr bytes.Buffer
 	done := make(chan int, 1)

@@ -46,9 +46,17 @@ apply to the runner too, which serves nothing.
 
 ## Known deviations and limits
 
-- **`/readyz` reports the store only.** PLAN §6 also wants at least one
-  linked runner when runners are configured, but the link protocol is
-  M1.3: readiness is deliberately not faked, and this stays until then.
+- **`/readyz` answers `{"status":"ok","runners_linked":N}` and is 503
+  only when the store is down.** A deliberate deviation from PLAN §6
+  (which wants readiness to require a linked runner when runners are
+  configured): the UI must stay reachable to show "runner offline",
+  and the compose healthcheck would deadlock, because the runner
+  waits for serve to be healthy. See `docs/link.md`.
+- **Runner token rotation** is delete `/link/runner.token` (or
+  `<DataDir>/runner.token` outside compose) plus restart both
+  services. Serve mints a fresh file `0400`; the runner picks it up
+  on start. `scripts/smoke.sh` checks the mode, the uid, and relink
+  after a serve restart.
 - **`runner-home` ownership.** The named volume starts root-owned, so
   the non-root runner cannot write it yet. The idle M0.5 runner writes
   nothing, so this is dormant; M3 (which installs agent CLIs there)

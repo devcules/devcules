@@ -114,6 +114,136 @@ func (s *sqliteStore) Meta() store.MetaRepo {
 	return metaRepo{db: s.db}
 }
 
+// Users returns auth's login repo.
+func (s *sqliteStore) Users() store.UsersRepo {
+	return usersRepo{db: s.db}
+}
+
+// Sessions returns auth's session repo.
+func (s *sqliteStore) Sessions() store.SessionsRepo {
+	return sessionsRepo{db: s.db}
+}
+
+// usersRepo implements store.UsersRepo on the users table.
+type usersRepo struct {
+	db *sql.DB
+}
+
+// Create stores the hash for username. A taken username wraps
+// store.ErrExists; the duplicate never overwrites the stored hash.
+func (u usersRepo) Create(ctx context.Context, username, hash string) error {
+	if username == "" {
+		return fmt.Errorf("store: username must not be empty")
+	}
+	if hash == "" {
+		return fmt.Errorf("store: password hash must not be empty")
+	}
+	_, err := u.db.ExecContext(ctx,
+		`INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)`,
+		username, hash, time.Now().UTC().Format(time.RFC3339))
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			return fmt.Errorf("store: user %q already exists: %w", username, store.ErrExists)
+		}
+		return fmt.Errorf("store: user create %q failed: %w", username, err)
+	}
+	return nil
+}
+
+// PasswordHash returns the stored hash, or an error wrapping
+// store.ErrNotFound. Hashes never appear in errors.
+func (u usersRepo) PasswordHash(ctx context.Context, username string) (string, error) {
+	var hash string
+	err := u.db.QueryRowContext(ctx, `SELECT password_hash FROM users WHERE username = ?`, username).Scan(&hash)
+	if err == sql.ErrNoRows {
+		return "", fmt.Errorf("store: user %q not found: %w", username, store.ErrNotFound)
+	}
+	if err != nil {
+		return "", fmt.Errorf("store: user lookup %q failed: %w", username, err)
+	}
+	return hash, nil
+}
+
+// sessionsRepo implements store.SessionsRepo on the sessions table.
+// Times cross the boundary as UTC RFC 3339 strings: second precision,
+// which the contract fixtures match with Truncate(time.Second).
+type sessionsRepo struct {
+	db *sql.DB
+}
+
+func formatTime(t time.Time) string {
+	return t.UTC().Format(time.RFC3339)
+}
+
+func parseTime(raw, column string) (time.Time, error) {
+	t, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("store: session %s %q is not a time: %w", column, raw, err)
+	}
+	return t, nil
+}
+
+// Create stores a session. A duplicate hash wraps store.ErrExists.
+func (r sessionsRepo) Create(ctx context.Context, s store.Session) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO sessions (token_hash, username, created_at, last_seen_at) VALUES (?, ?, ?, ?)`,
+		s.TokenHash, s.Username, formatTime(s.CreatedAt), formatTime(s.LastSeen))
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			return fmt.Errorf("store: session already exists: %w", store.ErrExists)
+		}
+		return fmt.Errorf("store: session create failed: %w", err)
+	}
+	return nil
+}
+
+// Get returns the session, or an error wrapping store.ErrNotFound.
+func (r sessionsRepo) Get(ctx context.Context, hash string) (store.Session, error) {
+	var s store.Session
+	var created, seen string
+	err := r.db.QueryRowContext(ctx,
+		`SELECT token_hash, username, created_at, last_seen_at FROM sessions WHERE token_hash = ?`, hash).
+		Scan(&s.TokenHash, &s.Username, &created, &seen)
+	if err == sql.ErrNoRows {
+		return store.Session{}, fmt.Errorf("store: session not found: %w", store.ErrNotFound)
+	}
+	if err != nil {
+		return store.Session{}, fmt.Errorf("store: session lookup failed: %w", err)
+	}
+	if s.CreatedAt, err = parseTime(created, "created_at"); err != nil {
+		return store.Session{}, err
+	}
+	if s.LastSeen, err = parseTime(seen, "last_seen_at"); err != nil {
+		return store.Session{}, err
+	}
+	return s, nil
+}
+
+// Touch moves the idle marker. A missing session wraps
+// store.ErrNotFound.
+func (r sessionsRepo) Touch(ctx context.Context, hash string, at time.Time) error {
+	res, err := r.db.ExecContext(ctx, `UPDATE sessions SET last_seen_at = ? WHERE token_hash = ?`, formatTime(at), hash)
+	if err != nil {
+		return fmt.Errorf("store: session touch failed: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("store: session touch failed: %w", err)
+	}
+	if n == 0 {
+		return fmt.Errorf("store: session not found: %w", store.ErrNotFound)
+	}
+	return nil
+}
+
+// Delete removes the session. A missing session is not an error.
+func (r sessionsRepo) Delete(ctx context.Context, hash string) error {
+	if _, err := r.db.ExecContext(ctx, `DELETE FROM sessions WHERE token_hash = ?`, hash); err != nil {
+		return fmt.Errorf("store: session delete failed: %w", err)
+	}
+	return nil
+}
+
 // metaRepo implements store.MetaRepo on the meta table.
 type metaRepo struct {
 	db *sql.DB

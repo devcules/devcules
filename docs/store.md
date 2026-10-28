@@ -9,7 +9,10 @@ contract suite every implementation runs.
 `Store` is lifecycle plus repos: `Ping`, `Close`, `SchemaVersion`, and
 `Meta()`, a tiny string key/value repo for installer-level state. M0.3
 ships only Meta. Repos are deliberately small interfaces so each module
-can own exactly one.
+can own exactly one. M1.1 adds auth's two repos by exactly the
+procedure below: `Users()` (one argon2id hash per username; passwords
+never reach the store) and `Sessions()` (sessions by token SHA-256;
+values never reach the store), with migration `0002`.
 
 ## How a later module adds a repo
 
@@ -46,9 +49,12 @@ binary refuses with an upgrade prompt and never attempts to run.
 
 `storetest.Run(t, newStore)` covers: fresh open migrates, reopen is a
 no-op that keeps data, Meta get/set/delete with a typed not-found,
-Ping before and after Close, concurrent use under `-race`, and honored
-context cancellation. Backend internals (edited migrations, too-new
+Users create/duplicate/lookup with typed exists and not-found errors,
+Sessions create/get/touch/delete with the same, Ping before and after
+Close, concurrent use under `-race`, and honored context
+cancellation. Backend internals (edited migrations, too-new
 databases, pragmas, file layout) are tested in the backend's own
 package. `storetest` proves itself with an in-memory fake: the suite
 passes on the fake and a child-process probe proves it fails a broken
-one.
+one. Times cross the boundary as UTC RFC 3339 (second precision);
+fixtures use `Truncate(time.Second)` and compare by instant.

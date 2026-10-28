@@ -4,6 +4,24 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-27, M1.1)
+
+- `internal/auth`: admin bootstrap (one-time 24-char password on
+  stderr), argon2id passwords, cookie sessions (SHA-256 stored, 12 h
+  idle, 7 d absolute), sign-in rate limiting (429 past 5/min per IP).
+- `internal/api`: `POST /auth/sign-in`, `POST /auth/sign-out`,
+  `GET /auth/me`, a no-JS form at `/sign-in`, stdlib CSRF on
+  state-changing routes (trusts `DEVCULES_PUBLIC_URL`); `/healthz`
+  and `/readyz` stay public, everything else needs a session (401).
+- Store `Users()` and `Sessions()` repos with migration `0002` and
+  contract tests, per `docs/store.md`.
+- `e2e/`: Playwright sign-in (success, wrong password) at 390 px and
+  desktop on Chromium, plus the `e2e` CI job; screenshot baselines
+  wait for M1.2 (WebKit drops `Secure` cookies on plain-http
+  loopback, so it is out until HTTPS). `scripts/smoke.sh` now signs
+  in, checks `/auth/me`, signs out, and checks again.
+- `docs/auth.md`; `docs/store.md` and `docs/ci.md` updated.
+
 ### Added (2026-10-27, M0.5)
 
 - `serve` really runs: SQLite store, memory bus, `/healthz` and

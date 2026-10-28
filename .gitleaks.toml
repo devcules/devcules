@@ -1,0 +1,6 @@
+# Gitleaks allowlist: known false positives, each with its reason.
+# Gitleaks discovers this file automatically; CI needs no flag change.
+
+[allowlist]
+description = "The bootstrap password alphabet is a public character set, not a credential."
+regexes = ['''abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRTUVWXY346789''']

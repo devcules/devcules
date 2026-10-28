@@ -19,6 +19,7 @@ use `persist-credentials: false` (no job pushes via git) and run with
 | `arch` | `TestModuleBoundaries`: `internal/` never imports `plugins/`; the runner role never depends on `vault`, directly or transitively | a forbidden import or dependency |
 | `unit` | `go test -race -cover ./...` with a 70%-per-package coverage gate, plus `vitest run` once `web/package.json` exists | a failing test or a package below 70% |
 | `integration` | `docker compose up` plus `scripts/smoke.sh`, once `deploy/compose.yaml` exists | any smoke step |
+| `e2e` | Playwright sign-in (success and wrong password) at phone (390 px) and desktop sizes on Chromium, against the compose stack | a failing flow or a dropped session cookie |
 | `security` | Gitleaks, `govulncheck`, `npm audit --omit=dev` (once `web/` exists), and a `go-licenses check` allow-list (MIT, BSD, ISC and Apache-2.0 only) | a secret, a known vulnerability or a disallowed licence |
 
 Note: the coverage gate checks every package, which is stricter than
@@ -36,8 +37,14 @@ user, read-only rootfs, loopback-only port, SIGTERM drain), then
 `down -v` on every exit path. The CD image build and the release
 binaries run too (`Dockerfile` and `cmd/devcules` both exist).
 
-The e2e Playwright job from §8 is deliberately left out for now; it
-lands with the web shell.
+Since M1.1 the e2e job really runs: `docker compose up -d --wait`,
+then the Playwright suite with the bootstrap password read from the
+serve logs (`scripts/get-admin-password.sh`), then `down -v`.
+Screenshot baselines stay out until the M1.2 React UI; until then the
+suite asserts flows and cookies only. WebKit dropped the `Secure`
+cookie on plain-http loopback (CI-proven), so its projects left
+`e2e/playwright.config.js`: Chromium-only, with the finding noted in
+`docs/auth.md`. There is no insecure-cookie option.
 
 ## cd.yml — merge to `main`
 
@@ -61,8 +68,9 @@ install work.
 
 On `main`:
 
-- Require status checks `lint`, `arch`, `unit`, `integration` and
-  `security`, with "require branches to be up to date" enabled.
+- Require status checks `lint`, `arch`, `unit`, `integration`,
+  `e2e` and `security`, with "require branches to be up to date"
+  enabled.
 - Squash merging only (linear history); block force pushes and branch
   deletion.
 - Require a pull request before merging (including for admins).

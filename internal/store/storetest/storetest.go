@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/devcules/devcules/internal/store"
 )
@@ -49,6 +50,13 @@ func mustCancel(t *testing.T, err error, msg string) {
 	t.Helper()
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("%s: error = %v, want one matching context.Canceled with errors.Is", msg, err)
+	}
+}
+
+func mustExists(t *testing.T, err error, msg string) {
+	t.Helper()
+	if !errors.Is(err, store.ErrExists) {
+		t.Fatalf("%s = %v, want an error wrapping ErrExists", msg, err)
 	}
 }
 
@@ -118,6 +126,58 @@ func Run(t *testing.T, newStore func(t *testing.T) store.Store) {
 		mustFail(t, m.Set(ctx, "", "v"), "Set empty key")
 	})
 
+	t.Run("Users", func(t *testing.T) {
+		s := newStore(t)
+		defer s.Close()
+		u := s.Users()
+		name := key(t, "alice")
+
+		_, err := u.PasswordHash(ctx, name)
+		mustNotFound(t, err, "PasswordHash unknown user")
+		mustFail(t, u.Create(ctx, "", "hash"), "Create empty username")
+		mustFail(t, u.Create(ctx, name, ""), "Create empty hash")
+		mustf(t, u.Create(ctx, name, "hash-one"), "Create")
+		got, err := u.PasswordHash(ctx, name)
+		mustf(t, err, "PasswordHash")
+		check(t, got == "hash-one", fmt.Sprintf("hash %q, want %q", got, "hash-one"))
+		mustf(t, u.Create(ctx, key(t, "bob"), "hash-bob"), "Create second user")
+		mustExists(t, u.Create(ctx, name, "hash-two"), "Create duplicate user")
+		got, err = u.PasswordHash(ctx, name)
+		mustf(t, err, "PasswordHash after duplicate Create")
+		check(t, got == "hash-one", fmt.Sprintf("hash %q after duplicate, want %q (duplicates must not overwrite)", got, "hash-one"))
+	})
+
+	t.Run("Sessions", func(t *testing.T) {
+		s := newStore(t)
+		defer s.Close()
+		r := s.Sessions()
+		user := key(t, "carol")
+		mustf(t, s.Users().Create(ctx, user, "hash"), "Create user for sessions")
+		at := time.Now().UTC().Truncate(time.Second)
+		sess := store.Session{TokenHash: key(t, "tok"), Username: user, CreatedAt: at, LastSeen: at}
+
+		_, err := r.Get(ctx, sess.TokenHash)
+		mustNotFound(t, err, "Get unknown session")
+		mustNotFound(t, r.Touch(ctx, key(t, "missing"), at), "Touch missing session")
+		mustf(t, r.Create(ctx, sess), "Create")
+		mustExists(t, r.Create(ctx, sess), "Create duplicate session")
+		got, err := r.Get(ctx, sess.TokenHash)
+		mustf(t, err, "Get")
+		check(t, got.TokenHash == sess.TokenHash && got.Username == sess.Username &&
+			got.CreatedAt.Equal(sess.CreatedAt) && got.LastSeen.Equal(sess.LastSeen),
+			fmt.Sprintf("session %+v, want %+v (times compare by instant, not ==: storage drops monotonic clocks)", got, sess))
+		later := at.Add(time.Hour)
+		mustf(t, r.Touch(ctx, sess.TokenHash, later), "Touch")
+		got, err = r.Get(ctx, sess.TokenHash)
+		mustf(t, err, "Get after Touch")
+		check(t, got.LastSeen.Equal(later), fmt.Sprintf("last seen %s, want %s", got.LastSeen, later))
+		check(t, got.CreatedAt.Equal(at), fmt.Sprintf("created %s changed by Touch, want %s", got.CreatedAt, at))
+		mustf(t, r.Delete(ctx, sess.TokenHash), "Delete")
+		_, err = r.Get(ctx, sess.TokenHash)
+		mustNotFound(t, err, "Get after Delete")
+		mustf(t, r.Delete(ctx, sess.TokenHash), "Delete missing (must be a no-op)")
+	})
+
 	t.Run("Ping", func(t *testing.T) {
 		s := newStore(t)
 		mustf(t, s.Ping(ctx), "Ping")
@@ -128,24 +188,44 @@ func Run(t *testing.T, newStore func(t *testing.T) store.Store) {
 	t.Run("Concurrent", func(t *testing.T) {
 		s := newStore(t)
 		defer s.Close()
+		// Sessions reference a user, so one exists before the race.
+		user := key(t, "racer")
+		mustf(t, s.Users().Create(ctx, user, "hash"), "Create race user")
 		var wg sync.WaitGroup
-		errs := make(chan error, 64)
+		errs := make(chan error, 128)
+		race := func(err error) bool {
+			if err != nil {
+				errs <- err
+				return true
+			}
+			return false
+		}
 		for w := range 8 {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				for i := range 25 {
 					k := fmt.Sprintf("%s/w%d/%d", t.Name(), w, i)
-					if err := s.Meta().Set(ctx, k, "v"); err != nil {
-						errs <- err
+					if race(s.Meta().Set(ctx, k, "v")) {
 						return
 					}
-					if _, err := s.Meta().Get(ctx, k); err != nil {
-						errs <- err
+					if _, err := s.Meta().Get(ctx, k); race(err) {
 						return
 					}
-					if err := s.Ping(ctx); err != nil {
-						errs <- err
+					at := time.Now().UTC().Truncate(time.Second)
+					if race(s.Sessions().Create(ctx, store.Session{TokenHash: k, Username: user, CreatedAt: at, LastSeen: at})) {
+						return
+					}
+					if _, err := s.Sessions().Get(ctx, k); race(err) {
+						return
+					}
+					if race(s.Sessions().Touch(ctx, k, at)) {
+						return
+					}
+					if race(s.Sessions().Delete(ctx, k)) {
+						return
+					}
+					if race(s.Ping(ctx)) {
 						return
 					}
 				}
@@ -167,5 +247,10 @@ func Run(t *testing.T, newStore func(t *testing.T) store.Store) {
 		mustCancel(t, err, "Get with canceled context")
 		mustCancel(t, s.Meta().Set(canceled, key(t, "k"), "v"), "Set with canceled context")
 		mustCancel(t, s.Ping(canceled), "Ping with canceled context")
+		mustCancel(t, s.Users().Create(canceled, key(t, "u"), "h"), "Users.Create with canceled context")
+		_, err = s.Users().PasswordHash(canceled, key(t, "u"))
+		mustCancel(t, err, "Users.PasswordHash with canceled context")
+		_, err = s.Sessions().Get(canceled, key(t, "h"))
+		mustCancel(t, err, "Sessions.Get with canceled context")
 	})
 }

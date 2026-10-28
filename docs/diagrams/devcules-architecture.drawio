@@ -652,7 +652,7 @@
         </mxGraphModel>
     </diagram>
     <diagram id="arch4" name="Arch_4">
-        <mxGraphModel dx="2562" dy="1310" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="1340" math="0" shadow="0">
+        <mxGraphModel dx="2708" dy="1310" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="1340" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -823,7 +823,7 @@
         </mxGraphModel>
     </diagram>
     <diagram id="arch5" name="Arch_5">
-        <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1750" pageHeight="1570" math="0" shadow="0">
+        <mxGraphModel dx="1056" dy="511" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="1570" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -1132,15 +1132,230 @@
             </root>
         </mxGraphModel>
     </diagram>
-    <diagram id="archcombined" name="Arch_Combined">
-        <mxGraphModel dx="2925" dy="601" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="1540" math="0" shadow="0">
+    <diagram id="arch6" name="Arch_6">
+        <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1750" pageHeight="1570" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
-                <mxCell id="t2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=18;fontStyle=1;fontColor=#333333" value="ARCH_COMBINED — Devcules today and where it grows — one modular monolith, one trust split; blue = shipped (M0.1 CI/CD · M0.2 config + subcommands · M0.3 store · M0.4 bus), ghosts = planned (PLAN.md §9). This page gains a solid block every build." vertex="1">
+                <mxCell id="t7" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=17;fontStyle=1;fontColor=#333333" value="&lt;b&gt;ARCH_6&lt;/b&gt; — Build 6 (M1.1): it authenticates. internal/auth, migration 0002, the /auth routes and the Playwright suite land; every route but /healthz, /readyz and /sign-in now needs a live session. First build with a sign-in flow, first build a browser drives." vertex="1">
+                    <mxGeometry height="60" width="1090" x="40" y="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend7" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3B3B3;fontSize=11;align=left;verticalAlign=top;spacing=8" value="How to read • blue = shipped in this build (M1.1) • grey dashed = planned module (milestone tag) • dashed + animated = the path a request takes (plays in the draw.io app) • sections 1–6 read left to right; the store and the tests back the flow" vertex="1">
+                    <mxGeometry height="94" width="570" x="1140" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-z-boot" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;1 · BOOTSTRAP&lt;/b&gt; — first start creates the only user; the password is printed once and never stored" vertex="1">
+                    <mxGeometry height="330" width="800" x="40" y="112" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-b1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;serve start&lt;/b&gt;&lt;br&gt;store opens at&lt;br&gt;/data/devcules.db · auth.New(s)" vertex="1">
+                    <mxGeometry height="86" width="230" x="70" y="178" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-b2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;EnsureAdmin&lt;/b&gt;&lt;br&gt;Users().PasswordHash&lt;br&gt;(&amp;quot;admin&amp;quot;)" vertex="1">
+                    <mxGeometry height="86" width="240" x="320" y="178" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-b3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;admin already there?&lt;/b&gt;&lt;br&gt;yes → created=false,&lt;br&gt;print nothing" vertex="1">
+                    <mxGeometry height="86" width="230" x="580" y="178" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-b4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;GeneratePassword&lt;/b&gt;&lt;br&gt;24 chars · 52-symbol alphabet&lt;br&gt;(~137 bits)" vertex="1">
+                    <mxGeometry height="86" width="230" x="580" y="310" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-b5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;HashPassword&lt;/b&gt;&lt;br&gt;argon2id m=64 MiB t=1 p=4&lt;br&gt;only the PHC string is stored" vertex="1">
+                    <mxGeometry height="86" width="240" x="320" y="310" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-b6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;stderr, once&lt;/b&gt;&lt;br&gt;Admin password (shown once): …&lt;br&gt;never the log, never again" vertex="1">
+                    <mxGeometry height="86" width="230" x="70" y="310" as="geometry"/>
+                </mxCell>
+                <mxCell id="h1" edge="1" parent="1" source="a6-b1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a6-b2" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="h2" edge="1" parent="1" source="a6-b2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a6-b3" value="found">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="h3" edge="1" parent="1" source="a6-b3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" target="a6-b4" value="not found">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="h4" edge="1" parent="1" source="a6-b4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a6-b5" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="h5" edge="1" parent="1" source="a6-b5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a6-b6" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-z-signin" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;2 · SIGN IN&lt;/b&gt; — POST /auth/sign-in: rate-limited, one argon2id check, one 401 for every failure" vertex="1">
+                    <mxGeometry height="330" width="840" x="870" y="112" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-s1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;GET /sign-in&lt;/b&gt;&lt;br&gt;no-JS form, go:embed&lt;br&gt;(M1.2 shell replaces it)" vertex="1">
+                    <mxGeometry height="86" width="240" x="900" y="178" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-s2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;POST /auth/sign-in&lt;/b&gt;&lt;br&gt;urlencoded username + password&lt;br&gt;behind the CSRF check" vertex="1">
+                    <mxGeometry height="86" width="240" x="1160" y="178" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-s3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;rate limit&lt;/b&gt;&lt;br&gt;5 failures / 60 s per client IP&lt;br&gt;429 + Retry-After: 60&lt;br&gt;success clears the count" vertex="1">
+                    <mxGeometry height="86" width="260" x="1420" y="178" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-s4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;one argon2id check&lt;/b&gt;&lt;br&gt;unknown user → dummy hash&lt;br&gt;one 401 for both:&lt;br&gt;no enumeration" vertex="1">
+                    <mxGeometry height="86" width="260" x="1420" y="310" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-s5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;mint session&lt;/b&gt;&lt;br&gt;32 random bytes, hex&lt;br&gt;store keeps the SHA-256" vertex="1">
+                    <mxGeometry height="86" width="240" x="1160" y="310" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-s6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;303 → /&lt;/b&gt;&lt;br&gt;HttpOnly · Secure · Strict&lt;br&gt;Path=/ · MaxAge 7 d" vertex="1">
+                    <mxGeometry height="86" width="240" x="900" y="310" as="geometry"/>
+                </mxCell>
+                <mxCell id="h6" edge="1" parent="1" source="a6-s1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a6-s2" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="h7" edge="1" parent="1" source="a6-s2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a6-s3" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="h8" edge="1" parent="1" source="a6-s3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" target="a6-s4" value="under the limit">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="h9" edge="1" parent="1" source="a6-s4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a6-s5" value="verified">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="h10" edge="1" parent="1" source="a6-s5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a6-s6" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-z-session" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;3 · SESSION&lt;/b&gt; — requireSession on every request: hash the cookie, load it, enforce both clocks, touch it" vertex="1">
+                    <mxGeometry height="500" width="1090" x="40" y="476" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-r1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;requireSession&lt;/b&gt;&lt;br&gt;wraps every non-public route&lt;br&gt;no cookie → 401" vertex="1">
+                    <mxGeometry height="86" width="240" x="70" y="545" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-r2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;Authenticate&lt;/b&gt;&lt;br&gt;SHA-256 the cookie value&lt;br&gt;Sessions().Get(digest)" vertex="1">
+                    <mxGeometry height="86" width="240" x="340" y="545" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-r3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;two clocks&lt;/b&gt;&lt;br&gt;created+7 d · last-seen+12 h&lt;br&gt;at the deadline: still valid" vertex="1">
+                    <mxGeometry height="86" width="250" x="610" y="545" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-r4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;Touch&lt;/b&gt;&lt;br&gt;a use moves the idle mark&lt;br&gt;active sessions reach 7 d" vertex="1">
+                    <mxGeometry height="86" width="210" x="890" y="545" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-r5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;past a deadline&lt;/b&gt;&lt;br&gt;Delete on sight, then 401&lt;br&gt;401 either way" vertex="1">
+                    <mxGeometry height="86" width="240" x="70" y="661" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-r6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;no reaper in M1.1&lt;/b&gt;&lt;br&gt;expired rows wait for&lt;br&gt;next use to be reclaimed" vertex="1">
+                    <mxGeometry height="86" width="240" x="340" y="661" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-r7" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;POST /auth/sign-out&lt;/b&gt;&lt;br&gt;session + CSRF required&lt;br&gt;Delete · cookie cleared" vertex="1">
+                    <mxGeometry height="86" width="250" x="610" y="661" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-r8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;GET /auth/me&lt;/b&gt;&lt;br&gt;200&lt;br&gt;{&amp;quot;username&amp;quot;:&amp;quot;admin&amp;quot;}" vertex="1">
+                    <mxGeometry height="86" width="210" x="890" y="661" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-r9" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;the username rides in the request context&lt;/b&gt; — /auth/me reads it; a miswired mux answers 500, never another user" vertex="1">
+                    <mxGeometry height="76" width="510" x="70" y="777" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-r10" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;no proxy headers are trusted&lt;/b&gt; — the client IP is the connection&#39;s remote address; there is no proxy in M1.1" vertex="1">
+                    <mxGeometry height="76" width="490" x="610" y="777" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-r11" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;no roles in M1.1&lt;/b&gt; — admin is the only user and owns the machine; passkeys (M1.5), API tokens and audit events (M2.4) are not stubbed" vertex="1">
+                    <mxGeometry height="76" width="1030" x="70" y="873" as="geometry"/>
+                </mxCell>
+                <mxCell id="h11" edge="1" parent="1" source="a6-r1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a6-r2" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="h12" edge="1" parent="1" source="a6-r2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a6-r3" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="h13" edge="1" parent="1" source="a6-r3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a6-r4" value="within both">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="h14" edge="1" parent="1" source="a6-r4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" target="a6-r8" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="h15" edge="1" parent="1" source="a6-r3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#B85450;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" target="a6-r5" value="past one">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-z-routes" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;4 · ROUTES&lt;/b&gt; — one mux, two doors: health and the form are open, everything else wants a session" vertex="1">
+                    <mxGeometry height="500" width="560" x="1150" y="476" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-p1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;public&lt;/b&gt;&lt;br&gt;/healthz · /readyz&lt;br&gt;GET /sign-in" vertex="1">
+                    <mxGeometry height="86" width="240" x="1180" y="545" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-p2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;session required&lt;/b&gt;&lt;br&gt;/auth/me · /auth/sign-out&lt;br&gt;&amp;quot;/&amp;quot; → 404 (shell is M1.2)" vertex="1">
+                    <mxGeometry height="86" width="240" x="1440" y="545" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-p3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;CSRF&lt;/b&gt;&lt;br&gt;stdlib origin check&lt;br&gt;cross-site POST → 403" vertex="1">
+                    <mxGeometry height="86" width="240" x="1180" y="661" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-p4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;trusted origin&lt;/b&gt;&lt;br&gt;DEVCULES_PUBLIC_URL when set&lt;br&gt;unparseable → trusts nothing" vertex="1">
+                    <mxGeometry height="86" width="240" x="1440" y="661" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-p5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;no method in the route patterns&lt;/b&gt; — the &amp;quot;/&amp;quot; catch-all would swallow a mismatched method before the mux could answer 405, so each handler checks its own" vertex="1">
+                    <mxGeometry height="76" width="500" x="1180" y="777" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-p6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;failures are fixed JSON strings&lt;/b&gt; — {&amp;quot;error&amp;quot;:&amp;quot;…&amp;quot;}; storage and driver detail never reaches the caller" vertex="1">
+                    <mxGeometry height="76" width="500" x="1180" y="873" as="geometry"/>
+                </mxCell>
+                <mxCell id="h16" edge="1" parent="1" source="a6-p1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" target="a6-p3" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="h17" edge="1" parent="1" source="a6-p3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a6-p4" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-z-store" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;5 · STORE&lt;/b&gt; — migration 0002 adds the two repos auth needs; hashes only, never passwords or tokens" vertex="1">
+                    <mxGeometry height="360" width="700" x="40" y="1006" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-t1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;0002_users_sessions.sql&lt;/b&gt;&lt;br&gt;users(username PK ·&lt;br&gt;password_hash · created_at)" vertex="1">
+                    <mxGeometry height="86" width="310" x="70" y="1074" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-t2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;sessions&lt;/b&gt;&lt;br&gt;token_hash PK · username → users&lt;br&gt;ON DELETE CASCADE revokes" vertex="1">
+                    <mxGeometry height="86" width="340" x="400" y="1074" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-t3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;Users()&lt;/b&gt; — Create · PasswordHash; a duplicate wraps store.ErrExists, a miss store.ErrNotFound" vertex="1">
+                    <mxGeometry height="76" width="670" x="70" y="1180" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-t4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;Sessions()&lt;/b&gt; — Create · Get · Touch · Delete; times cross as UTC RFC 3339 at second precision" vertex="1">
+                    <mxGeometry height="76" width="670" x="70" y="1276" as="geometry"/>
+                </mxCell>
+                <mxCell id="h18" edge="1" parent="1" source="a6-t1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a6-t2" value="referenced">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-z-evid" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;6 · EVIDENCE&lt;/b&gt; — unit, smoke and a real browser: the sign-in flow is proven, not assumed" vertex="1">
+                    <mxGeometry height="360" width="940" x="770" y="1006" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-e1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;internal/auth&lt;/b&gt; — bootstrap, failures, the limiter&lt;br&gt;window, both timeouts to the second, store-down paths" vertex="1">
+                    <mxGeometry height="86" width="420" x="800" y="1074" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-e2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;internal/api&lt;/b&gt; — routes, cookie attributes,&lt;br&gt;the CSRF matrix, trusted origins" vertex="1">
+                    <mxGeometry height="86" width="430" x="1250" y="1074" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-e3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;scripts/smoke.sh&lt;/b&gt; — curl signs in&lt;br&gt;(/auth/me 200), signs out (/auth/me 401)" vertex="1">
+                    <mxGeometry height="76" width="420" x="800" y="1180" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-e4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;e2e/ Playwright&lt;/b&gt; — sign-in and wrong password,&lt;br&gt;390 px and desktop, Chromium + WebKit" vertex="1">
+                    <mxGeometry height="76" width="430" x="1250" y="1180" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-e5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;ci.yml e2e job&lt;/b&gt; — npm ci · playwright install --with-deps · compose up -d --wait · E2E_ADMIN_PASSWORD from the serve logs · down -v on every path" vertex="1">
+                    <mxGeometry height="76" width="880" x="800" y="1276" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-z-next" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;NEXT — what M1.1 hands to the next builds&lt;/b&gt; — a session check every later route reuses, and the browser harness that will drive the UI shell" vertex="1">
+                    <mxGeometry height="140" width="1670" x="40" y="1392" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-n1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;M1.2 web&lt;/b&gt; — the PWA shell replaces the no-JS&lt;br&gt;form and posts to the same /auth routes" vertex="1">
+                    <mxGeometry height="62" width="380" x="70" y="1452" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-n2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;M1.3 link&lt;/b&gt; — sessions gate the runner&lt;br&gt;WebSocket; /readyz gains the link" vertex="1">
+                    <mxGeometry height="62" width="380" x="470" y="1452" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-n3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;M1.5 passkeys&lt;/b&gt; — WebAuthn beside the&lt;br&gt;password, on the same session" vertex="1">
+                    <mxGeometry height="62" width="380" x="870" y="1452" as="geometry"/>
+                </mxCell>
+                <mxCell id="a6-n4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;M2 vault · tokens · audit&lt;/b&gt; — API tokens and&lt;br&gt;audit events join the same mux" vertex="1">
+                    <mxGeometry height="62" width="410" x="1270" y="1452" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="archcombined" name="Arch_Combined">
+        <mxGraphModel dx="3745" dy="1026" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="1760" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="t2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=18;fontStyle=1;fontColor=#333333" value="&lt;b&gt;ARCH_COMBINED&lt;/b&gt; — Devcules today and where it grows — one modular monolith, one trust split; blue = shipped (M0.1 CI/CD · M0.2 config + subcommands · M0.3 store · M0.4 bus · M0.5 image + compose · M1.1 auth), ghosts = planned (PLAN.md §9). This page gains a solid block every build." vertex="1">
                     <mxGeometry height="60" width="1150" x="40" y="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="legend2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3B3B3;fontSize=11;align=left;verticalAlign=top;spacing=8" value="&lt;b&gt;How to read&lt;/b&gt;&lt;br&gt;• blue = shipped in this build (M0.1 CI/CD · M0.2 config + subcommands · M0.3 store · M0.4 bus)&lt;br&gt;• grey dashed ghost = planned module (milestone tag)&lt;br&gt;• dashed + animated = live traffic (plays in the draw.io app)&lt;br&gt;• red vertical bar = trust split — real keys never cross it; enforced today by arch_test.go (M0.1)" vertex="1">
+                <mxCell id="legend2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3B3B3;fontSize=11;align=left;verticalAlign=top;spacing=8" value="&lt;b&gt;How to read&lt;/b&gt;&lt;br&gt;• blue = shipped in this build (M0.1 CI/CD · M0.2 config + subcommands · M0.3 store · M0.4 bus · M0.5 image + compose · M1.1 auth)&lt;br&gt;• grey dashed ghost = planned module (milestone tag)&lt;br&gt;• dashed + animated = live traffic (plays in the draw.io app)&lt;br&gt;• red vertical bar = trust split — real keys never cross it; enforced today by arch_test.go (M0.1)" vertex="1">
                     <mxGeometry height="130" width="470" x="1250" y="30" as="geometry"/>
                 </mxCell>
                 <mxCell id="phone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;phone / browser&lt;/b&gt;&lt;br&gt;PWA (M1.2)&lt;br&gt;approve risky steps from anywhere" vertex="1">
@@ -1179,7 +1394,7 @@
                 <mxCell id="m-cmd" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;cmd/devcules&lt;/b&gt; (M0.2)&lt;br&gt;serve | runner | machine | hook | version" vertex="1">
                     <mxGeometry height="60" width="300" x="680" y="260" as="geometry"/>
                 </mxCell>
-                <mxCell id="m-auth" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;auth&lt;/b&gt; (M1.1)&lt;br&gt;bootstrap · sessions · CSRF · passkeys (M1.5)" vertex="1">
+                <mxCell id="m-auth" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;auth&lt;/b&gt; (M1.1 ✓)&lt;br&gt;bootstrap · argon2id · cookie sessions&lt;br&gt;CSRF · passkeys are M1.5" vertex="1">
                     <mxGeometry height="60" width="300" x="680" y="340" as="geometry"/>
                 </mxCell>
                 <mxCell id="m-web" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;web&lt;/b&gt; (M1.2)&lt;br&gt;React PWA, embedded via go:embed" vertex="1">
@@ -1197,7 +1412,7 @@
                 <mxCell id="m-audit" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;audit&lt;/b&gt; (M2)&lt;br&gt;append-only log · JSON-lines export" vertex="1">
                     <mxGeometry height="60" width="300" x="680" y="740" as="geometry"/>
                 </mxCell>
-                <mxCell id="m-health" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;health&lt;/b&gt; (M0.5)&lt;br&gt;/healthz · /readyz endpoints" vertex="1">
+                <mxCell id="m-health" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;health&lt;/b&gt; (M0.5 ✓)&lt;br&gt;/healthz · /readyz (auth now gates the rest)" vertex="1">
                     <mxGeometry height="60" width="300" x="680" y="820" as="geometry"/>
                 </mxCell>
                 <mxCell id="trust-note" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82B366;fontSize=10;fontColor=#333333" value="↑ trust split: real keys never cross the red bar — per-launch tokens only · already enforced today by arch_test.go (M0.1 ✓)" vertex="1">
@@ -1233,28 +1448,28 @@
                 <mxCell id="mach-note" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;install&lt;/b&gt;: curl …/install/machine.sh · machine.ps1 — SHA-256 checked, served by serve (M4)" vertex="1">
                     <mxGeometry height="100" width="520" x="1160" y="840" as="geometry"/>
                 </mxCell>
-                <mxCell id="strip-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=13;fontColor=#333333" value="&lt;b&gt;SHIPPED — M0.1: CI/CD pipeline (Arch_1) · M0.2: config + subcommands (Arch_2) · M0.3: the store (Arch_3) · M0.4: the event bus (Arch_4)&lt;/b&gt; — these pipelines build and ship every future module above" vertex="1">
-                    <mxGeometry height="530" width="1710" x="40" y="1000" as="geometry"/>
+                <mxCell id="strip-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=13;fontColor=#333333" value="&lt;b&gt;SHIPPED — M0.1: CI/CD pipeline (Arch_1) · M0.2: config + subcommands (Arch_2) · M0.3: the store (Arch_3) · M0.4: the event bus (Arch_4) · M0.5: image + compose + health (Arch_5) · M1.1: auth (Arch_6)&lt;/b&gt; — these builds ship every future module above" vertex="1">
+                    <mxGeometry height="710" width="1710" x="40" y="1000" as="geometry"/>
                 </mxCell>
                 <mxCell id="s-repo" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;GitHub repo&lt;/b&gt;&lt;br&gt;PR · main · tag v*" vertex="1">
                     <mxGeometry height="70" width="160" x="70" y="1070" as="geometry"/>
                 </mxCell>
-                <mxCell id="s-ci" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;ci.yml&lt;/b&gt; — lint · arch · unit · integration · security&lt;br&gt;(pinned actions · cancel-in-progress)" vertex="1">
+                <mxCell id="s-ci" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11" value="&lt;b&gt;ci.yml&lt;/b&gt; — lint · arch · unit · integration · e2e · security&lt;br&gt;(pinned actions · cancel-in-progress)" vertex="1">
                     <mxGeometry height="70" width="330" x="280" y="1070" as="geometry"/>
                 </mxCell>
                 <mxCell id="s-main" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11" value="&lt;b&gt;main&lt;/b&gt;&lt;br&gt;branch protection" vertex="1">
                     <mxGeometry height="70" width="140" x="660" y="1070" as="geometry"/>
                 </mxCell>
-                <mxCell id="s-cd" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=11" value="&lt;b&gt;cd.yml&lt;/b&gt; — image → GHCR&lt;br&gt;&lt;font color=&#39;#CC6600&#39;&gt;&lt;b&gt;SKIP → Dockerfile M0.5&lt;/b&gt;&lt;/font&gt;" vertex="1">
+                <mxCell id="s-cd" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=11" value="&lt;b&gt;cd.yml&lt;/b&gt; — push to main → GHCR&lt;br&gt;:edge · :sha-&lt;sha&gt; · cosign + SBOM" vertex="1">
                     <mxGeometry height="70" width="240" x="850" y="1070" as="geometry"/>
                 </mxCell>
-                <mxCell id="s-ghcr" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11" value="&lt;b&gt;GHCR&lt;/b&gt;&lt;br&gt;:edge · :sha" vertex="1">
+                <mxCell id="s-ghcr" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11" value="&lt;b&gt;GHCR&lt;/b&gt;&lt;br&gt;:edge · :sha · :vX.Y.Z · :latest" vertex="1">
                     <mxGeometry height="70" width="150" x="1140" y="1070" as="geometry"/>
                 </mxCell>
                 <mxCell id="s-tag" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=12" value="&lt;b&gt;tag v*&lt;/b&gt;&lt;br&gt;cut from main" vertex="1">
                     <mxGeometry height="70" width="140" x="660" y="1160" as="geometry"/>
                 </mxCell>
-                <mxCell id="s-rel" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11" value="&lt;b&gt;release.yml&lt;/b&gt; — GoReleaser + images&lt;br&gt;&lt;font color=&#39;#CC6600&#39;&gt;&lt;b&gt;SKIP → Dockerfile M0.5&lt;/b&gt;&lt;/font&gt;" vertex="1">
+                <mxCell id="s-rel" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11" value="&lt;b&gt;release.yml&lt;/b&gt; — tag v* → images + binaries&lt;br&gt;:vX.Y.Z · :latest · cosign + SBOM" vertex="1">
                     <mxGeometry height="70" width="240" x="850" y="1160" as="geometry"/>
                 </mxCell>
                 <mxCell id="s-relart" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11" value="&lt;b&gt;GitHub Release&lt;/b&gt;&lt;br&gt;binaries · checksums · notes" vertex="1">
@@ -1263,7 +1478,7 @@
                 <mxCell id="s2-bin" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;devcules&lt;/b&gt; binary&lt;br&gt;linux · darwin · windows · amd64 + arm64" vertex="1">
                     <mxGeometry height="70" width="250" x="70" y="1250" as="geometry"/>
                 </mxCell>
-                <mxCell id="s2-cmd" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;cmd/devcules&lt;/b&gt; — serve · runner · machine · hook · health · version&lt;br&gt;roles are stubs: validate + report, run nothing" vertex="1">
+                <mxCell id="s2-cmd" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;cmd/devcules&lt;/b&gt; — serve · runner · machine · hook · health · version&lt;br&gt;serve + runner are real; machine + hook are still stubs" vertex="1">
                     <mxGeometry height="70" width="300" x="340" y="1250" as="geometry"/>
                 </mxCell>
                 <mxCell id="s2-conf" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;internal/config&lt;/b&gt;&lt;br&gt;every env var table-tested · one error lists all problems" vertex="1">
@@ -1302,8 +1517,38 @@
                 <mxCell id="s4-doc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;docs/bus.md&lt;/b&gt; — delivery rules" vertex="1">
                     <mxGeometry height="70" width="180" x="990" y="1440" as="geometry"/>
                 </mxCell>
-                <mxCell id="s4-use" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;no publisher yet&lt;/b&gt; — serve wires it in M0.5; then terminals relay (M1.4) · approvals (M3) · audit (M2)" vertex="1">
+                <mxCell id="s4-use" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;publish points&lt;/b&gt; — serve wires it at M0.5; terminals relay (M1.4) · approvals (M3) · audit (M2)" vertex="1">
                     <mxGeometry height="70" width="390" x="1210" y="1440" as="geometry"/>
+                </mxCell>
+                <mxCell id="s5-img" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;Dockerfile&lt;/b&gt; — two stages, digests pinned&lt;br&gt;non-root uid 10001 · no agent CLIs baked in" vertex="1">
+                    <mxGeometry height="70" width="280" x="70" y="1530" as="geometry"/>
+                </mxCell>
+                <mxCell id="s5-comp" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;deploy/compose.yaml&lt;/b&gt; — serve + runner from one image&lt;br&gt;read-only rootfs · cap_drop ALL · no-new-privileges" vertex="1">
+                    <mxGeometry height="70" width="340" x="370" y="1530" as="geometry"/>
+                </mxCell>
+                <mxCell id="s5-health" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;internal/api&lt;/b&gt; — /healthz · /readyz&lt;br&gt;405 on a wrong method · 503 with a fixed reason" vertex="1">
+                    <mxGeometry height="70" width="300" x="730" y="1530" as="geometry"/>
+                </mxCell>
+                <mxCell id="s5-smoke" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;scripts/smoke.sh&lt;/b&gt; — no sleeps: health, uid,&lt;br&gt;read-only rootfs, loopback port, 20 s drain, exit 0" vertex="1">
+                    <mxGeometry height="70" width="300" x="1050" y="1530" as="geometry"/>
+                </mxCell>
+                <mxCell id="s5-docs" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;docs/deploy.md&lt;/b&gt; · docs/ci.md&lt;br&gt;the stack, and the integration job that runs it" vertex="1">
+                    <mxGeometry height="70" width="370" x="1370" y="1530" as="geometry"/>
+                </mxCell>
+                <mxCell id="s6-auth" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;internal/auth&lt;/b&gt; — bootstrap · argon2id&lt;br&gt;cookie sessions · 12 h idle / 7 d absolute · IP limiter" vertex="1">
+                    <mxGeometry height="70" width="300" x="70" y="1620" as="geometry"/>
+                </mxCell>
+                <mxCell id="s6-mig" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;migration 0002&lt;/b&gt; — users + sessions repos&lt;br&gt;hashes only; contract-tested" vertex="1">
+                    <mxGeometry height="70" width="280" x="390" y="1620" as="geometry"/>
+                </mxCell>
+                <mxCell id="s6-api" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;internal/api&lt;/b&gt; — /auth/sign-in · sign-out · me&lt;br&gt;no-JS /sign-in form · stdlib CSRF · 401 for the rest" vertex="1">
+                    <mxGeometry height="70" width="340" x="690" y="1620" as="geometry"/>
+                </mxCell>
+                <mxCell id="s6-e2e" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;e2e/ Playwright&lt;/b&gt; — sign-in + wrong password&lt;br&gt;390 px and desktop · Chromium + WebKit" vertex="1">
+                    <mxGeometry height="70" width="320" x="1050" y="1620" as="geometry"/>
+                </mxCell>
+                <mxCell id="s6-docs" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;docs/auth.md&lt;/b&gt; — bootstrap · cookies&lt;br&gt;rate limit · secure-on-loopback" vertex="1">
+                    <mxGeometry height="70" width="350" x="1390" y="1620" as="geometry"/>
                 </mxCell>
                 <mxCell id="s30" edge="1" parent="1" source="s4-if" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s4-mem" value="implements">
                     <mxGeometry relative="1" as="geometry"/>
@@ -1332,7 +1577,7 @@
                 <mxCell id="s1" edge="1" parent="1" source="s-repo" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s-ci" value="PR + push">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="s2" edge="1" parent="1" source="s-ci" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s-main" value="5 checks green">
+                <mxCell id="s2" edge="1" parent="1" source="s-ci" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s-main" value="6 checks green">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="s3" edge="1" parent="1" source="s-main" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s-cd" value="merge">
@@ -1393,7 +1638,7 @@
                         </Array>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="f3" edge="1" parent="1" source="serve-zone" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6699CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;" target="runner-zone" value="WebSocket &#39;link&#39; — dials out · runner token (M1.4)">
+                <mxCell id="f3" edge="1" parent="1" source="serve-zone" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#6699CC;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;" target="runner-zone" value="WebSocket &#39;link&#39; — dials out · runner token (M1.3)">
                     <mxGeometry relative="1" as="geometry">
                         <Array as="points">
                             <mxPoint x="1088" y="375"/>

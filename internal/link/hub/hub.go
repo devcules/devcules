@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -65,6 +66,20 @@ func (o Options) withDefaults() Options {
 // its own link, never other runners'.
 type HandlerFunc func(ctx context.Context, runner string, f link.Frame)
 
+// ChangeFunc receives link membership changes: linked reports a fresh
+// registration, unlinked a real removal. Events are delivered one at a
+// time, in the order the hub's link map changed, on a delivery
+// goroutine of their own: never inside a read loop or a handshake, and
+// never under the hub lock, so a watcher may call Runners or SendTo. A
+// slow watcher delays only later events, never links or frames.
+type ChangeFunc func(name string, linked bool)
+
+// change is one queued membership event.
+type change struct {
+	name   string
+	linked bool
+}
+
 // Hub accepts runner links and routes their frames. The zero Hub is
 // not usable; build one with New. Hub is safe for concurrent use, and
 // Close is idempotent so the SIGTERM drain can call it unconditionally.
@@ -75,7 +90,12 @@ type Hub struct {
 	mu       sync.RWMutex
 	links    map[string]*linkConn
 	handlers map[string]HandlerFunc
-	closed   bool
+	watchers []ChangeFunc
+	// events queue membership changes in map order; delivering marks
+	// a live delivery goroutine. Both are guarded by mu.
+	events     []change
+	delivering bool
+	closed     bool
 }
 
 // New returns a Hub that accepts the token whose SHA-256 is expected.
@@ -106,6 +126,70 @@ func (h *Hub) On(msgType string, fn HandlerFunc) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.handlers[msgType] = fn
+}
+
+// OnChange registers a membership watcher, called after every register
+// and every real removal. A replaced duplicate fires linked again (the
+// relay rebinds to the new link) but never unlinked for the retired
+// elder, since the name never went down.
+func (h *Hub) OnChange(fn ChangeFunc) {
+	if fn == nil {
+		return
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.watchers = append(h.watchers, fn)
+}
+
+// Runners returns the sorted names of the live runner links. The relay
+// uses it to pick the only runner (or require ?runner= when several
+// are linked); sorting keeps logs and errors deterministic.
+func (h *Hub) Runners() []string {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	names := make([]string, 0, len(h.links))
+	for name := range h.links {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// notifyLocked queues a membership event; the caller holds mu and has
+// just changed the link map, so the queue order is the map order. Two
+// handshake goroutines notifying on their own could otherwise deliver
+// "linked" before an older "unlinked" for the same name, and a watcher
+// would believe a live runner is offline.
+func (h *Hub) notifyLocked(name string, linked bool) {
+	if len(h.watchers) == 0 {
+		return
+	}
+	h.events = append(h.events, change{name, linked})
+	if !h.delivering {
+		h.delivering = true
+		go h.deliver()
+	}
+}
+
+// deliver drains the event queue in order, outside the hub lock, and
+// exits once it is empty, so an idle hub holds no goroutine.
+func (h *Hub) deliver() {
+	for {
+		h.mu.Lock()
+		if len(h.events) == 0 {
+			h.events = nil
+			h.delivering = false
+			h.mu.Unlock()
+			return
+		}
+		ev := h.events[0]
+		h.events = h.events[1:]
+		fns := append([]ChangeFunc(nil), h.watchers...)
+		h.mu.Unlock()
+		for _, fn := range fns {
+			fn(ev.name, ev.linked)
+		}
+	}
 }
 
 // Count returns the number of live runner links. /readyz reports it so
@@ -260,6 +344,7 @@ func (h *Hub) serve(ctx context.Context, conn *websocket.Conn) {
 		settle(old.conn, websocket.StatusCode(replacedCode), reasonReplaced, 5*time.Second)
 	}
 	h.links[hello.Name] = l
+	h.notifyLocked(hello.Name, true)
 	h.mu.Unlock()
 
 	// Echo the read outcome back so the peer's close handshake always
@@ -267,6 +352,7 @@ func (h *Hub) serve(ctx context.Context, conn *websocket.Conn) {
 	// waiting for serve's answer, and an oversize sender would never
 	// learn its 1009.
 	code, reason := l.loop(ctx, h, hello.Name)
+	h.drop(hello.Name, l)
 	settle(conn, code, reason, 5*time.Second)
 }
 

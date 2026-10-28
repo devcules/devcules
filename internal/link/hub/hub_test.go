@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -508,4 +509,191 @@ func TestEnsureTokenFile(t *testing.T) {
 			t.Fatalf("error = %q, want the path with next steps", err)
 		}
 	})
+}
+
+// TestRunnersListsSortedNames proves Runners reports exactly the live
+// links in sorted order: the relay picks the only runner by it.
+func TestRunnersListsSortedNames(t *testing.T) {
+	t.Parallel()
+	h := testHub()
+	s := linktest.Serve(t, h.Handler())
+	if got := h.Runners(); len(got) != 0 {
+		t.Fatalf("Runners() = %v, want empty", got)
+	}
+	c1, _ := linkUp(t, s, "bravo")
+	defer c1.CloseNow()
+	c2, _ := linkUp(t, s, "alpha")
+	defer c2.CloseNow()
+	pollCount(t, h, 2)
+	got := h.Runners()
+	if len(got) != 2 || got[0] != "alpha" || got[1] != "bravo" {
+		t.Fatalf("Runners() = %v, want [alpha bravo]", got)
+	}
+	if err := c1.Close(websocket.StatusNormalClosure, ""); err != nil {
+		t.Fatalf("client close: %s", err)
+	}
+	pollCount(t, h, 1)
+	got = h.Runners()
+	if len(got) != 1 || got[0] != "alpha" {
+		t.Fatalf("Runners() = %v, want [alpha]", got)
+	}
+}
+
+// TestOnChangeEvents proves watchers fire after register and after a
+// real removal: link, clean close, and a duplicate that fires linked
+// again but never unlinked for the retired elder.
+func TestOnChangeEvents(t *testing.T) {
+	t.Parallel()
+	h := calmHub()
+	s := linktest.Serve(t, h.Handler())
+	type event struct {
+		name   string
+		linked bool
+	}
+	var mu sync.Mutex
+	var events []event
+	h.OnChange(func(name string, linked bool) {
+		mu.Lock()
+		defer mu.Unlock()
+		events = append(events, event{name, linked})
+	})
+	want := func(n int) []event {
+		t.Helper()
+		deadline := time.Now().Add(10 * time.Second)
+		for time.Now().Before(deadline) {
+			mu.Lock()
+			got := append([]event(nil), events...)
+			mu.Unlock()
+			if len(got) >= n {
+				return got
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		t.Fatalf("events = %v, want at least %d", events, n)
+		return nil
+	}
+
+	c1, _ := linkUp(t, s, "r1")
+	if got := want(1); got[0] != (event{"r1", true}) {
+		t.Fatalf("events = %v, want [{r1 true}]", got)
+	}
+	if err := c1.Close(websocket.StatusNormalClosure, ""); err != nil {
+		t.Fatalf("client close: %s", err)
+	}
+	if got := want(2); got[1] != (event{"r1", false}) {
+		t.Fatalf("events = %v, want second {r1 false}", got)
+	}
+
+	// Duplicate: the new link fires linked again, the retired elder
+	// stays silent because the name never went down.
+	old, _ := linkUp(t, s, "dup")
+	if got := want(3); got[2] != (event{"dup", true}) {
+		t.Fatalf("events = %v, want third {dup true}", got)
+	}
+	fresh, _ := linkUp(t, s, "dup")
+	defer fresh.CloseNow()
+	pollCount(t, h, 1)
+	// The elder reads its replacement notice.
+	ctx, stop := context.WithTimeout(context.Background(), 10*time.Second)
+	defer stop()
+	_, _, _ = old.Read(ctx)
+	time.Sleep(200 * time.Millisecond)
+	mu.Lock()
+	defer mu.Unlock()
+	if len(events) != 4 {
+		t.Fatalf("events = %v, want exactly 4 (no unlink for the replaced elder)", events)
+	}
+	if events[3] != (event{"dup", true}) {
+		t.Fatalf("events = %v, want fourth {dup true}", events)
+	}
+}
+
+// TestOnChangeNeverBlocksReads proves a slow watcher never stalls
+// another link's read loop: while the "slow" link's watcher still
+// sleeps, frames on the "fast" link dispatch and the "fast" link
+// registers. Watchers run on the hub's delivery goroutine only.
+func TestOnChangeNeverBlocksReads(t *testing.T) {
+	t.Parallel()
+	h := testHub()
+	s := linktest.Serve(t, h.Handler())
+	h.OnChange(func(name string, linked bool) {
+		if name == "slow" && linked {
+			time.Sleep(8 * time.Second)
+		}
+	})
+	slowDone := make(chan struct{})
+	go func() {
+		defer close(slowDone)
+		c, _ := linkUp(t, s, "slow")
+		c.CloseNow()
+	}()
+	c2, _ := linkUp(t, s, "fast")
+	defer c2.CloseNow()
+
+	got := make(chan link.Frame, 1)
+	h.On("term.write", func(_ context.Context, _ string, f link.Frame) { got <- f })
+	payload, err := link.Encode(link.Frame{V: 1, Type: "term.write", ID: "a", Data: json.RawMessage(`{"n":1}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The fast link's frames dispatch far sooner than the slow
+	// watcher's 8 s nap ends: reads never wait on watchers.
+	ctx, stop := context.WithTimeout(context.Background(), 5*time.Second)
+	defer stop()
+	if err := c2.Write(ctx, websocket.MessageText, payload); err != nil {
+		t.Fatalf("write frame: %s", err)
+	}
+	select {
+	case <-got:
+	case <-time.After(5 * time.Second):
+		t.Fatal("handler never fired while a watcher slept")
+	}
+	<-slowDone
+}
+
+// TestOnChangeKeepsOrder proves events arrive in the order the link
+// map changed. The watcher stalls on "unlinked", standing in for a
+// goroutine descheduled mid-notify: a relink right behind the unlink
+// must still be reported last, or the relay would treat a live runner
+// as offline.
+func TestOnChangeKeepsOrder(t *testing.T) {
+	t.Parallel()
+	h := calmHub()
+	s := linktest.Serve(t, h.Handler())
+	var mu sync.Mutex
+	var events []bool
+	h.OnChange(func(name string, linked bool) {
+		if !linked {
+			time.Sleep(300 * time.Millisecond)
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		events = append(events, linked)
+	})
+	c1, _ := linkUp(t, s, "r")
+	pollCount(t, h, 1)
+	if err := c1.Close(websocket.StatusNormalClosure, ""); err != nil {
+		t.Fatalf("client close: %s", err)
+	}
+	pollCount(t, h, 0)
+	c2, _ := linkUp(t, s, "r")
+	defer c2.CloseNow()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		mu.Lock()
+		got := append([]bool(nil), events...)
+		mu.Unlock()
+		if len(got) == 3 {
+			if !got[0] || got[1] || !got[2] {
+				t.Fatalf("events = %v, want [true false true]", got)
+			}
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("events = %v, want 3", got)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 }

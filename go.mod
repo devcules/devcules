@@ -18,3 +18,6 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
 )
+
+// npm trees can ship Go code (e.g. flatted); keep ./... out of them.
+ignore ./web/node_modules

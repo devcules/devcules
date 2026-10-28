@@ -1,7 +1,17 @@
 # M0.5 runtime image. Base images pin by digest with the tag in a
 # comment; the docker Dependabot ecosystem keeps the digests fresh.
-# Agent CLIs are never baked in (PLAN.md §1.3); there is no web stage
-# yet (web/ lands in M1.2).
+# Agent CLIs are never baked in (PLAN.md §1.3).
+#
+# M1.2 web stage. Node builds the PWA into internal/web/dist, which
+# the Go stage embeds; web/ depends on nothing else in the repo.
+# node:24-bookworm-slim, matching the Node version CI tests with.
+FROM node:24-bookworm-slim@sha256:be8204d4bd327363357f532187b752ff62759c31bedf98e9e18fc08c9cbd605c AS web
+WORKDIR /web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY web/ ./
+RUN npm run build
+
 FROM --platform=$BUILDPLATFORM golang:1.27-bookworm@sha256:972b4110ba0f47539a975c31e52c64765e1ff19f2d74469ae4a595c6676e80a5 AS build
 ARG TARGETOS
 ARG TARGETARCH
@@ -12,6 +22,11 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
+# The built PWA arrives from the web stage (internal/web/dist is
+# gitignored, so the build context never carries it). The path is
+# /internal/web/dist because vite builds relative to web/ even when
+# only web/ is copied into the stage.
+COPY --from=web /internal/web/dist ./internal/web/dist
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
   go build -trimpath \
   -ldflags "-s -w -X main.version=$VERSION -X main.commit=$COMMIT -X main.date=$DATE" \

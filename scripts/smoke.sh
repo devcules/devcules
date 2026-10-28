@@ -33,7 +33,9 @@ fi
 password="$(./scripts/get-admin-password.sh)" || fail "no bootstrap password in serve logs"
 jar=$(mktemp)
 trap 'rm -f "$jar"' EXIT
-[ "$(curl -sS -o /dev/null -w '%{http_code}' -c "$jar" -d "username=admin&password=$password" "$URL/auth/sign-in")" = "303" ] || fail "sign-in did not 303"
+[ "$(curl -sS -o /dev/null -w '%{http_code}' -c "$jar" -d "username=admin&password=$password" "$URL/auth/sign-in")" = "204" ] || fail "sign-in did not 204"
+# The app shell is embedded: the entry point serves without a session.
+curl -fsS -H 'Accept: text/html' "$URL/" | grep -q '<div id="root"></div>' || fail "app shell not served"
 [ "$(curl -fsS -b "$jar" "$URL/auth/me")" = '{"username":"admin"}' ] || fail "/auth/me after sign-in"
 [ "$(curl -sS -o /dev/null -w '%{http_code}' -b "$jar" -X POST "$URL/auth/sign-out")" = "200" ] || fail "sign-out"
 [ "$(curl -sS -o /dev/null -w '%{http_code}' -b "$jar" "$URL/auth/me")" = "401" ] || fail "/auth/me after sign-out is not 401"

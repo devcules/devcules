@@ -24,7 +24,7 @@ processes and logs.
 ## Sign-in
 
 `POST /auth/sign-in` takes a urlencoded form (`username`,
-`password`) and answers 303 to `/` with the session cookie. A wrong
+`password`) and answers 204 with the session cookie. A wrong
 password and an unknown user share one 401 (`invalid username or
 password`), compared in constant time after one argon2id
 verification, so logins cannot be enumerated by message or timing.
@@ -69,8 +69,7 @@ non-browser clients) are allowed: there is nothing to compare.
 | Route | Auth | Behaviour |
 |---|---|---|
 | `GET /healthz`, `GET /readyz` | public | as before |
-| `GET /sign-in` | public | no-JS login form (replaced by the M1.2 React UI) |
-| `POST /auth/sign-in` | public | 303 + cookie, or 401 / 429 JSON |
+| `POST /auth/sign-in` | public | 204 + cookie, or 401 / 429 JSON (the React sign-in screen calls it; the M1.1 no-JS form is gone) |
 | `POST /auth/sign-out` | session | deletes the session, clears the cookie |
 | `GET /auth/me` | session | `{"username":"admin"}` |
 | anything else | session (401) | 404 with a session (the shell is not here yet) |

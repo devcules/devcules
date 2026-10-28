@@ -29,6 +29,12 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Set up Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
       - name: gofmt
         run: |
           out=$(gofmt -l .)
@@ -46,13 +52,9 @@ jobs:
           install-go: false
       - name: web lint and typecheck
         run: |
-          if [ ! -f web/package.json ]; then
-            echo "SKIP: web/package.json does not exist yet (the web UI lands in M1.2); nothing to lint."
-            exit 0
-          fi
           npm --prefix web ci
           npm --prefix web run lint
-          npm --prefix web exec -- tsc --noEmit
+          npm --prefix web run typecheck
 
   arch:
     name: arch
@@ -85,6 +87,12 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Set up Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
       - name: unit (go)
         run: |
           go test -race -cover ./... 2>&1 | tee test.out
@@ -108,12 +116,8 @@ jobs:
           rm -f test.out
       - name: unit (web)
         run: |
-          if [ ! -f web/package.json ]; then
-            echo "SKIP: web/package.json does not exist yet (the web UI lands in M1.2); nothing to test."
-            exit 0
-          fi
           npm --prefix web ci
-          npm --prefix web exec -- vitest run
+          npm --prefix web test
 
   integration:
     name: integration
@@ -168,6 +172,8 @@ jobs:
           fi
       - name: Playwright sign-in
         run: E2E_ADMIN_PASSWORD="$(./scripts/get-admin-password.sh)" npm --prefix e2e test
+      - name: Playwright visual baselines
+        run: E2E_ADMIN_PASSWORD="$(./scripts/get-admin-password.sh)" npm --prefix e2e run test:visual
       - name: Tear down
         if: always()
         run: docker compose -f deploy/compose.yaml down -v
@@ -187,6 +193,12 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Set up Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
       - name: gitleaks
         run: |
           go install github.com/zricethezav/gitleaks/v8@v8.30.1
@@ -195,12 +207,12 @@ jobs:
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
       - name: npm audit
         run: |
-          if [ ! -f web/package.json ]; then
-            echo "SKIP: web/package.json does not exist yet (the web UI lands in M1.2); nothing to audit."
-            exit 0
-          fi
           npm --prefix web ci
           npm --prefix web audit --omit=dev
+      - name: web licence check
+        run: |
+          npm --prefix web ci
+          npm --prefix web run licences
       - name: licence check
         run: |
           go install github.com/google/go-licenses/v2@v2.0.1

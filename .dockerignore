@@ -2,10 +2,15 @@
 # everything else stays out of the image context.
 .git
 dist/
+# ** because a bare name only matches at the context root: a local
+# web/node_modules (macOS binaries for esbuild, rollup and friends)
+# would otherwise overwrite the Linux install in the web stage.
+**/node_modules/
+**/coverage/
 coverage.txt
 coverage.out
 *.test
 .env
-.DS_Store
+**/.DS_Store
 Dockerfile
 .dockerignore

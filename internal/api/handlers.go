@@ -2,52 +2,79 @@ package api
 
 import (
 	"context"
-	_ "embed"
 	"errors"
 	"net"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/devcules/devcules/internal/auth"
 	"github.com/devcules/devcules/internal/store"
 )
 
-//go:embed signin.html
-var signInPage string
-
 // Options wires the mux. Store serves readiness, Auth serves the auth
-// routes, and PublicURL (when set) joins the CSRF trusted origins so
-// the later browser UI can post from outside the serve host.
+// routes, Web serves the built PWA, and PublicURL (when set) joins
+// the CSRF trusted origins so the browser UI can post from outside
+// the serve host.
 type Options struct {
 	Store     store.Store
 	Auth      *auth.Service
+	Web       http.Handler
 	PublicURL string
 }
 
-// Handler returns the M1.1 mux. /healthz and /readyz stay public;
-// POST /auth/sign-in and GET /sign-in are the public login surface;
-// everything else needs a live session and answers 401 without one.
-// Only GET routes are registered for reads: the mux itself answers
-// 405 to wrong methods.
-func Handler(o Options) *http.ServeMux {
+// Handler returns the M1.2 mux. /healthz and /readyz stay public;
+// POST /auth/sign-in is the public login call; the static app (Web)
+// is public too, since it holds no data; everything else needs a
+// live session and answers 401 without one. Only GET routes are
+// registered for reads: the mux itself answers 405 to wrong methods.
+// Every response carries the security headers.
+func Handler(o Options) http.Handler {
 	// Patterns carry no method on purpose: the "/" catch-all below
 	// would swallow method-mismatched requests before the mux could
 	// answer 405, so each handler enforces its own method instead.
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", healthz)
 	mux.HandleFunc("/readyz", readyz(o.Store))
-	mux.HandleFunc("/sign-in", signInForm)
 	mux.Handle("/auth/sign-in", csrf(o.PublicURL, signIn(o.Auth)))
 	mux.Handle("/auth/sign-out", csrf(o.PublicURL, requireSession(o.Auth, signOut(o.Auth))))
 	mux.Handle("/auth/me", requireSession(o.Auth, me()))
-	mux.Handle("/", requireSession(o.Auth, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Nothing lives here until the M1.2 shell: authenticated
-		// callers get an honest 404, not a redirect to nowhere.
+	mux.Handle("/", root(o.Web, o.Auth))
+	return secureHeaders(mux)
+}
+
+// root serves the app shell and guards the unknown. Reads outside
+// /auth/* belong to the static app (public: it holds no data and
+// checks the session itself), with page navigations falling back to
+// the shell; anything else needs a session, and answers 401 without
+// one. /auth/* never falls back to the app.
+func root(web http.Handler, svc *auth.Service) http.HandlerFunc {
+	rest := requireSession(svc, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
-	})))
-	return mux
+	}))
+	return func(w http.ResponseWriter, r *http.Request) {
+		if (r.Method == http.MethodGet || r.Method == http.MethodHead) && !strings.HasPrefix(r.URL.Path, "/auth/") {
+			web.ServeHTTP(w, r)
+			return
+		}
+		rest.ServeHTTP(w, r)
+	}
+}
+
+// secureHeaders stamps every response: no inline scripts or frames
+// from anywhere, no MIME sniffing, no referrer. base-uri and
+// form-action are spelled out because they do not fall back to
+// default-src.
+func secureHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Content-Security-Policy", "default-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("Referrer-Policy", "no-referrer")
+		next.ServeHTTP(w, r)
+	})
 }
 
 // requireMethod rejects anything but method with 405. It lives in the
@@ -90,20 +117,11 @@ func readyz(s store.Store) http.HandlerFunc {
 	}
 }
 
-// signInForm serves the no-JS login form. The React UI replaces it in
-// M1.2; until then this is what the Playwright sign-in test drives.
-func signInForm(w http.ResponseWriter, r *http.Request) {
-	if !requireMethod(w, r, http.MethodGet) {
-		return
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write([]byte(signInPage))
-}
-
-// signIn checks the posted form and opens a session. Success sets the
-// cookie and redirects to / with 303 (the form has no JS to read a
-// body); failures are JSON the M1.2 UI will render. A wrong password
-// and an unknown user share one 401 so logins cannot be enumerated.
+// signIn checks the posted form and opens a session. Success sets
+// the cookie and answers 204: the React app is in charge, so there
+// is no redirect to follow. Failures are JSON the app renders as
+// plain words. A wrong password and an unknown user share one 401 so
+// logins cannot be enumerated.
 func signIn(svc *auth.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !requireMethod(w, r, http.MethodPost) {
@@ -136,8 +154,7 @@ func signIn(svc *auth.Service) http.HandlerFunc {
 				// timeout even if the server never sees it again.
 				MaxAge: int(auth.AbsoluteTimeout.Seconds()),
 			})
-			w.Header().Set("Location", "/")
-			w.WriteHeader(http.StatusSeeOther)
+			w.WriteHeader(http.StatusNoContent)
 		}
 	}
 }

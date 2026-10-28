@@ -3,7 +3,6 @@ package web
 import (
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"testing/fstest"
 )
@@ -91,16 +90,8 @@ func TestMissingBuild(t *testing.T) {
 	}
 }
 
-// TestEmbeddedPlaceholder proves the committed placeholder keeps Go
-// builds working without Node: dist exists but holds no app, so the
-// handler answers 503.
-func TestEmbeddedPlaceholder(t *testing.T) {
-	w := httptest.NewRecorder()
-	Embedded().ServeHTTP(w, htmlGet("/"))
-	if w.Code != http.StatusServiceUnavailable {
-		t.Fatalf("status = %d, want 503 until the app is built (body %q)", w.Code, w.Body.String())
-	}
-	if !strings.Contains(w.Body.String(), "npm --prefix web run build") {
-		t.Fatalf("body = %q, want the build command", w.Body.String())
-	}
-}
+// NOTE: there is deliberately no test for Embedded() against the
+// real dist. The embedded content depends on whether `npm run build`
+// ran locally (placeholder → 503, built → 200), so such a test
+// would pass on a fresh clone and fail on a dev machine. The 503
+// logic itself is covered above against a file-less filesystem.

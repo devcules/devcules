@@ -178,6 +178,7 @@ jobs:
       - name: Playwright visual baselines
         run: E2E_ADMIN_PASSWORD="$(./scripts/get-admin-password.sh)" npm --prefix e2e run test:visual -- --update-snapshots
       - name: Upload fresh baselines
+        if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: e2e-baselines

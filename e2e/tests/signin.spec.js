@@ -63,10 +63,14 @@ test('sign-out returns to sign-in', async ({ page }) => {
 
 test('keyboard-only sign-in (Tab and Enter, no mouse)', async ({ page }) => {
   await page.goto('/');
-  // The username field autofocuses; Tab reaches the password, Enter
-  // submits the form. No click anywhere in this test.
+  // Wait for the app to mount (keyboard does not auto-wait like
+  // fill does), then prove the autofocus and Tab order explicitly.
+  await expect(page.getByLabel('Username')).toBeVisible();
+  await expect(page.getByLabel('Username')).toBeFocused();
+  // No click anywhere in this test.
   await page.keyboard.type('admin');
   await page.keyboard.press('Tab');
+  await expect(page.getByLabel('Password')).toBeFocused();
   await page.keyboard.type(password);
   await page.keyboard.press('Enter');
   await expect(page.getByText('Nothing needs you.')).toBeVisible();

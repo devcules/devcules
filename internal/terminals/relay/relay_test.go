@@ -655,7 +655,8 @@ func runFakeRunnerCalm(t *testing.T, s *linktest.Server, ctx context.Context, na
 			}()
 			return
 		}
-		data, _ := json.Marshal(terminals.Output{Stream: in.Stream, B64: in.B64})
+		// Input and Output share the wire shape; convert, don't rebuild.
+		data, _ := json.Marshal(terminals.Output(in))
 		c.Send(link.Frame{V: link.Version, Type: terminals.TypeOutput, ID: req.ID, Data: data})
 	})
 	c.On(terminals.TypeResize, func(_ context.Context, req link.Frame) { answerOK(c, req) })

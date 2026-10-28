@@ -15,7 +15,9 @@ export default defineConfig({
   projects: [
     { name: 'chromium-desktop', use: { browserName: 'chromium', viewport: { width: 1280, height: 800 } } },
     { name: 'chromium-mobile', use: { browserName: 'chromium', viewport: { width: 390, height: 844 } } },
-    { name: 'webkit-desktop', use: { browserName: 'webkit', viewport: { width: 1280, height: 800 } } },
-    { name: 'webkit-mobile', use: { browserName: 'webkit', viewport: { width: 390, height: 844 } } },
+    // No WebKit: it drops Secure cookies on plain-http loopback, so
+    // sign-in can never hold a session there (CI run 40656098122:
+    // both WebKit projects failed with the cookie absent while
+    // Chromium kept it). Revisit with real HTTPS or the M1.2 UI.
   ],
 });

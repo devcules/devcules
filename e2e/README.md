@@ -2,8 +2,9 @@
 
 Playwright sign-in flows (PLAN.md §8). No screenshot baselines yet:
 those wait for the M1.2 React UI. Until then the suite asserts flows
-and cookies at phone (390 px) and desktop sizes, on Chromium and
-WebKit.
+and cookies at phone (390 px) and desktop sizes, on Chromium
+(WebKit drops `Secure` cookies on plain-http loopback — see
+`docs/auth.md` — so it is out until HTTPS).
 
 ## Run
 

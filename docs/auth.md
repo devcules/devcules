@@ -78,12 +78,11 @@ non-browser clients) are allowed: there is nothing to compare.
 ## Secure cookies on plain-http loopback
 
 The cookie is `Secure` even though serve speaks plain HTTP on
-`127.0.0.1:7659`. Browsers treat loopback as a trustworthy origin,
-so they should keep and send `Secure` cookies there; the Playwright
-suite checks it by asserting the cookie survives sign-in on Chromium
-and WebKit. If a browser drops it, that browser's project is removed
-from `e2e/playwright.config.js` and noted here: no
-insecure-cookie option will be added.
+`127.0.0.1:7659`. Chromium keeps `Secure` cookies on loopback, but
+WebKit drops them: CI proved it (both WebKit sign-in projects failed
+with the cookie absent while Chromium held it), so the suite runs
+Chromium-only until real HTTPS or the M1.2 UI revisits it. There is
+no insecure-cookie option.
 
 ## Tests and smoke
 

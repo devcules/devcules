@@ -20,9 +20,9 @@ test('sign-in success opens a session', async ({ page }) => {
   const response = await signIn(page, 'admin', password);
   expect(response.status()).toBe(303);
 
-  // The browser kept the Secure cookie on plain-http loopback: that is
-  // the whole point of this assertion, and the empirical check behind
-  // the WebKit project in the config.
+  // The browser kept the Secure cookie on plain-http loopback: that
+  // is the whole point of this assertion. WebKit drops it, so only
+  // Chromium projects run (see the config).
   const cookies = await page.context().cookies();
   const session = cookies.find((c) => c.name === 'devcules_session');
   expect(session).toBeDefined();

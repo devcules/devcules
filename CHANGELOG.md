@@ -16,9 +16,10 @@ All notable changes to Devcules, newest first.
 - Store `Users()` and `Sessions()` repos with migration `0002` and
   contract tests, per `docs/store.md`.
 - `e2e/`: Playwright sign-in (success, wrong password) at 390 px and
-  desktop on Chromium and WebKit, plus the `e2e` CI job; screenshot
-  baselines wait for M1.2. `scripts/smoke.sh` now signs in, checks
-  `/auth/me`, signs out, and checks again.
+  desktop on Chromium, plus the `e2e` CI job; screenshot baselines
+  wait for M1.2 (WebKit drops `Secure` cookies on plain-http
+  loopback, so it is out until HTTPS). `scripts/smoke.sh` now signs
+  in, checks `/auth/me`, signs out, and checks again.
 - `docs/auth.md`; `docs/store.md` and `docs/ci.md` updated.
 
 ### Added (2026-10-27, M0.5)

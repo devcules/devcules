@@ -64,11 +64,13 @@ func root(web http.Handler, svc *auth.Service) http.HandlerFunc {
 }
 
 // secureHeaders stamps every response: no inline scripts or frames
-// from anywhere, no MIME sniffing, no referrer.
+// from anywhere, no MIME sniffing, no referrer. base-uri and
+// form-action are spelled out because they do not fall back to
+// default-src.
 func secureHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
-		h.Set("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'")
+		h.Set("Content-Security-Policy", "default-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("Referrer-Policy", "no-referrer")
 		next.ServeHTTP(w, r)

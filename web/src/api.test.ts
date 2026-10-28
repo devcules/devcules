@@ -16,6 +16,15 @@ describe('api', () => {
     expect(await signIn('admin', 'pw')).toBe('invalid');
     post(429);
     expect(await signIn('admin', 'pw')).toBe('limited');
+    post(500);
+    expect(await signIn('admin', 'pw')).toBe('unreachable');
+  });
+
+  it('reports a network failure as unreachable, not a wrong password', async () => {
+    window.fetch = vi.fn(async () => {
+      throw new TypeError('Failed to fetch');
+    }) as typeof fetch;
+    expect(await signIn('admin', 'pw')).toBe('unreachable');
   });
 
   it('reads the username from /auth/me', async () => {

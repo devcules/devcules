@@ -37,4 +37,14 @@ describe('SignIn', () => {
     await user.keyboard('admin{Tab}nope{Enter}');
     expect((await screen.findByRole('alert')).textContent).toBe('Too many tries. Wait a minute and try again.');
   });
+
+  it('says the server is unreachable on 5xx, never blames the password', async () => {
+    const user = userEvent.setup();
+    post(503);
+    render(<SignIn onSignedIn={vi.fn()} />);
+    await user.keyboard('admin{Tab}nope{Enter}');
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      "Can't reach Devcules. Check your connection and try again.",
+    );
+  });
 });

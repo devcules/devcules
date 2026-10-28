@@ -1,22 +1,31 @@
-// Same-origin API calls. The server answers 401 when the session
-// dies; every call funnels through here so the app returns to
-// sign-in from anywhere, never strand on a dead session.
-export type SignInResult = 'ok' | 'invalid' | 'limited';
+// Same-origin API calls. The session check is me(): the app runs it
+// on load and after sign-in, and a 401 there shows sign-in. Later
+// data calls must route their 401s the same way.
+export type SignInResult = 'ok' | 'invalid' | 'limited' | 'unreachable';
 
 export async function signIn(username: string, password: string): Promise<SignInResult> {
   const body = new URLSearchParams({ username, password });
-  const res = await fetch('/auth/sign-in', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  });
+  let res: Response;
+  try {
+    res = await fetch('/auth/sign-in', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    });
+  } catch {
+    return 'unreachable';
+  }
   // 204 is the new session (M1.2 changed the old 303 redirect: JS is
-  // in charge now). Anything else maps to plain words in the screen.
+  // in charge now). Anything else maps to plain words in the screen,
+  // and a server fault is never blamed on the password.
   if (res.status === 204) {
     return 'ok';
   }
   if (res.status === 429) {
     return 'limited';
+  }
+  if (res.status >= 500) {
+    return 'unreachable';
   }
   return 'invalid';
 }

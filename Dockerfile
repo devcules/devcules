@@ -1,7 +1,7 @@
 # M0.5 runtime image. Base images pin by digest with the tag in a
 # comment; the docker Dependabot ecosystem keeps the digests fresh.
-# Agent CLIs are never baked in (PLAN.md §1.3); there is no web stage
-# yet (web/ lands in M1.2).
+# Agent CLIs are never baked in (PLAN.md §1.3).
+#
 # M1.2 web stage. Node builds the PWA into internal/web/dist, which
 # the Go stage embeds; web/ depends on nothing else in the repo.
 # node:24-bookworm-slim, matching the Node version CI tests with.

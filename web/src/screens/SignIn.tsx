@@ -4,6 +4,7 @@ import { signIn } from '../api';
 const errors = {
   invalid: 'Wrong username or password.',
   limited: 'Too many tries. Wait a minute and try again.',
+  unreachable: "Can't reach Devcules. Check your connection and try again.",
 } as const;
 
 export default function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
@@ -26,17 +27,13 @@ export default function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
       } else {
         setFailure(result);
       }
-    } catch {
-      // No raw dumps on screen, ever: a network failure reads the
-      // same as a wrong password (both mean "not signed in").
-      setFailure('invalid');
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-base px-4">
+    <main className="flex min-h-dvh items-center justify-center bg-base px-4 pt-[env(safe-area-inset-top)]">
       <div className="w-full max-w-xs">
         <h1 className="text-lead font-semibold text-text">Sign in</h1>
         <p className="mt-1 text-body text-muted">Your agents are waiting.</p>

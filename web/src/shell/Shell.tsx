@@ -23,7 +23,9 @@ export default function Shell({ username, onSignedOut }: { username: string; onS
           </NavButton>
         ))}
       </nav>
-      <main className="flex flex-1 flex-col pb-20 md:pb-0">
+      {/* The standalone PWA draws under the iPhone status bar
+          (black-translucent), so content starts below the inset. */}
+      <main className="flex flex-1 flex-col pt-[env(safe-area-inset-top)] pb-20 md:pb-0">
         {tab === 'home' && <Home />}
         {tab === 'terminals' && <Terminals />}
         {tab === 'settings' && <Settings username={username} onSignedOut={onSignedOut} />}

@@ -8,13 +8,15 @@ type Session = 'checking' | 'signed-out' | { user: string };
 export default function App() {
   const [session, setSession] = useState<Session>('checking');
 
-  // Any 401 anywhere lands back here: me() returns null and the
-  // sign-in screen takes over. The effect only resolves the async
-  // check; the synchronous reset lives in the sign-in handler below.
+  // A 401 from me() shows sign-in. So does an unreachable server:
+  // the screen then says so on the next try, instead of leaving a
+  // blank page. The effect only resolves the async check; the
+  // synchronous reset lives in the sign-in handler below.
   const check = useCallback(() => {
-    me().then((user) => {
-      setSession(user ? { user } : 'signed-out');
-    });
+    me().then(
+      (user) => setSession(user ? { user } : 'signed-out'),
+      () => setSession('signed-out'),
+    );
   }, []);
 
   useEffect(() => {

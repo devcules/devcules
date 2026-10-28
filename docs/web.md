@@ -16,8 +16,10 @@ a 4 px spacing scale (Tailwind's default), two body text sizes
 actions and "needs you". Dark is the default; light follows
 `prefers-color-scheme` (no toggle yet). Motion is ≤150 ms and dies
 under `prefers-reduced-motion`; touch targets are ≥44 px
-(`min-h-11`); the phone tab bar clears the home indicator with
-`env(safe-area-inset-bottom)`.
+(`min-h-11`). The installed app draws under the iPhone status bar
+(`black-translucent`), so screens start below
+`env(safe-area-inset-top)`, and the phone tab bar clears the home
+indicator with `env(safe-area-inset-bottom)`.
 
 `web/src/theme/contrast.test.ts` computes WCAG contrast for every
 text/background pair in both themes from this file and fails below
@@ -28,13 +30,14 @@ AA (4.5:1). Change a colour and the test judges it.
 1. Add the component under `web/src/screens/` (plain words, short
    labels, every control labelled, keyboard-reachable).
 2. Register its tab in `web/src/shell/Shell.tsx`, or link it from an
-   existing screen. New data goes through `web/src/api.ts`, which
-   returns the app to sign-in on any 401.
+   existing screen. New data goes through `web/src/api.ts`; route its
+   401s back to sign-in the way `me()` does in `app.tsx`.
 3. Cover it in Vitest (behaviour, not snapshots) and, if it is a key
    screen, in the visual suite below.
 
 CSP constraints (the server sends
-`default-src 'self'; frame-ancestors 'none'`): no inline scripts or
+`default-src 'self'; base-uri 'none'; form-action 'self';
+frame-ancestors 'none'`): no inline scripts or
 styles, no `data:` URIs — `assetsInlineLimit` is 0 so the build
 emits files only. If a feature needs a new source, change the policy
 in `internal/api` first and say why in the PR.
@@ -45,6 +48,12 @@ in `internal/api` first and say why in the PR.
 npm --prefix web ci
 npm --prefix web run build   # → internal/web/dist (gitignored)
 ```
+
+The build keeps the committed `internal/web/dist/.gitkeep`: Vite
+empties the folder, and the `keep-placeholder` plugin in
+`web/vite.config.ts` writes the file back, so a local build never
+stages its deletion. Without that file, `go build` fails on a fresh
+clone.
 
 Serve reads the embedded build; without one it answers 503 with the
 command above. The Docker image builds the app in its Node stage, so

@@ -143,17 +143,16 @@ func (l *linkConn) pingLoop(ctx context.Context, h *Hub, name string) {
 }
 
 // drop unregisters the link, but only if it is still the current one
-// for the name: a replaced elder must not evict its successor. It
-// reports whether the entry was actually removed, so serve fires the
-// unlink event only on a real state change.
-func (h *Hub) drop(name string, l *linkConn) bool {
+// for the name: a replaced elder must not evict its successor. Only a
+// real removal queues the unlink event; a replaced elder stays silent,
+// since the name never went down.
+func (h *Hub) drop(name string, l *linkConn) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.links[name] == l {
 		delete(h.links, name)
-		return true
+		h.notifyLocked(name, false)
 	}
-	return false
 }
 
 // Close retires every link with a 1001 close frame so runners log a

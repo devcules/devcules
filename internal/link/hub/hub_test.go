@@ -612,8 +612,8 @@ func TestOnChangeEvents(t *testing.T) {
 
 // TestOnChangeNeverBlocksReads proves a slow watcher never stalls
 // another link's read loop: while the "slow" link's watcher still
-// sleeps, frames on the "fast" link dispatch. Watchers run in the
-// handshake goroutine of their own connection only.
+// sleeps, frames on the "fast" link dispatch and the "fast" link
+// registers. Watchers run on the hub's delivery goroutine only.
 func TestOnChangeNeverBlocksReads(t *testing.T) {
 	t.Parallel()
 	h := testHub()
@@ -651,4 +651,49 @@ func TestOnChangeNeverBlocksReads(t *testing.T) {
 		t.Fatal("handler never fired while a watcher slept")
 	}
 	<-slowDone
+}
+
+// TestOnChangeKeepsOrder proves events arrive in the order the link
+// map changed. The watcher stalls on "unlinked", standing in for a
+// goroutine descheduled mid-notify: a relink right behind the unlink
+// must still be reported last, or the relay would treat a live runner
+// as offline.
+func TestOnChangeKeepsOrder(t *testing.T) {
+	t.Parallel()
+	h := calmHub()
+	s := linktest.Serve(t, h.Handler())
+	var mu sync.Mutex
+	var events []bool
+	h.OnChange(func(name string, linked bool) {
+		if !linked {
+			time.Sleep(300 * time.Millisecond)
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		events = append(events, linked)
+	})
+	c1, _ := linkUp(t, s, "r")
+	pollCount(t, h, 1)
+	if err := c1.Close(websocket.StatusNormalClosure, ""); err != nil {
+		t.Fatalf("client close: %s", err)
+	}
+	pollCount(t, h, 0)
+	c2, _ := linkUp(t, s, "r")
+	defer c2.CloseNow()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		mu.Lock()
+		got := append([]bool(nil), events...)
+		mu.Unlock()
+		if len(got) == 3 {
+			if !got[0] || got[1] || !got[2] {
+				t.Fatalf("events = %v, want [true false true]", got)
+			}
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("events = %v, want 3", got)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 }

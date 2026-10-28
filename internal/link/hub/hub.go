@@ -67,11 +67,18 @@ func (o Options) withDefaults() Options {
 type HandlerFunc func(ctx context.Context, runner string, f link.Frame)
 
 // ChangeFunc receives link membership changes: linked reports a fresh
-// registration, unlinked a real removal. Watchers run in the handshake
-// goroutine of the affected connection — never in another link's read
-// loop — but they still must be quick and must not call back into the
-// hub: a slow watcher only delays its own connection's cleanup.
+// registration, unlinked a real removal. Events are delivered one at a
+// time, in the order the hub's link map changed, on a delivery
+// goroutine of their own: never inside a read loop or a handshake, and
+// never under the hub lock, so a watcher may call Runners or SendTo. A
+// slow watcher delays only later events, never links or frames.
 type ChangeFunc func(name string, linked bool)
+
+// change is one queued membership event.
+type change struct {
+	name   string
+	linked bool
+}
 
 // Hub accepts runner links and routes their frames. The zero Hub is
 // not usable; build one with New. Hub is safe for concurrent use, and
@@ -84,7 +91,11 @@ type Hub struct {
 	links    map[string]*linkConn
 	handlers map[string]HandlerFunc
 	watchers []ChangeFunc
-	closed   bool
+	// events queue membership changes in map order; delivering marks
+	// a live delivery goroutine. Both are guarded by mu.
+	events     []change
+	delivering bool
+	closed     bool
 }
 
 // New returns a Hub that accepts the token whose SHA-256 is expected.
@@ -144,14 +155,40 @@ func (h *Hub) Runners() []string {
 	return names
 }
 
-// notify runs the watchers outside the hub lock: a watcher must never
-// block link bookkeeping, and it must not call back into the hub.
-func (h *Hub) notify(name string, linked bool) {
-	h.mu.RLock()
-	fns := append([]ChangeFunc(nil), h.watchers...)
-	h.mu.RUnlock()
-	for _, fn := range fns {
-		fn(name, linked)
+// notifyLocked queues a membership event; the caller holds mu and has
+// just changed the link map, so the queue order is the map order. Two
+// handshake goroutines notifying on their own could otherwise deliver
+// "linked" before an older "unlinked" for the same name, and a watcher
+// would believe a live runner is offline.
+func (h *Hub) notifyLocked(name string, linked bool) {
+	if len(h.watchers) == 0 {
+		return
+	}
+	h.events = append(h.events, change{name, linked})
+	if !h.delivering {
+		h.delivering = true
+		go h.deliver()
+	}
+}
+
+// deliver drains the event queue in order, outside the hub lock, and
+// exits once it is empty, so an idle hub holds no goroutine.
+func (h *Hub) deliver() {
+	for {
+		h.mu.Lock()
+		if len(h.events) == 0 {
+			h.events = nil
+			h.delivering = false
+			h.mu.Unlock()
+			return
+		}
+		ev := h.events[0]
+		h.events = h.events[1:]
+		fns := append([]ChangeFunc(nil), h.watchers...)
+		h.mu.Unlock()
+		for _, fn := range fns {
+			fn(ev.name, ev.linked)
+		}
 	}
 }
 
@@ -307,20 +344,15 @@ func (h *Hub) serve(ctx context.Context, conn *websocket.Conn) {
 		settle(old.conn, websocket.StatusCode(replacedCode), reasonReplaced, 5*time.Second)
 	}
 	h.links[hello.Name] = l
+	h.notifyLocked(hello.Name, true)
 	h.mu.Unlock()
-	h.notify(hello.Name, true)
 
 	// Echo the read outcome back so the peer's close handshake always
 	// completes: without this a client that closed cleanly would hang
 	// waiting for serve's answer, and an oversize sender would never
 	// learn its 1009.
 	code, reason := l.loop(ctx, h, hello.Name)
-	// Only a real removal fires the unlink event: a replaced elder
-	// finds its successor in the map and stays silent, since the name
-	// never went down.
-	if h.drop(hello.Name, l) {
-		h.notify(hello.Name, false)
-	}
+	h.drop(hello.Name, l)
 	settle(conn, code, reason, 5*time.Second)
 }
 

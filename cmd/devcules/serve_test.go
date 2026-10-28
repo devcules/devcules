@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net"
 	"os"
 	"strings"
@@ -141,8 +142,62 @@ func TestRunServeShutdown(t *testing.T) {
 			}
 		}
 	}
+	// First start bootstraps the admin and prints the one-time
+	// password as a single plain line on stderr.
+	line := strings.TrimSpace(stderr)
+	const prefix = "Admin password (shown once): "
+	if !strings.HasPrefix(line, prefix) || strings.Contains(line[len(prefix):], " ") || line[len(prefix):] == "" {
+		t.Fatalf("stderr = %q, want one %q line with the password", stderr, prefix)
+	}
+}
+
+func TestRunServeSecondStartSilent(t *testing.T) {
+	dir := t.TempDir()
+	if code, _, _, _, _ := serveFixture(t, serveConfig(dir), nil); code != exitOK {
+		t.Fatal("first start failed")
+	}
+	// The admin exists now: no password is printed again.
+	code, _, stderr, _, _ := serveFixture(t, serveConfig(dir), nil)
+	if code != exitOK {
+		t.Fatalf("exit = %d, stderr = %q, want clean drain", code, stderr)
+	}
 	if stderr != "" {
-		t.Fatalf("stderr = %q, want empty on clean shutdown", stderr)
+		t.Fatalf("stderr = %q, want empty once the admin exists", stderr)
+	}
+}
+
+// brokenUsers fails the admin lookup so the bootstrap error path is
+// reachable without a broken disk.
+type brokenUsers struct {
+	store.UsersRepo
+}
+
+func (b brokenUsers) PasswordHash(context.Context, string) (string, error) {
+	return "", errors.New("users unavailable")
+}
+
+type brokenUsersStore struct {
+	store.Store
+}
+
+func (b brokenUsersStore) Users() store.UsersRepo {
+	return brokenUsers{UsersRepo: b.Store.Users()}
+}
+
+func TestRunServeBootstrapFailure(t *testing.T) {
+	open := func(path string) (store.Store, error) {
+		s, err := sqlite.Open(context.Background(), path)
+		if err != nil {
+			return nil, err
+		}
+		return brokenUsersStore{Store: s}, nil
+	}
+	code, _, stderr, _, _ := serveFixture(t, serveConfig(t.TempDir()), open)
+	if code != exitError {
+		t.Fatalf("exit = %d, want %d", code, exitError)
+	}
+	if !strings.Contains(stderr, "cannot check for admin user") {
+		t.Fatalf("stderr = %q, want the bootstrap error", stderr)
 	}
 }
 

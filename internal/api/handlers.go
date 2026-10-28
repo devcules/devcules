@@ -1,25 +1,70 @@
 package api
 
 import (
+	"context"
+	_ "embed"
+	"errors"
+	"net"
 	"net/http"
+	"net/url"
+	"strconv"
+	"time"
 
+	"github.com/devcules/devcules/internal/auth"
 	"github.com/devcules/devcules/internal/store"
 )
 
-// Handler returns the M0.5 mux: health endpoints only. The store is
-// needed for readiness; liveness depends on nothing.
-func Handler(s store.Store) *http.ServeMux {
+//go:embed signin.html
+var signInPage string
+
+// Options wires the mux. Store serves readiness, Auth serves the auth
+// routes, and PublicURL (when set) joins the CSRF trusted origins so
+// the later browser UI can post from outside the serve host.
+type Options struct {
+	Store     store.Store
+	Auth      *auth.Service
+	PublicURL string
+}
+
+// Handler returns the M1.1 mux. /healthz and /readyz stay public;
+// POST /auth/sign-in and GET /sign-in are the public login surface;
+// everything else needs a live session and answers 401 without one.
+// Only GET routes are registered for reads: the mux itself answers
+// 405 to wrong methods.
+func Handler(o Options) *http.ServeMux {
+	// Patterns carry no method on purpose: the "/" catch-all below
+	// would swallow method-mismatched requests before the mux could
+	// answer 405, so each handler enforces its own method instead.
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", healthz)
-	mux.HandleFunc("/readyz", readyz(s))
+	mux.HandleFunc("/readyz", readyz(o.Store))
+	mux.HandleFunc("/sign-in", signInForm)
+	mux.Handle("/auth/sign-in", csrf(o.PublicURL, signIn(o.Auth)))
+	mux.Handle("/auth/sign-out", csrf(o.PublicURL, requireSession(o.Auth, signOut(o.Auth))))
+	mux.Handle("/auth/me", requireSession(o.Auth, me()))
+	mux.Handle("/", requireSession(o.Auth, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Nothing lives here until the M1.2 shell: authenticated
+		// callers get an honest 404, not a redirect to nowhere.
+		http.NotFound(w, r)
+	})))
 	return mux
+}
+
+// requireMethod rejects anything but method with 405. It lives in the
+// handlers (not the mux patterns) so mismatches surface as 405
+// instead of falling through to the catch-all's 401.
+func requireMethod(w http.ResponseWriter, r *http.Request, method string) bool {
+	if r.Method != method {
+		w.Header().Set("Allow", method)
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return false
+	}
+	return true
 }
 
 // healthz answers 200 whenever the process is up. Only GET is allowed.
 func healthz(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		w.Header().Set("Allow", http.MethodGet)
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	if !requireMethod(w, r, http.MethodGet) {
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -32,9 +77,7 @@ func healthz(w http.ResponseWriter, r *http.Request) {
 // never repeated to the caller.
 func readyz(s store.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			w.Header().Set("Allow", http.MethodGet)
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		if !requireMethod(w, r, http.MethodGet) {
 			return
 		}
 		if err := s.Ping(r.Context()); err != nil {
@@ -45,4 +88,165 @@ func readyz(s store.Store) http.HandlerFunc {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	}
+}
+
+// signInForm serves the no-JS login form. The React UI replaces it in
+// M1.2; until then this is what the Playwright sign-in test drives.
+func signInForm(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write([]byte(signInPage))
+}
+
+// signIn checks the posted form and opens a session. Success sets the
+// cookie and redirects to / with 303 (the form has no JS to read a
+// body); failures are JSON the M1.2 UI will render. A wrong password
+// and an unknown user share one 401 so logins cannot be enumerated.
+func signIn(svc *auth.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireMethod(w, r, http.MethodPost) {
+			return
+		}
+		// PostFormValue parses on first use and treats parse
+		// failures as empty: missing or broken fields fail closed
+		// as invalid credentials below.
+		value, err := svc.SignIn(r.Context(),
+			r.PostFormValue("username"), r.PostFormValue("password"), clientIP(r))
+		switch {
+		case errors.Is(err, auth.ErrTooManyAttempts):
+			w.Header().Set("Retry-After", "60")
+			writeAuthError(w, http.StatusTooManyRequests, "too many sign-in attempts, try again later")
+		case errors.Is(err, auth.ErrInvalidCredentials):
+			writeAuthError(w, http.StatusUnauthorized, "invalid username or password")
+		case err != nil:
+			// Storage failures stay server-side: the message must
+			// never name files or drivers.
+			writeAuthError(w, http.StatusInternalServerError, "internal error")
+		default:
+			http.SetCookie(w, &http.Cookie{
+				Name:     auth.CookieName,
+				Value:    value,
+				Path:     "/",
+				HttpOnly: true,
+				Secure:   true,
+				SameSite: http.SameSiteStrictMode,
+				// The browser drops the cookie at the absolute
+				// timeout even if the server never sees it again.
+				MaxAge: int(auth.AbsoluteTimeout.Seconds()),
+			})
+			w.Header().Set("Location", "/")
+			w.WriteHeader(http.StatusSeeOther)
+		}
+	}
+}
+
+// signOut closes the session and clears the cookie. It runs behind
+// requireSession, so the cookie it reads is known good.
+func signOut(svc *auth.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireMethod(w, r, http.MethodPost) {
+			return
+		}
+		// requireSession guarantees the cookie, but a miswired mux
+		// must fail closed, never panic on a nil cookie.
+		c, err := r.Cookie(auth.CookieName)
+		if err != nil {
+			writeAuthError(w, http.StatusUnauthorized, "unauthorized")
+			return
+		}
+		if err := svc.SignOut(r.Context(), c.Value); err != nil {
+			writeAuthError(w, http.StatusInternalServerError, "internal error")
+			return
+		}
+		http.SetCookie(w, &http.Cookie{
+			Name:     auth.CookieName,
+			Value:    "",
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteStrictMode,
+			MaxAge:   -1,
+			Expires:  time.Unix(1, 0).UTC(),
+		})
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	}
+}
+
+// me reports the session's username.
+func me() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireMethod(w, r, http.MethodGet) {
+			return
+		}
+		username, ok := r.Context().Value(usernameKey{}).(string)
+		if !ok {
+			// Unreachable through requireSession, which always sets
+			// the username before calling on: a miswired mux must
+			// fail loudly, never as another user.
+			writeAuthError(w, http.StatusInternalServerError, "internal error")
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"username":` + strconv.Quote(username) + "}\n"))
+	}
+}
+
+type usernameKey struct{}
+
+// requireSession rejects requests without a live session with 401
+// and hands the username to the next handler through the request
+// context.
+func requireSession(svc *auth.Service, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, err := r.Cookie(auth.CookieName)
+		if err != nil {
+			writeAuthError(w, http.StatusUnauthorized, "unauthorized")
+			return
+		}
+		username, err := svc.Authenticate(r.Context(), c.Value)
+		if err != nil {
+			writeAuthError(w, http.StatusUnauthorized, "unauthorized")
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), usernameKey{}, username)))
+	})
+}
+
+// csrf wraps state-changing routes in the stdlib origin check, which
+// answers cross-site POSTs with 403. Requests without Origin or
+// Sec-Fetch-Site (curl, non-browser clients) are allowed: there is
+// nothing to compare. DEVCULES_PUBLIC_URL, already validated as an
+// http(s) URL by config, is trusted by origin (scheme plus host), so
+// the later browser UI can post from its own origin. Anything
+// unparseable trusts nothing: fail closed.
+func csrf(publicURL string, next http.Handler) http.Handler {
+	cop := http.NewCrossOriginProtection()
+	if u, err := url.Parse(publicURL); err == nil && u.Scheme != "" && u.Host != "" {
+		// Built from parsed parts, so this cannot fail; the error
+		// is discarded rather than branched on.
+		_ = cop.AddTrustedOrigin(u.Scheme + "://" + u.Host)
+	}
+	return cop.Handler(next)
+}
+
+// clientIP is the connection's remote address without its port. No
+// proxy headers are trusted: there is no proxy in M1.1.
+func clientIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
+}
+
+// writeAuthError answers API failures as JSON. Messages are fixed
+// strings chosen at the call site, never error text: storage and
+// driver details stay server-side.
+func writeAuthError(w http.ResponseWriter, status int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_, _ = w.Write([]byte(`{"error":` + strconv.Quote(message) + "}\n"))
 }

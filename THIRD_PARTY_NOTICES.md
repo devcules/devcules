@@ -22,6 +22,14 @@ M0.3 adds the SQLite backend. Every package below is pulled in by
 | `modernc.org/mathutil` | BSD-3-Clause |
 | `modernc.org/memory` | BSD-3-Clause |
 | `modernc.org/sqlite` v1.61.0 | BSD-3-Clause |
+| `golang.org/x/crypto` v0.58.0 | BSD-3-Clause |
+
+M1.1 adds the argon2id password hashing above (only the `argon2`
+package is imported; the unmaintained `openpgp` package the
+vulnerability scanner flags is never used); nothing else new is a
+runtime dependency. The Playwright suite (`e2e/`) is dev-only test
+tooling and ships in no image: `@playwright/test` (Apache-2.0) with
+its browser downloads happens at test time.
 
 ## Container image contents
 

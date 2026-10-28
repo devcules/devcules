@@ -27,6 +27,17 @@ if $COMPOSE exec -T runner printenv DEVCULES_VAULT_KEY >/dev/null 2>&1; then
 fi
 [ "$($COMPOSE port serve 7659)" = "127.0.0.1:7659" ] || fail "port not bound to 127.0.0.1 only"
 
+# M1.1 sign-in flow: the bootstrap password comes from the serve logs
+# (fresh volumes only). curl sends no Origin header, so the CSRF check
+# lets it through like any non-browser client.
+password="$(./scripts/get-admin-password.sh)" || fail "no bootstrap password in serve logs"
+jar=$(mktemp)
+trap 'rm -f "$jar"' EXIT
+[ "$(curl -sS -o /dev/null -w '%{http_code}' -c "$jar" -d "username=admin&password=$password" "$URL/auth/sign-in")" = "303" ] || fail "sign-in did not 303"
+[ "$(curl -fsS -b "$jar" "$URL/auth/me")" = '{"username":"admin"}' ] || fail "/auth/me after sign-in"
+[ "$(curl -sS -o /dev/null -w '%{http_code}' -b "$jar" -X POST "$URL/auth/sign-out")" = "200" ] || fail "sign-out"
+[ "$(curl -sS -o /dev/null -w '%{http_code}' -b "$jar" "$URL/auth/me")" = "401" ] || fail "/auth/me after sign-out is not 401"
+
 serve_id=$($COMPOSE ps -q serve)
 start=$SECONDS
 $COMPOSE stop -t 20 serve >/dev/null

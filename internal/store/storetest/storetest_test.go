@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/devcules/devcules/internal/store"
 )
@@ -16,9 +17,11 @@ import (
 // needs: data outlives any single handle (close is a disconnect, not a
 // delete), while closed handles stay closed.
 type memDB struct {
-	mu     sync.Mutex
-	data   map[string]string
-	closed map[*memStore]bool
+	mu       sync.Mutex
+	data     map[string]string
+	users    map[string]string
+	sessions map[string]store.Session
+	closed   map[*memStore]bool
 }
 
 type memStore struct {
@@ -31,7 +34,126 @@ type memMeta struct {
 }
 
 func newMemDB() *memDB {
-	return &memDB{data: map[string]string{}, closed: map[*memStore]bool{}}
+	return &memDB{data: map[string]string{}, users: map[string]string{}, sessions: map[string]store.Session{}, closed: map[*memStore]bool{}}
+}
+
+func (s *memStore) Users() store.UsersRepo {
+	return memUsers{db: s.db, s: s}
+}
+
+func (s *memStore) Sessions() store.SessionsRepo {
+	return memSessions{db: s.db, s: s}
+}
+
+type memUsers struct {
+	db *memDB
+	s  *memStore
+}
+
+func (m memUsers) Create(ctx context.Context, username, hash string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if username == "" {
+		return fmt.Errorf("store: username must not be empty")
+	}
+	if hash == "" {
+		return fmt.Errorf("store: password hash must not be empty")
+	}
+	m.db.mu.Lock()
+	defer m.db.mu.Unlock()
+	if m.db.closed[m.s] {
+		return fmt.Errorf("store: memStore is closed")
+	}
+	if _, ok := m.db.users[username]; ok {
+		return fmt.Errorf("store: user %q already exists: %w", username, store.ErrExists)
+	}
+	m.db.users[username] = hash
+	return nil
+}
+
+func (m memUsers) PasswordHash(ctx context.Context, username string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	m.db.mu.Lock()
+	defer m.db.mu.Unlock()
+	if m.db.closed[m.s] {
+		return "", fmt.Errorf("store: memStore is closed")
+	}
+	hash, ok := m.db.users[username]
+	if !ok {
+		return "", fmt.Errorf("store: user %q not found: %w", username, store.ErrNotFound)
+	}
+	return hash, nil
+}
+
+type memSessions struct {
+	db *memDB
+	s  *memStore
+}
+
+func (m memSessions) Create(ctx context.Context, sess store.Session) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	m.db.mu.Lock()
+	defer m.db.mu.Unlock()
+	if m.db.closed[m.s] {
+		return fmt.Errorf("store: memStore is closed")
+	}
+	if _, ok := m.db.sessions[sess.TokenHash]; ok {
+		return fmt.Errorf("store: session already exists: %w", store.ErrExists)
+	}
+	m.db.sessions[sess.TokenHash] = sess
+	return nil
+}
+
+func (m memSessions) Get(ctx context.Context, hash string) (store.Session, error) {
+	if err := ctx.Err(); err != nil {
+		return store.Session{}, err
+	}
+	m.db.mu.Lock()
+	defer m.db.mu.Unlock()
+	if m.db.closed[m.s] {
+		return store.Session{}, fmt.Errorf("store: memStore is closed")
+	}
+	sess, ok := m.db.sessions[hash]
+	if !ok {
+		return store.Session{}, fmt.Errorf("store: session not found: %w", store.ErrNotFound)
+	}
+	return sess, nil
+}
+
+func (m memSessions) Touch(ctx context.Context, hash string, at time.Time) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	m.db.mu.Lock()
+	defer m.db.mu.Unlock()
+	if m.db.closed[m.s] {
+		return fmt.Errorf("store: memStore is closed")
+	}
+	sess, ok := m.db.sessions[hash]
+	if !ok {
+		return fmt.Errorf("store: session not found: %w", store.ErrNotFound)
+	}
+	sess.LastSeen = at
+	m.db.sessions[hash] = sess
+	return nil
+}
+
+func (m memSessions) Delete(ctx context.Context, hash string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	m.db.mu.Lock()
+	defer m.db.mu.Unlock()
+	if m.db.closed[m.s] {
+		return fmt.Errorf("store: memStore is closed")
+	}
+	delete(m.db.sessions, hash)
+	return nil
 }
 
 func (s *memStore) failIfClosed() error {
@@ -122,10 +244,16 @@ func TestMemStoreClosedHandles(t *testing.T) {
 		t.Fatalf("Close: %s", err)
 	}
 	ops := map[string]func() error{
-		"Ping":   func() error { return s.Ping(ctx) },
-		"Get":    func() error { _, err := s.Meta().Get(ctx, "k"); return err },
-		"Set":    func() error { return s.Meta().Set(ctx, "k", "v") },
-		"Delete": func() error { return s.Meta().Delete(ctx, "k") },
+		"Ping":         func() error { return s.Ping(ctx) },
+		"Get":          func() error { _, err := s.Meta().Get(ctx, "k"); return err },
+		"Set":          func() error { return s.Meta().Set(ctx, "k", "v") },
+		"Delete":       func() error { return s.Meta().Delete(ctx, "k") },
+		"CreateUser":   func() error { return s.Users().Create(ctx, "u", "h") },
+		"PasswordHash": func() error { _, err := s.Users().PasswordHash(ctx, "u"); return err },
+		"CreateSess":   func() error { return s.Sessions().Create(ctx, store.Session{}) },
+		"GetSess":      func() error { _, err := s.Sessions().Get(ctx, "h"); return err },
+		"TouchSess":    func() error { return s.Sessions().Touch(ctx, "h", time.Now()) },
+		"DeleteSess":   func() error { return s.Sessions().Delete(ctx, "h") },
 	}
 	for name, op := range ops {
 		if err := op(); err == nil || !strings.Contains(err.Error(), "closed") {

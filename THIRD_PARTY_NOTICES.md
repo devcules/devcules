@@ -40,6 +40,13 @@ M1.3 adds the link WebSocket transport below (`go-licenses report
 |---|---|
 | `github.com/coder/websocket` v1.8.15 | ISC |
 
+M1.4 adds the PTY driver below (MIT, verified from the module zip's
+`LICENSE`):
+
+| Package | Licence |
+|---|---|
+| `github.com/creack/pty` v1.1.24 | MIT |
+
 ### Web (M1.2)
 
 The built PWA ships these production dependencies, all MIT
@@ -52,6 +59,14 @@ The built PWA ships these production dependencies, all MIT
 | `scheduler` 0.23.2 | MIT |
 | `loose-envify` 1.4.0 | MIT |
 | `js-tokens` 4.0.0 | MIT |
+
+M1.4 adds the terminal renderer below, both MIT
+(`license-checker --production` reproduces this list):
+
+| Package | Licence |
+|---|---|
+| `@xterm/xterm` 6.0.0 | MIT |
+| `@xterm/addon-fit` 0.11.0 | MIT |
 
 System fonts only: no remote fonts, CDNs or analytics. Dev-only
 tooling (Vite, Vitest, Playwright, ESLint and friends) ships in no

@@ -10,6 +10,29 @@ All notable changes to Devcules, newest first.
   (sorted) and `OnChange` reports link/unlink events in map order on
   their own delivery goroutine, so watchers never stall reads or
   handshakes (M1.4 relay watches membership through it).
+- tmux-backed terminals: `internal/terminals` (frame payloads),
+  `internal/terminals/pty` (runner side, `github.com/creack/pty`
+  v1.1.24 MIT, private `tmux -L devcules` server, 16 terminals max,
+  env scrubbed to `TERM`/`HOME`/`PATH`/`LANG`/`SHELL`), and
+  `internal/terminals/relay` (serve side, never imports pty —
+  enforced by `arch_test.go`). Reply ceiling 5 s (504), slow
+  browsers cut at 1013, offline runners at 1012, no replay buffer
+  (tmux redraws on reattach).
+- Browser API: `GET`/`POST /api/terminals` (201 `{id}`),
+  `DELETE /api/terminals/{id}` (204, idempotent), and
+  `GET /api/terminals/{id}/stream` (binary raw bytes, text resize
+  controls, session cookie plus Origin check).
+- Web Terminals tab with xterm.js (`@xterm/xterm` 6.0.0,
+  `@xterm/addon-fit` 0.11.0, MIT): list/new/close-confirm, phone key
+  strip (Esc, Tab, sticky Ctrl, arrows, Enter, 44 px,
+  `visualViewport`), reconnect on `visibilitychange`/`online`;
+  active phone tab is text-plus-indicator (not accent); any `/api`
+  401 returns to sign-in. CSP gains only `style-src 'self'
+  'unsafe-inline'` for xterm's runtime styles; `script-src` stays
+  `default-src 'self'`.
+- Runner wires the pty manager into its link (links without
+  terminals when tmux is missing); compose runs the runner with
+  `init: true`; CI unit job installs tmux. See `docs/terminals.md`.
 
 ### Added (2026-10-28, M1.3)
 

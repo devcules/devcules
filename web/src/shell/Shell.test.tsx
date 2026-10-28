@@ -12,17 +12,18 @@ function tabs() {
 
 describe('Shell', () => {
   it('renders the sidebar and tab bar pair', () => {
-    render(<Shell username="admin" onSignedOut={vi.fn()} />);
+    render(<Shell username="admin" onSignedOut={vi.fn()} onSessionExpired={vi.fn()} />);
     expect(screen.getByRole('navigation', { name: 'Primary' })).toBeDefined();
     expect(screen.getByRole('navigation', { name: 'Tabs' })).toBeDefined();
   });
 
   it('opens on a calm Home and switches tabs', async () => {
     const user = userEvent.setup();
-    render(<Shell username="admin" onSignedOut={vi.fn()} />);
+    window.fetch = vi.fn(async () => Response.json({ terminals: [] }, { status: 200 })) as typeof fetch;
+    render(<Shell username="admin" onSignedOut={vi.fn()} onSessionExpired={vi.fn()} />);
     expect(screen.getByText('Nothing needs you.')).toBeDefined();
     await user.click(tabs().getByRole('button', { name: 'Terminals' }));
-    expect(screen.getByText('No terminals yet.')).toBeDefined();
+    expect(await screen.findByText('No terminals yet.')).toBeDefined();
     await user.click(tabs().getByRole('button', { name: 'Settings' }));
     expect(screen.getByText('Signed in as')).toBeDefined();
   });
@@ -31,7 +32,7 @@ describe('Shell', () => {
     const user = userEvent.setup();
     window.fetch = vi.fn(async () => new Response(null, { status: 200 })) as typeof fetch;
     const signedOut = vi.fn();
-    render(<Shell username="admin" onSignedOut={signedOut} />);
+    render(<Shell username="admin" onSignedOut={signedOut} onSessionExpired={vi.fn()} />);
     await user.click(tabs().getByRole('button', { name: 'Settings' }));
     await user.click(screen.getByRole('button', { name: 'Sign out' }));
     expect(signedOut).toHaveBeenCalled();

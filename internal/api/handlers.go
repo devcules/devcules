@@ -14,6 +14,7 @@ import (
 	"github.com/devcules/devcules/internal/auth"
 	"github.com/devcules/devcules/internal/link/hub"
 	"github.com/devcules/devcules/internal/store"
+	"github.com/devcules/devcules/internal/terminals/relay"
 )
 
 // Options wires the mux. Store serves readiness, Auth serves the auth
@@ -28,6 +29,10 @@ type Options struct {
 	Web       http.Handler
 	PublicURL string
 	Link      *hub.Hub
+	// Terminals relays browser terminals to the runner. A nil relay
+	// answers the terminal routes with 503; serve always passes a
+	// real one.
+	Terminals *relay.Relay
 }
 
 // Handler returns the M1.3 mux. /healthz, /readyz and GET /link stay
@@ -55,6 +60,12 @@ func Handler(o Options) http.Handler {
 	mux.Handle("/auth/sign-in", csrf(o.PublicURL, signIn(o.Auth)))
 	mux.Handle("/auth/sign-out", csrf(o.PublicURL, requireSession(o.Auth, signOut(o.Auth))))
 	mux.Handle("/auth/me", requireSession(o.Auth, me()))
+	// Terminal routes sort above "/": the mux prefers longer patterns,
+	// so /api/terminals never falls through to the app shell. The
+	// collection holds list and open; anything deeper is one terminal
+	// (DELETE) or its stream (GET upgrade).
+	mux.Handle("/api/terminals", requireSession(o.Auth, terminalsRoot(o.Terminals, o.PublicURL)))
+	mux.Handle("/api/terminals/", requireSession(o.Auth, terminalOne(o.Terminals, o.PublicURL)))
 	mux.Handle("/", root(o.Web, o.Auth))
 	return secureHeaders(mux)
 }
@@ -80,11 +91,14 @@ func root(web http.Handler, svc *auth.Service) http.HandlerFunc {
 // secureHeaders stamps every response: no inline scripts or frames
 // from anywhere, no MIME sniffing, no referrer. base-uri and
 // form-action are spelled out because they do not fall back to
-// default-src.
+// default-src. style-src allows xterm.js's inline styles (M1.4): the
+// terminal renderer sets style attributes and a <style> element at
+// runtime, so the Terminals tab stays blank without it. script-src
+// stays default-src 'self': no inline script, ever.
 func secureHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
-		h.Set("Content-Security-Policy", "default-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
+		h.Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("Referrer-Policy", "no-referrer")
 		next.ServeHTTP(w, r)

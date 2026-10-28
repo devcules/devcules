@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Home, Terminals } from '../screens/Empty';
+import { Home } from '../screens/Empty';
+import Terminals from '../screens/Terminals';
 import Settings from '../screens/Settings';
 
 type Tab = 'home' | 'terminals' | 'settings';
@@ -10,7 +11,15 @@ const tabs: Array<{ id: Tab; label: string }> = [
   { id: 'settings', label: 'Settings' },
 ];
 
-export default function Shell({ username, onSignedOut }: { username: string; onSignedOut: () => void }) {
+export default function Shell({
+  username,
+  onSignedOut,
+  onSessionExpired,
+}: {
+  username: string;
+  onSignedOut: () => void;
+  onSessionExpired: () => void;
+}) {
   const [tab, setTab] = useState<Tab>('home');
 
   return (
@@ -27,7 +36,7 @@ export default function Shell({ username, onSignedOut }: { username: string; onS
           (black-translucent), so content starts below the inset. */}
       <main className="flex flex-1 flex-col pt-[env(safe-area-inset-top)] pb-20 md:pb-0">
         {tab === 'home' && <Home />}
-        {tab === 'terminals' && <Terminals />}
+        {tab === 'terminals' && <Terminals onSessionExpired={onSessionExpired} />}
         {tab === 'settings' && <Settings username={username} onSignedOut={onSignedOut} />}
       </main>
       <nav

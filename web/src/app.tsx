@@ -21,6 +21,19 @@ export default function App() {
 
   useEffect(() => {
     check();
+    // Locking the phone pauses everything; coming back re-checks the
+    // session, so an expiry made while away shows sign-in at once.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        check();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('online', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('online', onVisible);
+    };
   }, [check]);
 
   function signedIn(): void {
@@ -34,5 +47,17 @@ export default function App() {
   if (session === 'signed-out') {
     return <SignIn onSignedIn={signedIn} />;
   }
-  return <Shell username={session.user} onSignedOut={() => setSession('signed-out')} />;
+  // Any /api 401 lands here: the session is gone, so the shell
+  // unmounts and sign-in shows, instead of stranding dead screens.
+  function sessionExpired(): void {
+    setSession('signed-out');
+  }
+
+  return (
+    <Shell
+      username={session.user}
+      onSignedOut={() => setSession('signed-out')}
+      onSessionExpired={sessionExpired}
+    />
+  );
 }

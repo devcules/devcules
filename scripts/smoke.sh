@@ -59,6 +59,22 @@ curl -fsS -H 'Accept: text/html' "$URL/" | grep -q '<div id="root"></div>' || fa
 [ "$(curl -sS -o /dev/null -w '%{http_code}' -b "$jar" -X POST "$URL/auth/sign-out")" = "200" ] || fail "sign-out"
 [ "$(curl -sS -o /dev/null -w '%{http_code}' -b "$jar" "$URL/auth/me")" = "401" ] || fail "/auth/me after sign-out is not 401"
 
+# M1.4 terminals: POST opens (201 with the id), GET lists it, DELETE
+# closes it (204), and the list is empty again. A fresh sign-in keeps
+# this independent of the sign-out above.
+jar2=$(mktemp)
+trap 'rm -f "$jar" "$jar2"' EXIT
+[ "$(curl -sS -o /dev/null -w '%{http_code}' -c "$jar2" -d "username=admin&password=$password" "$URL/auth/sign-in")" = "204" ] || fail "sign-in for terminals did not 204"
+open_body=$(curl -fsS -b "$jar2" -X POST "$URL/api/terminals") || fail "POST /api/terminals"
+term_id=$(printf '%s' "$open_body" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])') || fail "open body has no id: $open_body"
+case "$(curl -fsS -b "$jar2" "$URL/api/terminals")" in
+  '{"terminals":[{"term":"'"$term_id"'","created":'*'}]}') ;;
+  *) fail "GET /api/terminals does not list $term_id" ;;
+esac
+[ "$(curl -sS -o /dev/null -w '%{http_code}' -b "$jar2" -X DELETE "$URL/api/terminals/$term_id")" = "204" ] || fail "DELETE /api/terminals/$term_id"
+[ "$(curl -fsS -b "$jar2" "$URL/api/terminals")" = '{"terminals":[]}' ] || fail "GET /api/terminals not empty after delete"
+[ "$(curl -sS -o /dev/null -w '%{http_code}' "$URL/api/terminals")" = "401" ] || fail "GET /api/terminals without session is not 401"
+
 # M1.3 serve restart: the runner's dialer backs off and relinks on its
 # own; readyz returns to 1 with a fresh session underneath.
 $COMPOSE restart serve >/dev/null

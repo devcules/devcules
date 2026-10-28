@@ -48,6 +48,9 @@ services:
       dockerfile: Dockerfile
     image: ghcr.io/devcules/devcules:${DEVCULES_TAG:-edge}
     command: ["runner"]
+    # tini reaps the tmux server's zombies. tmux sessions die with the
+    # runner container; reattach after a restart starts a fresh shell.
+    init: true
     environment:
       DEVCULES_SERVE_URL: http://serve:7659
       DEVCULES_RUNNER_TOKEN_FILE: /link/runner.token

@@ -8,9 +8,11 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 
 	"github.com/devcules/devcules/internal/config"
 	"github.com/devcules/devcules/internal/link/dial"
+	"github.com/devcules/devcules/internal/terminals/pty"
 )
 
 // runRunner links to serve and stays linked until a signal: the dialer
@@ -41,6 +43,15 @@ func runRunner(cfg config.Config, stdout, stderr io.Writer, sigs <-chan os.Signa
 	c := dial.New(wsURL, name, version, cfg.RunnerToken, dial.Options{Logger: log})
 	ctx, stop := context.WithCancel(context.Background())
 	defer stop()
+	// Terminals ride the same link: tmux is the source of truth, so a
+	// missing tmux only loses terminals — the runner still links. Serve
+	// registers its handlers before Run starts, and drops every attach
+	// client on link changes and when ctx ends.
+	if m, err := terminalManager(log); err != nil {
+		log.Warn("terminals unavailable, linking without them", "err", err.Error())
+	} else {
+		pty.Serve(ctx, c, m)
+	}
 	done := make(chan error, 1)
 	go func() { done <- c.Run(ctx) }()
 
@@ -83,6 +94,25 @@ func linkURL(serveURL string) (string, error) {
 	}
 	u.Path = path.Join(u.Path, "/link")
 	return u.String(), nil
+}
+
+// terminalManager builds the tmux driver for this runner. The socket
+// lives under TMUX_TMPDIR when set (a tmpfs in compose), else a private
+// dir in the system temp area; shells start in /workspace, falling back
+// to the current directory outside containers.
+func terminalManager(log *slog.Logger) (*pty.Manager, error) {
+	socketDir := os.Getenv("TMUX_TMPDIR")
+	if socketDir == "" {
+		socketDir = filepath.Join(os.TempDir(), "devcules-tmux")
+	}
+	workspace := "/workspace"
+	if st, err := os.Stat(workspace); err != nil || !st.IsDir() {
+		workspace, err = os.Getwd()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return pty.New(socketDir, workspace, log)
 }
 
 // runnerName identifies this runner on the link. Hostnames are unique

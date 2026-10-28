@@ -43,6 +43,7 @@ apply to the runner too, which serves nothing.
 | `no-new-privileges` | yes | yes |
 | Runs as uid 10001 (`devcules`) | yes | yes |
 | Mounts | data volume only | `/workspace` + runner-home volume |
+| `init: true` (tini reaps children) | no | yes — the tmux server's zombies (M1.4) |
 
 ## Known deviations and limits
 
@@ -57,6 +58,10 @@ apply to the runner too, which serves nothing.
   services. Serve mints a fresh file `0400`; the runner picks it up
   on start. `scripts/smoke.sh` checks the mode, the uid, and relink
   after a serve restart.
+- **Terminals live in the runner.** Shells start in `/workspace`
+  under the private `tmux -L devcules` server (see
+  `docs/terminals.md`); tmux sessions die with the runner container,
+  and the runner links without terminals when tmux is missing.
 - **`runner-home` ownership.** The named volume starts root-owned, so
   the non-root runner cannot write it yet. The idle M0.5 runner writes
   nothing, so this is dormant; M3 (which installs agent CLIs there)

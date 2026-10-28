@@ -54,7 +54,7 @@ jobs:
         run: |
           npm --prefix web ci
           npm --prefix web run lint
-          npm --prefix web exec -- tsc --noEmit
+          npm --prefix web run typecheck
 
   arch:
     name: arch
@@ -117,7 +117,7 @@ jobs:
       - name: unit (web)
         run: |
           npm --prefix web ci
-          npm --prefix web exec -- vitest run
+          npm --prefix web test
 
   integration:
     name: integration
@@ -221,8 +221,7 @@ jobs:
       - name: web licence check
         run: |
           npm --prefix web ci
-          npm --prefix web exec -- license-checker --production --excludePrivatePackages \
-            --onlyAllow 'MIT;BSD-2-Clause;BSD-3-Clause;ISC;Apache-2.0'
+          npm --prefix web run licences
       - name: licence check
         run: |
           go install github.com/google/go-licenses/v2@v2.0.1

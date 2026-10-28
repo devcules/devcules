@@ -10,7 +10,9 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "test": "vitest run"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "licences": "license-checker --production --excludePrivatePackages --onlyAllow 'MIT;BSD-2-Clause;BSD-3-Clause;ISC;Apache-2.0'"
   },
   "dependencies": {
     "react": "18.3.1",

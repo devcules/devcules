@@ -88,7 +88,7 @@ requiring actions pinned to full-length commit SHAs.
 
 ```sh
 gofmt -l . && go vet ./... && go test -race ./...
-npm --prefix web run lint && npm --prefix web exec -- tsc --noEmit
+npm --prefix web run lint && npm --prefix web run typecheck
 npm --prefix web test
 actionlint
 gitleaks detect --source . --verbose

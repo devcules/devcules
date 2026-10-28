@@ -23,8 +23,10 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 # The built PWA arrives from the web stage (internal/web/dist is
-# gitignored, so the build context never carries it).
-COPY --from=web /web/dist ./internal/web/dist
+# gitignored, so the build context never carries it). The path is
+# /internal/web/dist because vite builds relative to web/ even when
+# only web/ is copied into the stage.
+COPY --from=web /internal/web/dist ./internal/web/dist
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
   go build -trimpath \
   -ldflags "-s -w -X main.version=$VERSION -X main.commit=$COMMIT -X main.date=$DATE" \

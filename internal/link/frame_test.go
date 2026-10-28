@@ -127,7 +127,8 @@ func TestNewIDUnique(t *testing.T) {
 		}
 		seen[id] = true
 	}
-	if NewSession() == NewSession() {
+	first, second := NewSession(), NewSession()
+	if first == second {
 		t.Fatal("NewSession() returned the same value twice")
 	}
 	if len(NewSession()) != 32 {

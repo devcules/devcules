@@ -42,7 +42,6 @@ func (l *linkConn) ping(ctx context.Context) error {
 func (l *linkConn) loop(ctx context.Context, h *Hub, name string) (websocket.StatusCode, string) {
 	ctx, stop := context.WithCancel(ctx)
 	defer stop()
-	defer h.drop(name, l)
 
 	go l.pingLoop(ctx, h, name)
 
@@ -144,13 +143,17 @@ func (l *linkConn) pingLoop(ctx context.Context, h *Hub, name string) {
 }
 
 // drop unregisters the link, but only if it is still the current one
-// for the name: a replaced elder must not evict its successor.
-func (h *Hub) drop(name string, l *linkConn) {
+// for the name: a replaced elder must not evict its successor. It
+// reports whether the entry was actually removed, so serve fires the
+// unlink event only on a real state change.
+func (h *Hub) drop(name string, l *linkConn) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.links[name] == l {
 		delete(h.links, name)
+		return true
 	}
+	return false
 }
 
 // Close retires every link with a 1001 close frame so runners log a

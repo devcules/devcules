@@ -4,6 +4,12 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-28, M1.4)
+
+- `internal/link/hub`: `Runners()` lists the live runner names
+  (sorted) and `OnChange` reports link/unlink events without stalling
+  reads (M1.4 relay watches membership through it).
+
 ### Added (2026-10-28, M1.3)
 
 - Link protocol between serve and runner at `GET /link`

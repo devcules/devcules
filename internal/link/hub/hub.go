@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -65,6 +66,13 @@ func (o Options) withDefaults() Options {
 // its own link, never other runners'.
 type HandlerFunc func(ctx context.Context, runner string, f link.Frame)
 
+// ChangeFunc receives link membership changes: linked reports a fresh
+// registration, unlinked a real removal. Watchers run in the handshake
+// goroutine of the affected connection — never in another link's read
+// loop — but they still must be quick and must not call back into the
+// hub: a slow watcher only delays its own connection's cleanup.
+type ChangeFunc func(name string, linked bool)
+
 // Hub accepts runner links and routes their frames. The zero Hub is
 // not usable; build one with New. Hub is safe for concurrent use, and
 // Close is idempotent so the SIGTERM drain can call it unconditionally.
@@ -75,6 +83,7 @@ type Hub struct {
 	mu       sync.RWMutex
 	links    map[string]*linkConn
 	handlers map[string]HandlerFunc
+	watchers []ChangeFunc
 	closed   bool
 }
 
@@ -106,6 +115,44 @@ func (h *Hub) On(msgType string, fn HandlerFunc) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.handlers[msgType] = fn
+}
+
+// OnChange registers a membership watcher, called after every register
+// and every real removal. A replaced duplicate fires linked again (the
+// relay rebinds to the new link) but never unlinked for the retired
+// elder, since the name never went down.
+func (h *Hub) OnChange(fn ChangeFunc) {
+	if fn == nil {
+		return
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.watchers = append(h.watchers, fn)
+}
+
+// Runners returns the sorted names of the live runner links. The relay
+// uses it to pick the only runner (or require ?runner= when several
+// are linked); sorting keeps logs and errors deterministic.
+func (h *Hub) Runners() []string {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	names := make([]string, 0, len(h.links))
+	for name := range h.links {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// notify runs the watchers outside the hub lock: a watcher must never
+// block link bookkeeping, and it must not call back into the hub.
+func (h *Hub) notify(name string, linked bool) {
+	h.mu.RLock()
+	fns := append([]ChangeFunc(nil), h.watchers...)
+	h.mu.RUnlock()
+	for _, fn := range fns {
+		fn(name, linked)
+	}
 }
 
 // Count returns the number of live runner links. /readyz reports it so
@@ -261,12 +308,19 @@ func (h *Hub) serve(ctx context.Context, conn *websocket.Conn) {
 	}
 	h.links[hello.Name] = l
 	h.mu.Unlock()
+	h.notify(hello.Name, true)
 
 	// Echo the read outcome back so the peer's close handshake always
 	// completes: without this a client that closed cleanly would hang
 	// waiting for serve's answer, and an oversize sender would never
 	// learn its 1009.
 	code, reason := l.loop(ctx, h, hello.Name)
+	// Only a real removal fires the unlink event: a replaced elder
+	// finds its successor in the map and stays silent, since the name
+	// never went down.
+	if h.drop(hello.Name, l) {
+		h.notify(hello.Name, false)
+	}
 	settle(conn, code, reason, 5*time.Second)
 }
 

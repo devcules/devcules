@@ -642,6 +642,30 @@ func Run(t *testing.T, newStore func(t *testing.T) store.Store) {
 		check(t, slices.ContainsFunc(list, func(o store.Machine) bool { return o.ID == m.ID }), fmt.Sprintf("List = %+v", list))
 	})
 
+	t.Run("Projects", func(t *testing.T) {
+		s := newStore(t)
+		defer s.Close()
+		r := s.Projects()
+		at := time.Date(2026, 10, 29, 3, 0, 0, 0, time.UTC)
+		p := store.Project{ID: key(t, "p1"), Name: "shop", Kind: "runner", Target: "laptop", Dir: "shop", Repo: "https://example.com/shop.git", CreatedAt: at}
+		mustf(t, r.Create(ctx, p), "Create")
+		mustExists(t, r.Create(ctx, store.Project{ID: key(t, "p2"), Name: "shop", Kind: "machine", Target: "mac", Dir: "/x", CreatedAt: at}), "Create a taken name")
+		got, err := r.Get(ctx, p.ID)
+		mustf(t, err, "Get")
+		check(t, got.Name == p.Name && got.Kind == p.Kind && got.Target == p.Target && got.Dir == p.Dir && got.Repo == p.Repo && got.CreatedAt.Equal(at), fmt.Sprintf("got = %+v", got))
+		_, err = r.Get(ctx, key(t, "nope"))
+		mustNotFound(t, err, "Get missing")
+		q := store.Project{ID: key(t, "p3"), Name: "api", Kind: "machine", Target: "mac", Dir: "/Users/k/api", CreatedAt: at}
+		mustf(t, r.Create(ctx, q), "Create second")
+		list, err := r.List(ctx)
+		mustf(t, err, "List")
+		check(t, len(list) == 2 && list[0].Name == "api" && list[1].Name == "shop", fmt.Sprintf("List = %+v, want sorted by name", list))
+		mustf(t, r.Delete(ctx, p.ID), "Delete")
+		mustf(t, r.Delete(ctx, p.ID), "Delete missing (must be a no-op)")
+		_, err = r.Get(ctx, p.ID)
+		mustNotFound(t, err, "Get deleted")
+	})
+
 	t.Run("EnrolCodes", func(t *testing.T) {
 		s := newStore(t)
 		defer s.Close()

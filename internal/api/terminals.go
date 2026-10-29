@@ -23,7 +23,7 @@ func terminalsRoot(relay *relay.Relay, publicURL string, rec auditor) http.Handl
 		}
 		switch r.Method {
 		case http.MethodGet:
-			list, rerr := relay.List(r.Context(), r.URL.Query().Get("runner"))
+			list, rerr := relay.List(r.Context(), linkTarget(r))
 			if rerr != nil {
 				writeAuthError(w, rerr.Status, rerr.Msg)
 				return
@@ -37,7 +37,7 @@ func terminalsRoot(relay *relay.Relay, publicURL string, rec auditor) http.Handl
 			}{Terminals: list})
 		case http.MethodPost:
 			csrf(publicURL, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				id, rerr := relay.Open(r.Context(), r.URL.Query().Get("runner"))
+				id, rerr := relay.Open(r.Context(), linkTarget(r))
 				if rerr != nil {
 					writeAuthError(w, rerr.Status, rerr.Msg)
 					return
@@ -82,7 +82,7 @@ func terminalOne(relay *relay.Relay, publicURL string, rec auditor) http.Handler
 			return
 		}
 		csrf(publicURL, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if rerr := relay.Delete(r.Context(), r.URL.Query().Get("runner"), id); rerr != nil {
+			if rerr := relay.Delete(r.Context(), linkTarget(r), id); rerr != nil {
 				writeAuthError(w, rerr.Status, rerr.Msg)
 				return
 			}
@@ -155,7 +155,7 @@ func streamTerminal(relay *relay.Relay, w http.ResponseWriter, r *http.Request, 
 		}
 		rows = n
 	}
-	runner, rerr := relay.Resolve(r.URL.Query().Get("runner"), id, cols, rows)
+	runner, rerr := relay.Resolve(linkTarget(r), id, cols, rows)
 	if rerr != nil {
 		_ = conn.Close(rerr.CloseCode(), rerr.Msg)
 		return

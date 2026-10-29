@@ -263,8 +263,67 @@ func shortErr(err error) string {
 // Open creates the detached tmux session for id in the workspace with
 // a login bash. It returns the creation time for the list.
 func (m *Manager) Open(ctx context.Context, id string) (time.Time, error) {
+	return m.OpenIn(ctx, id, Place{})
+}
+
+// Place is where a terminal starts: Dir (absolute, or relative to the
+// workspace), the Project it is tagged with, and an optional git URL
+// to Clone into Dir first.
+type Place struct {
+	Dir     string
+	Project string
+	Clone   string
+}
+
+// projectOption tags a session with its project id for the list.
+const projectOption = "@devcules_project"
+
+// resolve turns p into the start directory and the shell command. A
+// clone runs in the parent directory and then changes into the
+// checkout; otherwise the directory must already exist.
+func (m *Manager) resolve(p Place) (dir string, shell []string, err error) {
+	if p.Dir == "" {
+		return m.workspace, []string{"bash", "-l"}, nil
+	}
+	if !terminals.ValidDir(p.Dir) {
+		return "", nil, fmt.Errorf("bad directory")
+	}
+	dir = p.Dir
+	if !filepath.IsAbs(dir) {
+		dir = filepath.Join(m.workspace, dir)
+	}
+	if p.Clone != "" {
+		if !terminals.ValidCloneURL(p.Clone) {
+			return "", nil, fmt.Errorf("bad clone url")
+		}
+		if st, err := os.Stat(dir); err == nil && st.IsDir() {
+			// Already cloned (or a reopened project): just start there.
+			return dir, []string{"bash", "-l"}, nil
+		}
+		parent := filepath.Dir(dir)
+		if err := os.MkdirAll(parent, 0o755); err != nil {
+			return "", nil, fmt.Errorf("directory not found")
+		}
+		script := "git clone -- " + shQuote(p.Clone) + " " + shQuote(dir) + "; cd " + shQuote(dir) + " 2>/dev/null; exec bash -l"
+		return parent, []string{"bash", "-lc", script}, nil
+	}
+	if st, err := os.Stat(dir); err != nil || !st.IsDir() {
+		return "", nil, fmt.Errorf("directory not found")
+	}
+	return dir, []string{"bash", "-l"}, nil
+}
+
+// OpenIn creates the terminal's session at p.
+func (m *Manager) OpenIn(ctx context.Context, id string, p Place) (time.Time, error) {
 	if !terminals.ValidID(id) {
 		return time.Time{}, fmt.Errorf("term: want 16 hex chars")
+	}
+	if p.Project != "" && !terminals.ValidProject(p.Project) {
+		return time.Time{}, fmt.Errorf("bad project")
+	}
+	dir, shell, err := m.resolve(p)
+	if err != nil {
+		return time.Time{}, err
 	}
 	m.openMu.Lock()
 	defer m.openMu.Unlock()
@@ -276,14 +335,24 @@ func (m *Manager) Open(ctx context.Context, id string) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("too many terminals: at most %d per runner", m.max)
 	}
 	name := terminals.SessionName(id)
-	if _, err := m.run(ctx, "new-session", "-d", "-s", name, "-c", m.workspace,
-		"-x", strconv.Itoa(defaultCols), "-y", strconv.Itoa(defaultRows), "bash", "-l"); err != nil {
+	args := append([]string{"new-session", "-d", "-s", name, "-c", dir,
+		"-x", strconv.Itoa(defaultCols), "-y", strconv.Itoa(defaultRows)}, shell...)
+	if _, err := m.run(ctx, args...); err != nil {
 		if strings.Contains(err.Error(), "duplicate session") {
 			return time.Time{}, fmt.Errorf("terminal exists")
 		}
 		return time.Time{}, fmt.Errorf("tmux failed to open the terminal")
 	}
+	m.tagProject(ctx, name, p.Project)
 	return time.Now(), nil
+}
+
+// tagProject labels the session for the list; a failure leaves a
+// working terminal.
+func (m *Manager) tagProject(ctx context.Context, session, project string) {
+	if project != "" {
+		_, _ = m.run(ctx, "set-option", "-t", session, projectOption, project)
+	}
 }
 
 // hasSession reports whether the tmux session exists.
@@ -476,7 +545,9 @@ func (m *Manager) Close(ctx context.Context, id string) error {
 func (m *Manager) List(ctx context.Context) ([]terminals.TermInfo, error) {
 	ctx, stop := context.WithTimeout(ctx, tmuxTimeout)
 	defer stop()
-	out, err := m.tmux(ctx, "list-sessions", "-F", "#{session_name} #{session_created} #{"+agentOption+"}").CombinedOutput()
+	// Tabs separate the fields: tags may be empty and the path may
+	// hold spaces, so whitespace splitting would shift columns.
+	out, err := m.tmux(ctx, "list-sessions", "-F", "#{session_name}\t#{session_created}\t#{"+agentOption+"}\t#{"+projectOption+"}\t#{session_path}").CombinedOutput()
 	if err != nil {
 		text := string(out)
 		if strings.Contains(text, "no server running") ||
@@ -488,7 +559,7 @@ func (m *Manager) List(ctx context.Context) ([]terminals.TermInfo, error) {
 	}
 	var terms []terminals.TermInfo
 	for line := range strings.Lines(strings.TrimSpace(string(out))) {
-		fields := strings.Fields(line)
+		fields := strings.Split(strings.TrimRight(line, "\r\n"), "\t")
 		if len(fields) < 2 {
 			continue
 		}
@@ -504,6 +575,12 @@ func (m *Manager) List(ctx context.Context) ([]terminals.TermInfo, error) {
 		info := terminals.TermInfo{Term: id, Created: secs}
 		if len(fields) > 2 && terminals.ValidAgentID(fields[2]) {
 			info.Agent = fields[2]
+		}
+		if len(fields) > 3 && terminals.ValidProject(fields[3]) {
+			info.Project = fields[3]
+		}
+		if len(fields) > 4 && filepath.IsAbs(fields[4]) {
+			info.Dir = fields[4]
 		}
 		terms = append(terms, info)
 	}

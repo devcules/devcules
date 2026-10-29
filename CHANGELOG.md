@@ -4,6 +4,17 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-29, machine terminals and projects)
+
+- A machine's shell: `devcules machine` serves tmux terminals over its
+  signed link, and every terminal route takes `?machine=<name>`, so
+  the Machines tab can open a terminal on a computer with no inbound
+  port (`DEVCULES_MACHINE_SHELL=off` withholds it).
+- Projects: a named directory on a runner or machine, added from an
+  existing path or by cloning a git URL in a visible terminal.
+  Terminals and agents open inside a project and the list reports
+  each terminal's project and directory (`docs/terminals.md`).
+
 ### Fixed (2026-10-29, machine task view)
 
 - The live screen and Check done failed on a real desktop: link

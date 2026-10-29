@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -184,6 +186,15 @@ func (r *Relay) Resolve(runner, term string, cols, rows int) (string, *Error) {
 // several without a choice is 400 with next steps; an unknown choice
 // is 404 naming the live ones.
 func (r *Relay) PickRunner(query string) (string, *Error) {
+	// A machine target arrives as its hub address (?machine= in the
+	// API): machines host terminals too, but are only ever picked by
+	// name, never as the default.
+	if name, ok := strings.CutPrefix(query, hub.MachineAddr("")); ok {
+		if slices.Contains(r.hub.Machines(), name) {
+			return query, nil
+		}
+		return "", &Error{Status: 503, Msg: fmt.Sprintf("machine %q is not linked", name)}
+	}
 	names := r.hub.Runners()
 	switch {
 	case len(names) == 0:
@@ -250,34 +261,56 @@ func (r *Relay) List(ctx context.Context, runner string) ([]terminals.TermInfo, 
 	return listed.Terms, nil
 }
 
+// Place says where a terminal starts: a directory, the project it
+// belongs to, and a git URL to clone into the directory first.
+type Place struct {
+	Dir     string
+	Project string
+	Clone   string
+}
+
 // Open mints a terminal id and asks the runner to create its session.
 func (r *Relay) Open(ctx context.Context, runner string) (string, *Error) {
+	return r.OpenAt(ctx, runner, Place{})
+}
+
+// OpenAt opens a shell at p.
+func (r *Relay) OpenAt(ctx context.Context, runner string, p Place) (string, *Error) {
 	name, aerr := r.PickRunner(runner)
 	if aerr != nil {
 		return "", aerr
 	}
-	id := terminals.NewID()
-	if err := r.ok(ctx, name, terminals.TypeOpen, terminals.Open{Term: id}); err != nil {
+	o := terminals.Open{Term: terminals.NewID(), Dir: p.Dir, Project: p.Project, Clone: p.Clone}
+	if err := terminals.CheckOpen(o); err != nil {
+		return "", &Error{Status: 400, Msg: err.Error()}
+	}
+	if err := r.ok(ctx, name, terminals.TypeOpen, o); err != nil {
 		return "", roundTripError(err)
 	}
-	return id, nil
+	return o.Term, nil
 }
 
 // OpenAgent mints a terminal id and asks the runner to start the
 // agent in it. a carries the launch token; it crosses only the link.
 func (r *Relay) OpenAgent(ctx context.Context, runner string, a terminals.AgentLaunch) (string, *Error) {
+	return r.OpenAgentAt(ctx, runner, a, Place{})
+}
+
+// OpenAgentAt starts the agent in p's directory, tagged with its
+// project. A clone is never part of an agent launch.
+func (r *Relay) OpenAgentAt(ctx context.Context, runner string, a terminals.AgentLaunch, p Place) (string, *Error) {
 	name, aerr := r.PickRunner(runner)
 	if aerr != nil {
 		return "", aerr
 	}
-	id := terminals.NewID()
-	if err := terminals.CheckOpen(terminals.Open{Term: id, Agent: &a}); err != nil {
+	o := terminals.Open{Term: terminals.NewID(), Agent: &a, Dir: p.Dir, Project: p.Project}
+	if err := terminals.CheckOpen(o); err != nil {
 		return "", &Error{Status: 400, Msg: err.Error()}
 	}
-	if err := r.ok(ctx, name, terminals.TypeOpen, terminals.Open{Term: id, Agent: &a}); err != nil {
+	if err := r.ok(ctx, name, terminals.TypeOpen, o); err != nil {
 		return "", roundTripError(err)
 	}
-	return id, nil
+	return o.Term, nil
 }
 
 // Agents asks the runner which agent CLIs it offers and has
@@ -328,4 +361,9 @@ func roundTripError(err error) *Error {
 		return &Error{Status: 504, Msg: err.Error()}
 	}
 	return &Error{Status: 502, Msg: err.Error()}
+}
+
+// Links lists the live runner and machine names, for pickers.
+func (r *Relay) Links() (runners, machines []string) {
+	return r.hub.Runners(), r.hub.Machines()
 }

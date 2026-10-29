@@ -51,8 +51,11 @@ const (
 	MachineEnrolCode = "machine.enrol_code"
 	MachineEnrol     = "machine.enrol"
 	MachineRemove    = "machine.remove"
-	maxField         = 200
-	maxDetailItems   = 16
+	// Projects: adding and forgetting one.
+	ProjectAdd     = "project.add"
+	ProjectRemove  = "project.remove"
+	maxField       = 200
+	maxDetailItems = 16
 )
 
 // Event is what a caller records. Actor is a username, or "system" or

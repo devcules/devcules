@@ -65,6 +65,9 @@ type Store interface {
 	Machines() MachinesRepo
 	// EnrolCodes returns the one-time enrolment code repo (M4.1).
 	EnrolCodes() EnrolCodesRepo
+	// Projects returns the project repo: named directories on a runner
+	// or machine that terminals and agents open in.
+	Projects() ProjectsRepo
 
 	// PushSubscriptions returns the Web Push subscription repo. It is
 	// push's repo: only internal/push and the store backends may use
@@ -406,4 +409,26 @@ type EnrolCodesRepo interface {
 	Use(ctx context.Context, id string, at time.Time) error
 	DeleteExpired(ctx context.Context, before time.Time) (int, error)
 	List(ctx context.Context) ([]EnrolCode, error)
+}
+
+// Project is a named working directory on one runner or machine:
+// terminals and agents opened from it start in Dir. Repo is the git
+// URL it was cloned from, empty for an existing directory.
+type Project struct {
+	ID        string
+	Name      string
+	Kind      string // "runner" or "machine"
+	Target    string // the runner or machine name
+	Dir       string
+	Repo      string
+	CreatedAt time.Time
+}
+
+// ProjectsRepo stores projects. Create wraps ErrExists for a taken
+// name; Get wraps ErrNotFound; Delete of a missing id is a no-op.
+type ProjectsRepo interface {
+	Create(ctx context.Context, p Project) error
+	Get(ctx context.Context, id string) (Project, error)
+	List(ctx context.Context) ([]Project, error)
+	Delete(ctx context.Context, id string) error
 }

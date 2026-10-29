@@ -32,7 +32,23 @@ installed, version, install}]}`.
 `term.ok` or `term.error`; `term.list` answers `term.listed` and
 `term.agents` answers `term.agentlist`. `term.open` may carry
 `agent: {id, token, model}` to start a coding agent in the new
-terminal (`docs/agents.md`).
+terminal (`docs/agents.md`), and a place:
+
+- `dir`: start in this directory, absolute or relative to the
+  runner's workspace; clean paths only, never `..`. A missing
+  directory answers `term.error "directory not found"`.
+- `project`: a project id (`p_…`), stored as the tmux user option
+  `@devcules_project`, so `term.listed` reports it (with the session's
+  `dir`) and a serve restart loses nothing.
+- `clone`: an `https://`, `ssh://` or `git@host:path` URL. With a
+  `dir` that does not exist yet, the terminal runs `git clone -- <url>
+  <dir>` from the parent directory and then changes into the checkout,
+  so progress and any credential prompt are visible. An existing
+  `dir` skips the clone. Agents never clone.
+
+Machines answer the same frames: `devcules machine` serves tmux
+terminals over its own link (unless `DEVCULES_MACHINE_SHELL=off`), so
+a machine's shell needs no inbound port.
 `term.input` is one-way (only a failure answers) because it is the
 busiest frame; the relay sends `term.resize` and `term.detach`
 one-way too and drops their answers.
@@ -96,7 +112,9 @@ read `/link/runner.token`. Separate uids come later; the file stays
 
 - `GET /api/terminals`: the list from the runner (a serve restart
   loses nothing). No runner linked → 503; several linked without
-  `?runner=<name>` → 400; unknown name → 404.
+  `?runner=<name>` → 400; unknown name → 404. Every terminal route
+  takes `?machine=<name>` instead to reach a machine's shell; a
+  machine is never the default, and an unlinked one is 503.
 - `POST /api/terminals` → `201 {"id"}` (CSRF-checked).
 - `DELETE /api/terminals/{id}` → 204, idempotent (CSRF-checked).
 - `GET` and `POST /api/agents`: the runner's coding agents, and
@@ -122,3 +140,25 @@ to sign-in. CSP keeps `script-src` at `default-src 'self'` and adds
 only `style-src 'self' 'unsafe-inline'`, which xterm.js needs for
 its runtime styles (proven by the Playwright CSP-violation check in
 `e2e/tests/terminals.spec.js`).
+
+## Projects
+
+A project names one directory on one runner or machine
+(`store.Project`, migration 0009). The Projects tab lists them; each
+opens terminals and agents in its directory, tagged with its id.
+
+- `GET /api/projects` → `{projects, runners, machines}`: the projects
+  and the live link names the add form offers.
+- `POST /api/projects {name?, kind: "runner"|"machine", target, dir?,
+  repo?}` (CSRF, audited `project.add`). With `repo`, the clone runs at
+  once in a new terminal of the project (the target must be linked;
+  nothing is recorded if the open fails) and `dir` defaults to the
+  repository's name inside the workspace. Without it, `dir` names an
+  existing directory. `name` defaults to the directory's base name and
+  must be unique (409).
+- `POST /api/projects/{id}/terminals` → `201 {"id"}`: a shell in the
+  project (a missing checkout of a cloned project clones again).
+- `POST /api/agents {agent, model?, project?}`: with a project, the
+  agent starts in its directory on its target.
+- `DELETE /api/projects/{id}` → 204 (audited `project.remove`). Files
+  and terminals stay where they are.

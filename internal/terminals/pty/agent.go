@@ -50,11 +50,24 @@ func (m *Manager) LaunchDir(id string) string {
 // 0600 file (never a command line), and when the agent exits the
 // terminal drops to a login shell with the launch dir removed.
 func (m *Manager) OpenAgent(ctx context.Context, id, agent string, l Launch) (time.Time, error) {
+	return m.OpenAgentIn(ctx, id, agent, l, Place{})
+}
+
+// OpenAgentIn is OpenAgent started at p (a project's directory). A
+// clone is not run for agents: open the project's terminal first.
+func (m *Manager) OpenAgentIn(ctx context.Context, id, agent string, l Launch, p Place) (time.Time, error) {
 	if !terminals.ValidID(id) {
 		return time.Time{}, fmt.Errorf("term: want 16 hex chars")
 	}
 	if !terminals.ValidAgentID(agent) || len(l.Cmd) == 0 || l.Cmd[0] == "" {
 		return time.Time{}, fmt.Errorf("agent: bad launch")
+	}
+	if p.Project != "" && !terminals.ValidProject(p.Project) {
+		return time.Time{}, fmt.Errorf("bad project")
+	}
+	start, _, err := m.resolve(Place{Dir: p.Dir})
+	if err != nil {
+		return time.Time{}, err
 	}
 	m.openMu.Lock()
 	defer m.openMu.Unlock()
@@ -71,7 +84,7 @@ func (m *Manager) OpenAgent(ctx context.Context, id, agent string, l Launch) (ti
 		return time.Time{}, err
 	}
 	name := terminals.SessionName(id)
-	if _, err := m.run(ctx, "new-session", "-d", "-s", name, "-c", m.workspace,
+	if _, err := m.run(ctx, "new-session", "-d", "-s", name, "-c", start,
 		"-x", strconv.Itoa(defaultCols), "-y", strconv.Itoa(defaultRows), "bash", "-lc", agentScript(dir, agent, l)); err != nil {
 		_ = os.RemoveAll(dir)
 		if strings.Contains(err.Error(), "duplicate session") {
@@ -81,6 +94,7 @@ func (m *Manager) OpenAgent(ctx context.Context, id, agent string, l Launch) (ti
 	}
 	// The tag only labels the list; a failure leaves a working terminal.
 	_, _ = m.run(ctx, "set-option", "-t", name, agentOption, agent)
+	m.tagProject(ctx, name, p.Project)
 	return time.Now(), nil
 }
 

@@ -70,6 +70,9 @@ type Options struct {
 	Enrol *machines.Issuer
 	// MachineStore lists and revokes enrolled machines.
 	MachineStore *machines.Service
+	// Projects stores the Projects tab's named directories; nil answers
+	// its routes with 503.
+	Projects store.ProjectsRepo
 	// Machines relays the machine task view (screen, input, tree,
 	// grounding, done-verify) to the linked machine helpers. Nil
 	// answers those routes with 503; serve always passes a real one.
@@ -124,6 +127,10 @@ func Handler(o Options) http.Handler {
 	// (DELETE) or its stream (GET upgrade).
 	mux.Handle("/api/terminals", requireSession(o.Auth, terminalsRoot(o.Terminals, o.PublicURL, rec)))
 	mux.Handle("/api/terminals/", requireSession(o.Auth, terminalOne(o.Terminals, o.PublicURL, rec)))
+	// Projects: a named directory on a runner or machine; terminals
+	// open in it. Reads need a session, writes add the CSRF check.
+	mux.Handle("/api/projects", requireSession(o.Auth, projectsRoot(o.Projects, o.Terminals, o.PublicURL, rec)))
+	mux.Handle("/api/projects/", csrf(o.PublicURL, requireSession(o.Auth, projectOne(o.Projects, o.Terminals, rec))))
 	// Redaction settings: reads need a session, the policy write and
 	// the test box add the CSRF check.
 	mux.Handle("/api/redact", requireSession(o.Auth, redactRoot(o.Redact, o.RedactSettings)))
@@ -162,7 +169,7 @@ func Handler(o Options) http.Handler {
 	if o.Router != nil {
 		providers = o.Router.Providers
 	}
-	mux.Handle("/api/agents", requireSession(o.Auth, agentsRoot(o.Terminals, o.Launches, o.ApprovalQueue, providers, o.PublicURL, rec)))
+	mux.Handle("/api/agents", requireSession(o.Auth, agentsRoot(o.Terminals, o.Launches, o.ApprovalQueue, o.Projects, providers, o.PublicURL, rec)))
 	mux.Handle("/api/launch-tokens", requireSession(o.Auth, launchesRoot(o.Launches, providers, o.PublicURL, rec)))
 	mux.Handle("/api/launch-tokens/", requireSession(o.Auth, launchOne(o.Launches, o.PublicURL, rec)))
 	// Audit and traces: reads need a session, and reading a trace or

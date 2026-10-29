@@ -5,7 +5,9 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"path"
 	"regexp"
+	"strings"
 )
 
 // Frame types on the link. serve → runner requests end in a verb;
@@ -69,9 +71,16 @@ func ValidSize(cols, rows int) bool {
 
 // Open asks the runner to create the terminal's tmux session. With
 // Agent set, the session runs that coding agent instead of a shell.
+// Dir starts it in a directory (relative paths resolve against the
+// runner's workspace), Project tags it with a project id for the list,
+// and Clone (with Dir) first runs `git clone` into Dir in the
+// terminal, so its progress and any credential prompt are visible.
 type Open struct {
-	Term  string       `json:"term"`
-	Agent *AgentLaunch `json:"agent,omitempty"`
+	Term    string       `json:"term"`
+	Agent   *AgentLaunch `json:"agent,omitempty"`
+	Dir     string       `json:"dir,omitempty"`
+	Project string       `json:"project,omitempty"`
+	Clone   string       `json:"clone,omitempty"`
 }
 
 // AgentLaunch names the agent to start and carries its per-launch
@@ -162,6 +171,8 @@ type TermInfo struct {
 	Term    string `json:"term"`
 	Created int64  `json:"created"`
 	Agent   string `json:"agent,omitempty"`
+	Project string `json:"project,omitempty"`
+	Dir     string `json:"dir,omitempty"`
 }
 
 // Listed answers term.list from the runner's live tmux: serve keeps
@@ -171,6 +182,11 @@ type Listed struct {
 }
 
 var (
+	projectRE = regexp.MustCompile(`^p_[a-z0-9]{1,32}$`)
+	// cloneRE admits the URL shapes git clones from: https, ssh and
+	// scp-like user@host:path. A leading "-" could pass as a git flag,
+	// so the first character is a letter.
+	cloneRE   = regexp.MustCompile(`^(https://|ssh://|git@)[A-Za-z0-9][A-Za-z0-9._~:/?#@!$&'()*+,;=%-]{0,500}$`)
 	agentIDRE = regexp.MustCompile(`^[a-z][a-z0-9]{0,31}$`)
 	modelRE   = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]{0,99}$`)
 	tokenRE   = regexp.MustCompile(`^[!-~]{1,512}$`)
@@ -183,10 +199,38 @@ func ValidAgentID(id string) bool { return agentIDRE.MatchString(id) }
 // file and a command line, so it is a plain token.
 func ValidModel(m string) bool { return modelRE.MatchString(m) }
 
+// ValidProject reports a project id ("p_" plus lowercase base36).
+func ValidProject(id string) bool { return projectRE.MatchString(id) }
+
+// ValidCloneURL reports a git URL a runner may clone from.
+func ValidCloneURL(u string) bool { return cloneRE.MatchString(u) }
+
+// ValidDir reports a terminal start directory: an absolute or
+// workspace-relative clean path, at most 512 bytes, with no control
+// characters and no way out of the workspace through "..".
+func ValidDir(dir string) bool {
+	if dir == "" || len(dir) > 512 || strings.ContainsFunc(dir, func(r rune) bool { return r < 0x20 || r == 0x7f }) {
+		return false
+	}
+	if path.Clean(dir) != strings.TrimSuffix(dir, "/") && dir != "/" {
+		return false
+	}
+	return !strings.HasPrefix(dir, "..") && !strings.Contains(dir, "/../")
+}
+
 // CheckOpen validates term.open.
 func CheckOpen(o Open) error {
 	if !ValidID(o.Term) {
 		return fmt.Errorf("term: want 16 hex chars")
+	}
+	if o.Dir != "" && !ValidDir(o.Dir) {
+		return fmt.Errorf("dir: want a clean absolute or workspace-relative path")
+	}
+	if o.Project != "" && !ValidProject(o.Project) {
+		return fmt.Errorf("project: want p_ and lowercase letters or digits")
+	}
+	if o.Clone != "" && (o.Dir == "" || !ValidCloneURL(o.Clone)) {
+		return fmt.Errorf("clone: want an https, ssh or git@ URL and a dir")
 	}
 	if a := o.Agent; a != nil {
 		if !ValidAgentID(a.ID) {

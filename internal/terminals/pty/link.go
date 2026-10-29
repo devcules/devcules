@@ -133,7 +133,7 @@ func (h *linkRunner) open(ctx context.Context, req link.Frame) {
 		h.openAgent(ctx, req, o)
 		return
 	}
-	if _, err := h.m.Open(ctx, o.Term); err != nil {
+	if _, err := h.m.OpenIn(ctx, o.Term, Place{Dir: o.Dir, Project: o.Project, Clone: o.Clone}); err != nil {
 		h.reply(req, false, reasonFor(err))
 		return
 	}
@@ -153,7 +153,7 @@ func (h *linkRunner) openAgent(ctx context.Context, req link.Frame, o terminals.
 		h.reply(req, false, "agent unavailable")
 		return
 	}
-	if _, err := h.m.OpenAgent(ctx, o.Term, o.Agent.ID, l); err != nil {
+	if _, err := h.m.OpenAgentIn(ctx, o.Term, o.Agent.ID, l, Place{Dir: o.Dir, Project: o.Project}); err != nil {
 		h.reply(req, false, reasonFor(err))
 		return
 	}
@@ -281,6 +281,10 @@ func reasonFor(err error) string {
 		return "input queue full"
 	case startsWith(msg, "too many terminals"):
 		return "too many terminals"
+	case msg == "directory not found":
+		return "directory not found"
+	case msg == "bad directory" || msg == "bad project" || msg == "bad clone url":
+		return "invalid request"
 	case startsWith(msg, "agent:"):
 		return "agent launch failed"
 	case startsWith(msg, "term:") || startsWith(msg, "stream:") ||

@@ -3,6 +3,7 @@ package pty_test
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -224,5 +225,40 @@ func TestTmuxMaxTerminals(t *testing.T) {
 		t.Fatal("17th Open succeeded past the cap")
 	} else if !strings.Contains(err.Error(), "at most") {
 		t.Fatalf("17th Open = %q, want the cap with next steps", err)
+	}
+}
+
+// TestTmuxOpenInProject starts a shell in a directory and finds the
+// project tag and path in the list.
+func TestTmuxOpenInProject(t *testing.T) {
+	m, ctx := tmuxManager(t)
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "marker.txt"), []byte("in-project-dir\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	id := "00000000000000aa"
+	if _, err := m.OpenIn(ctx, id, pty.Place{Dir: dir, Project: "p_shop1"}); err != nil {
+		t.Fatalf("OpenIn: %s", err)
+	}
+	t.Cleanup(func() { _ = m.Close(ctx, id) })
+	readUntil(t, m, ctx, id, "00000000000000bb", "cat marker.txt\n", "in-project-dir")
+	terms, err := m.List(ctx)
+	if err != nil {
+		t.Fatalf("List: %s", err)
+	}
+	found := false
+	for _, ti := range terms {
+		if ti.Term == id {
+			found = true
+			if ti.Project != "p_shop1" || ti.Dir == "" {
+				t.Fatalf("listed = %+v, want project p_shop1 with its dir", ti)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("terminal %s not listed in %+v", id, terms)
+	}
+	if _, err := m.OpenIn(ctx, "00000000000000cc", pty.Place{Dir: filepath.Join(dir, "nope")}); err == nil || err.Error() != "directory not found" {
+		t.Fatalf("missing dir err = %v", err)
 	}
 }

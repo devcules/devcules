@@ -35,6 +35,7 @@ type memDB struct {
 	push      []store.PushSubscription
 	machines  map[string]store.Machine
 	enrol     map[string]store.EnrolCode
+	projects  map[string]store.Project
 	closed    map[*memStore]bool
 }
 
@@ -58,6 +59,7 @@ func newMemDB() *memDB {
 		launches: map[string]store.LaunchToken{},
 		machines: map[string]store.Machine{},
 		enrol:    map[string]store.EnrolCode{},
+		projects: map[string]store.Project{},
 		closed:   map[*memStore]bool{},
 	}
 }
@@ -99,6 +101,60 @@ func (s *memStore) PushSubscriptions() store.PushSubscriptionsRepo {
 }
 func (s *memStore) Machines() store.MachinesRepo     { return memMachines{memLaunches{db: s.db, s: s}} }
 func (s *memStore) EnrolCodes() store.EnrolCodesRepo { return memEnrol{memLaunches{db: s.db, s: s}} }
+func (s *memStore) Projects() store.ProjectsRepo     { return memProjects{memLaunches{db: s.db, s: s}} }
+
+type memProjects struct{ memLaunches }
+
+func (r memProjects) Create(ctx context.Context, p store.Project) error {
+	if p.ID == "" || p.Name == "" || p.Target == "" || p.Dir == "" {
+		return fmt.Errorf("store: project id/name/target/dir must not be empty")
+	}
+	if err := r.lock(ctx); err != nil {
+		return err
+	}
+	defer r.db.mu.Unlock()
+	for _, o := range r.db.projects {
+		if o.ID == p.ID || o.Name == p.Name {
+			return fmt.Errorf("store: project exists: %w", store.ErrExists)
+		}
+	}
+	r.db.projects[p.ID] = p
+	return nil
+}
+
+func (r memProjects) Get(ctx context.Context, id string) (store.Project, error) {
+	if err := r.lock(ctx); err != nil {
+		return store.Project{}, err
+	}
+	defer r.db.mu.Unlock()
+	p, ok := r.db.projects[id]
+	if !ok {
+		return store.Project{}, fmt.Errorf("store: project not found: %w", store.ErrNotFound)
+	}
+	return p, nil
+}
+
+func (r memProjects) List(ctx context.Context) ([]store.Project, error) {
+	if err := r.lock(ctx); err != nil {
+		return nil, err
+	}
+	defer r.db.mu.Unlock()
+	var out []store.Project
+	for _, p := range r.db.projects {
+		out = append(out, p)
+	}
+	slices.SortFunc(out, func(a, b store.Project) int { return strings.Compare(a.Name, b.Name) })
+	return out, nil
+}
+
+func (r memProjects) Delete(ctx context.Context, id string) error {
+	if err := r.lock(ctx); err != nil {
+		return err
+	}
+	defer r.db.mu.Unlock()
+	delete(r.db.projects, id)
+	return nil
+}
 
 // memApprovals and memPush reuse memLaunches' lock too.
 type memApprovals struct{ memLaunches }

@@ -10,6 +10,7 @@ import (
 	"github.com/devcules/devcules/internal/approvals"
 	"github.com/devcules/devcules/internal/audit"
 	"github.com/devcules/devcules/internal/launch"
+	"github.com/devcules/devcules/internal/store"
 	"github.com/devcules/devcules/internal/terminals"
 	"github.com/devcules/devcules/internal/terminals/relay"
 )
@@ -19,7 +20,7 @@ import (
 // runner's access mode; POST {"agent", "model"} starts one in a new
 // terminal with a fresh launch token tied to that runner. POST adds
 // the CSRF check.
-func agentsRoot(rl *relay.Relay, tokens *launch.Tokens, queue *approvals.Service, providers func() []string, publicURL string, rec auditor) http.Handler {
+func agentsRoot(rl *relay.Relay, tokens *launch.Tokens, queue *approvals.Service, projects store.ProjectsRepo, providers func() []string, publicURL string, rec auditor) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if rl == nil {
 			writeAuthError(w, http.StatusServiceUnavailable, "no runner linked")
@@ -27,7 +28,7 @@ func agentsRoot(rl *relay.Relay, tokens *launch.Tokens, queue *approvals.Service
 		}
 		switch r.Method {
 		case http.MethodGet:
-			runner, rerr := rl.PickRunner(r.URL.Query().Get("runner"))
+			runner, rerr := rl.PickRunner(linkTarget(r))
 			if rerr != nil {
 				writeAuthError(w, rerr.Status, rerr.Msg)
 				return
@@ -48,7 +49,7 @@ func agentsRoot(rl *relay.Relay, tokens *launch.Tokens, queue *approvals.Service
 			}{runner, mode, list})
 		case http.MethodPost:
 			csrf(publicURL, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				startAgent(w, r, rl, tokens, providers, rec)
+				startAgent(w, r, rl, tokens, projects, providers, rec)
 			})).ServeHTTP(w, r)
 		default:
 			w.Header().Set("Allow", "GET, POST")
@@ -59,21 +60,40 @@ func agentsRoot(rl *relay.Relay, tokens *launch.Tokens, queue *approvals.Service
 
 // startAgent mints the launch token, then opens the agent terminal;
 // a failed open revokes the token again.
-func startAgent(w http.ResponseWriter, r *http.Request, rl *relay.Relay, tokens *launch.Tokens, providers func() []string, rec auditor) {
+func startAgent(w http.ResponseWriter, r *http.Request, rl *relay.Relay, tokens *launch.Tokens, projects store.ProjectsRepo, providers func() []string, rec auditor) {
 	if tokens == nil {
 		writeAuthError(w, http.StatusServiceUnavailable, "launch tokens not configured")
 		return
 	}
 	var body struct {
-		Agent string `json:"agent"`
-		Model string `json:"model"`
+		Agent   string `json:"agent"`
+		Model   string `json:"model"`
+		Project string `json:"project"`
 	}
 	if json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&body) != nil ||
-		!terminals.ValidAgentID(body.Agent) || (body.Model != "" && !terminals.ValidModel(body.Model)) {
-		writeAuthError(w, http.StatusBadRequest, `body must be {"agent": "musecode", "model": "<optional model id>"}`)
+		!terminals.ValidAgentID(body.Agent) || (body.Model != "" && !terminals.ValidModel(body.Model)) ||
+		(body.Project != "" && !terminals.ValidProject(body.Project)) {
+		writeAuthError(w, http.StatusBadRequest, `body must be {"agent": "musecode", "model": "<optional model id>", "project": "<optional project id>"}`)
 		return
 	}
-	runner, rerr := rl.PickRunner(r.URL.Query().Get("runner"))
+	// A project picks the runner and the directory: the agent starts
+	// in the project's checkout, tagged with it.
+	where := linkTarget(r)
+	place := relay.Place{}
+	if body.Project != "" {
+		if projects == nil {
+			writeAuthError(w, http.StatusServiceUnavailable, "projects not configured")
+			return
+		}
+		p, err := projects.Get(r.Context(), body.Project)
+		if err != nil {
+			writeAuthError(w, http.StatusNotFound, "unknown project")
+			return
+		}
+		where = projectTarget(p)
+		place = relay.Place{Dir: p.Dir, Project: p.ID}
+	}
+	runner, rerr := rl.PickRunner(where)
 	if rerr != nil {
 		writeAuthError(w, rerr.Status, rerr.Msg)
 		return
@@ -102,7 +122,7 @@ func startAgent(w http.ResponseWriter, r *http.Request, rl *relay.Relay, tokens 
 		return
 	}
 	rec.record(r, audit.LaunchMint, l.ID, map[string]string{"label": l.Label, "provider": l.Provider, "runner": runner, "expires": l.Expires.Format(time.RFC3339)})
-	id, rerr := rl.OpenAgent(r.Context(), runner, terminals.AgentLaunch{ID: info.ID, Token: token, Model: body.Model})
+	id, rerr := rl.OpenAgentAt(r.Context(), runner, terminals.AgentLaunch{ID: info.ID, Token: token, Model: body.Model}, place)
 	if rerr != nil {
 		// Detached from the request: a client that gave up must not
 		// leave a live token behind.

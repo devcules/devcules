@@ -141,3 +141,37 @@ func TestCheckOpenAgent(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckOpenPlace(t *testing.T) {
+	id := "0123456789abcdef"
+	for _, o := range []Open{
+		{Term: id, Dir: "shop"},
+		{Term: id, Dir: "/Users/k/src/shop", Project: "p_abc123"},
+		{Term: id, Dir: "shop", Clone: "https://github.com/acme/shop.git"},
+		{Term: id, Dir: "shop", Clone: "git@github.com:acme/shop.git"},
+		{Term: id, Dir: "src/shop", Clone: "ssh://git@host:2222/acme/shop"},
+	} {
+		if err := CheckOpen(o); err != nil {
+			t.Errorf("CheckOpen(%+v): %s", o, err)
+		}
+	}
+	for name, o := range map[string]Open{
+		"dotdot":        {Term: id, Dir: "../etc"},
+		"inner dotdot":  {Term: id, Dir: "/a/../etc"},
+		"dot prefix":    {Term: id, Dir: "./shop"},
+		"newline":       {Term: id, Dir: "shop\nrm"},
+		"long":          {Term: id, Dir: strings.Repeat("a", 513)},
+		"bad project":   {Term: id, Dir: "shop", Project: "P_UPPER"},
+		"clone no dir":  {Term: id, Clone: "https://github.com/acme/shop.git"},
+		"clone flag":    {Term: id, Dir: "shop", Clone: "--upload-pack=touch /tmp/x"},
+		"clone file":    {Term: id, Dir: "shop", Clone: "file:///etc"},
+		"clone space":   {Term: id, Dir: "shop", Clone: "https://a b"},
+		"clone http":    {Term: id, Dir: "shop", Clone: "http://example.com/x.git"},
+		"clone ext":     {Term: id, Dir: "shop", Clone: "ext::sh -c touch% /tmp/x"},
+		"clone newline": {Term: id, Dir: "shop", Clone: "https://example.com/x\n.git"},
+	} {
+		if err := CheckOpen(o); err == nil {
+			t.Errorf("%s: CheckOpen(%+v) succeeded", name, o)
+		}
+	}
+}

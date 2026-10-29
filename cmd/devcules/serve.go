@@ -121,7 +121,10 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 		// link access from this line.
 		log.Info("runner token file created", "path", tokenPath)
 	}
-	h := hub.New(hub.HashToken(token), hub.Options{})
+	// Machines prove their enrolled key on every connect; the store
+	// is the verifier, so a removed machine stops linking at once.
+	machineStore := machines.NewService(s)
+	h := hub.New(hub.HashToken(token), hub.Options{Machines: machineStore})
 	// The relay watches link membership from its first day: browser
 	// streams retire with 1012 when their runner unlinks.
 	terms := relay.New(h, cfg.PublicURL)
@@ -159,7 +162,7 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 	machinesRelay := machrelay.New(h)
 	machinesRelay.Run()
 	srv := &http.Server{
-		Handler:           api.Handler(api.Options{Store: s, Auth: authSvc, Web: web.Embedded(), PublicURL: cfg.PublicURL, Link: h, Terminals: terms, Redact: redactor, RedactSettings: redactSettings, Router: llm, Launches: launches, AuditLog: auditLog, TraceStore: traces, MCP: mcpServer, ApprovalQueue: approvalSvc, Push: pushSvc, Enrol: machines.NewIssuer(s), Machines: machinesRelay}),
+		Handler:           api.Handler(api.Options{Store: s, Auth: authSvc, Web: web.Embedded(), PublicURL: cfg.PublicURL, Link: h, Terminals: terms, Redact: redactor, RedactSettings: redactSettings, Router: llm, Launches: launches, AuditLog: auditLog, TraceStore: traces, MCP: mcpServer, ApprovalQueue: approvalSvc, Push: pushSvc, Enrol: machines.NewIssuer(s), MachineStore: machineStore, Machines: machinesRelay}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,

@@ -68,6 +68,8 @@ type Options struct {
 	// Enrol mints machine enrolment codes; nil answers the machine
 	// routes with 503.
 	Enrol *machines.Issuer
+	// MachineStore lists and revokes enrolled machines.
+	MachineStore *machines.Service
 	// Machines relays the machine task view (screen, input, tree,
 	// grounding, done-verify) to the linked machine helpers. Nil
 	// answers those routes with 503; serve always passes a real one.
@@ -169,14 +171,21 @@ func Handler(o Options) http.Handler {
 	mux.Handle("/api/audit/export", requireSession(o.Auth, auditExport(o.AuditLog, rec)))
 	mux.Handle("/api/traces", requireSession(o.Auth, tracesRoot(o.TraceStore, o.Launches)))
 	mux.Handle("/api/traces/", requireSession(o.Auth, traceOne(o.TraceStore, o.Launches, rec)))
-	// Machines: the owner mints an enrolment code from the UI and reads
-	// it to the machine that redeems it. Both need a session.
-	mux.Handle("/api/machines/enrol-code", requireSession(o.Auth, machinesEnrolCode(o.Enrol)))
-	mux.Handle("/api/machines/redeem", requireSession(o.Auth, machinesRedeem(o.Enrol)))
+	// Machines: the owner mints an enrolment code in the UI (session
+	// and CSRF) and types it on the computer, which enrols itself with
+	// its key (no session: machines are not browsers, and the code
+	// plus a signature is the credential). Removing revokes the key.
+	kick := func(string) {}
+	if o.Link != nil {
+		kick = func(name string) { o.Link.Kick(hub.MachineAddr(name), "machine removed") }
+	}
+	mux.Handle("/api/machines/enrol-code", csrf(o.PublicURL, requireSession(o.Auth, machinesEnrolCode(o.Enrol, rec))))
+	mux.Handle("/api/machines/enrol", machinesEnrol(o.Enrol, newEnrolLimiter(), rec))
+	mux.Handle("/api/machines/", csrf(o.PublicURL, requireSession(o.Auth, machineOne(o.MachineStore, kick, rec))))
 	// Machine task view (M4.5): the live screen, the accessibility
 	// tree, input injection (take control), SAM grounding and the
 	// done-verifier, all session-guarded, all over the link relay.
-	mux.Handle("/api/machines", requireSession(o.Auth, machinesList(o.Machines)))
+	mux.Handle("/api/machines", requireSession(o.Auth, machinesList(o.Machines, o.MachineStore)))
 	mux.Handle("/api/machines-budget", requireSession(o.Auth, machinesBudget(o.Machines)))
 	mux.Handle("/api/machines-screen", requireSession(o.Auth, machinesScreen(o.Machines)))
 	mux.Handle("/api/machines-tree", requireSession(o.Auth, machinesTree(o.Machines)))

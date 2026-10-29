@@ -2,8 +2,10 @@ package hub
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,7 +30,29 @@ const (
 	reasonReplaced           = "replaced"
 	reasonShutdown           = "serve shutdown"
 	reasonHeartbeat          = "heartbeat failed"
+	reasonMachineAuth        = "machine auth failed"
+	reasonMachineToken       = "machines sign in with their key, not the runner token"
 )
+
+// machinePrefix keeps machine links apart from runner links in the
+// link map. Runner names default to the hostname and so do machine
+// names, so one computer running both would otherwise have each
+// replace the other forever. Names never contain "/" (helloPayload
+// rejects it), so the prefixed key cannot collide with a runner.
+const machinePrefix = "machine/"
+
+// MachineAddr is the SendTo address of the named machine link.
+// Handlers and membership events see machine links under this
+// address too; Machines returns the bare names.
+func MachineAddr(name string) string { return machinePrefix + name }
+
+// MachineVerifier checks a machine's answer to the link challenge:
+// sig must be the named machine's ed25519 signature over nonce. serve
+// passes the enrolled-machine store (internal/machines); a hub
+// without one refuses every machine link.
+type MachineVerifier interface {
+	VerifyMachine(ctx context.Context, name, nonce string, sig []byte) error
+}
 
 // replacedCode retires a duplicate link. 4000-4999 are free for
 // application use; 4000 reads as "replaced" in the runner logs.
@@ -46,6 +70,8 @@ type Options struct {
 	HelloTimeout time.Duration
 	PingInterval time.Duration
 	PingTimeout  time.Duration
+	// Machines verifies machine links (M4.1). Nil refuses them.
+	Machines MachineVerifier
 }
 
 func (o Options) withDefaults() Options {
@@ -163,9 +189,9 @@ func (h *Hub) roleNames(role string) []string {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	names := make([]string, 0, len(h.links))
-	for name, r := range h.roles {
+	for key, r := range h.roles {
 		if r == role {
-			names = append(names, name)
+			names = append(names, strings.TrimPrefix(key, machinePrefix))
 		}
 	}
 	sort.Strings(names)
@@ -256,16 +282,25 @@ func (h *Hub) Handler() http.Handler {
 			http.Error(w, "origin not allowed", http.StatusForbidden)
 			return
 		}
-		token, ok := bearer(r.Header.Get("Authorization"))
-		if !ok || subtle.ConstantTimeCompare(hash(token), h.expected[:]) != 1 {
+		// Machines hold no shared secret: they announce themselves
+		// and prove their key on the challenge after the upgrade.
+		machine := r.Header.Get("Authorization") == "Machine"
+		if machine && h.opt.Machines == nil {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
+		}
+		if !machine {
+			token, ok := bearer(r.Header.Get("Authorization"))
+			if !ok || subtle.ConstantTimeCompare(hash(token), h.expected[:]) != 1 {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
 		}
 		conn, err := websocket.Accept(w, r, nil)
 		if err != nil {
 			return
 		}
-		h.serve(context.Background(), conn)
+		h.serve(context.Background(), conn, machine)
 	})
 }
 
@@ -298,7 +333,7 @@ func helloPayload(data json.RawMessage) (link.Hello, error) {
 	if hello.Role != "runner" && hello.Role != "machine" {
 		return link.Hello{}, fmt.Errorf("role %q", hello.Role)
 	}
-	if hello.Name == "" || len(hello.Name) > 64 {
+	if hello.Name == "" || len(hello.Name) > 64 || strings.Contains(hello.Name, "/") {
 		return link.Hello{}, fmt.Errorf("name %q", hello.Name)
 	}
 	return hello, nil
@@ -307,7 +342,10 @@ func helloPayload(data json.RawMessage) (link.Hello, error) {
 // serve runs the handshake then pumps one connection to the end: read
 // loop dispatching to handlers, ping loop enforcing liveness. Either
 // loop ending drops the link; a duplicate name retires the elder.
-func (h *Hub) serve(ctx context.Context, conn *websocket.Conn) {
+// machine marks an upgrade that skipped the runner token: its hello
+// must claim the machine role and answer the challenge, and a link
+// that came in on the token may not claim it.
+func (h *Hub) serve(ctx context.Context, conn *websocket.Conn, machine bool) {
 	conn.SetReadLimit(link.MaxFrameBytes)
 	hello, err := h.readHello(ctx, conn)
 	if err != nil {
@@ -320,6 +358,23 @@ func (h *Hub) serve(ctx context.Context, conn *websocket.Conn) {
 		// stalling the handler.
 		settle(conn, code, fail, 5*time.Second)
 		return
+	}
+	key := hello.Name
+	switch {
+	case hello.Role == "machine" && !machine:
+		settle(conn, websocket.StatusPolicyViolation, reasonMachineToken, 5*time.Second)
+		return
+	case hello.Role != "machine" && machine:
+		settle(conn, websocket.StatusPolicyViolation, reasonMachineAuth, 5*time.Second)
+		return
+	case machine:
+		if err := h.challenge(ctx, conn, hello.Name); err != nil {
+			if !errors.Is(err, errHelloTimeout) {
+				settle(conn, websocket.StatusPolicyViolation, reasonMachineAuth, 5*time.Second)
+			}
+			return
+		}
+		key = MachineAddr(hello.Name)
 	}
 	l := &linkConn{conn: conn}
 	h.mu.RLock()
@@ -353,24 +408,24 @@ func (h *Hub) serve(ctx context.Context, conn *websocket.Conn) {
 		settle(conn, websocket.StatusGoingAway, reasonShutdown, 5*time.Second)
 		return
 	}
-	if old, dup := h.links[hello.Name]; dup {
+	if old, dup := h.links[key]; dup {
 		// The elder gets its own close frame as the map flips, so it
 		// logs "replaced" and exits instead of fighting the new link
 		// for the name. The close runs in the background: a dead
 		// elder must not stall the new link's handshake.
 		settle(old.conn, websocket.StatusCode(replacedCode), reasonReplaced, 5*time.Second)
 	}
-	h.links[hello.Name] = l
-	h.roles[hello.Name] = hello.Role
-	h.notifyLocked(hello.Name, true)
+	h.links[key] = l
+	h.roles[key] = hello.Role
+	h.notifyLocked(key, true)
 	h.mu.Unlock()
 
 	// Echo the read outcome back so the peer's close handshake always
 	// completes: without this a client that closed cleanly would hang
 	// waiting for serve's answer, and an oversize sender would never
 	// learn its 1009.
-	code, reason := l.loop(ctx, h, hello.Name)
-	h.drop(hello.Name, l)
+	code, reason := l.loop(ctx, h, key)
+	h.drop(key, l)
 	settle(conn, code, reason, 5*time.Second)
 }
 
@@ -465,3 +520,82 @@ type roleError struct{ err error }
 
 func (e *roleError) Error() string { return e.err.Error() }
 func (e *roleError) Unwrap() error { return e.err }
+
+// Challenge is the data of the "challenge" frame serve sends a machine
+// after its hello, and ChallengeAnswer the data of its answer. Sig is
+// the base64 (std) ed25519 signature over the decoded nonce bytes.
+type Challenge struct {
+	Nonce string `json:"nonce"`
+}
+
+type ChallengeAnswer struct {
+	Sig string `json:"sig"`
+}
+
+// challenge proves a machine holds its enrolled key: a fresh nonce
+// out, its signature back inside the hello timeout, checked by the
+// verifier. Nonces live only on this stack, so each one is used once.
+// errHelloTimeout means the 1008 already went out.
+func (h *Hub) challenge(ctx context.Context, conn *websocket.Conn, name string) error {
+	var raw [32]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return err
+	}
+	nonce := base64.RawURLEncoding.EncodeToString(raw[:])
+	data, _ := json.Marshal(Challenge{Nonce: nonce})
+	b, err := link.Encode(link.Frame{V: link.Version, Type: "challenge", ID: link.NewID(), Data: data})
+	if err != nil {
+		return err
+	}
+	wctx, stop := context.WithTimeout(ctx, h.opt.PingTimeout)
+	err = conn.Write(wctx, websocket.MessageText, b)
+	stop()
+	if err != nil {
+		return err
+	}
+	type outcome struct {
+		answer ChallengeAnswer
+		err    error
+	}
+	res := make(chan outcome, 1)
+	go func() {
+		var a ChallengeAnswer
+		typ, raw, err := conn.Read(ctx)
+		if err == nil && typ != websocket.MessageText {
+			err = errors.New("binary frame")
+		}
+		var f link.Frame
+		if err == nil {
+			f, err = link.Decode(raw)
+		}
+		if err == nil && f.Type != "challenge.answer" {
+			err = errors.New("want challenge.answer, got " + f.Type)
+		}
+		if err == nil {
+			dec := json.NewDecoder(strings.NewReader(string(f.Data)))
+			dec.DisallowUnknownFields()
+			err = dec.Decode(&a)
+		}
+		res <- outcome{a, err}
+	}()
+	timer := time.NewTimer(h.opt.HelloTimeout)
+	defer timer.Stop()
+	var got outcome
+	select {
+	case got = <-res:
+	case <-timer.C:
+		settle(conn, websocket.StatusPolicyViolation, reasonMachineAuth, 5*time.Second)
+		<-res
+		return errHelloTimeout
+	}
+	if got.err != nil {
+		return got.err
+	}
+	sig, err := base64.StdEncoding.DecodeString(got.answer.Sig)
+	if err != nil {
+		return err
+	}
+	vctx, stop := context.WithTimeout(ctx, h.opt.PingTimeout)
+	defer stop()
+	return h.opt.Machines.VerifyMachine(vctx, name, nonce, sig)
+}

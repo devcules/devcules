@@ -4,6 +4,32 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Fixed (2026-10-29, machines: enrolment and link)
+
+- `devcules machine` was still the M0 stub, so no computer could ever
+  link and the Machines tab could only say "No machine is linked". It
+  now enrols (`devcules machine enrol <code> [--name]`, a local
+  ed25519 key) and links, serving the screen, input, tree, OCR and
+  grounding helper.
+- The hub accepted the machine role on the runner token and never ran
+  the ed25519 challenge `docs/link.md` described. Machines now dial
+  without the token and sign a fresh nonce on every connect; a link
+  on the runner token may not claim the role.
+- `POST /api/machines/redeem` sat behind a browser session, so a
+  machine could not use it. It is replaced by `POST
+  /api/machines/enrol` (code plus a signature proving the key, no
+  Origin, rate limited); minting a code now has CSRF and audit.
+- Redeem wrote the machine before claiming the code (two racing
+  redeems could both enrol), accepted any public key, and leaked
+  store errors to the caller. Codes are now the PLAN's 12 characters
+  and 15 minutes.
+- A runner and a machine on one computer share the hostname and would
+  have replaced each other forever: machine links are keyed apart.
+- The Machines list shows enrolled machines offline too, and a
+  machine can be removed (its link is cut and its key revoked).
+- tests: `terminalDialer` waited only for its own view of the link and
+  raced the first request into "no runner linked".
+
 ### Fixed (2026-10-29, agent adapters)
 
 - Claude Code: the hook was in the wrong shape and Claude Code never

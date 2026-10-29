@@ -22,12 +22,13 @@ func TestEnrolLifecycle(t *testing.T) {
 	if err != nil || code == "" {
 		t.Fatalf("Mint: %v %q", err, code)
 	}
-	pub, _, _ := ed25519.GenerateKey(rand.Reader)
-	m, err := iss.Redeem(ctx, code, pub, "laptop")
+	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
+	proof := ed25519.Sign(priv, EnrolMessage(code))
+	m, err := iss.Redeem(ctx, code, pub, proof, "laptop")
 	if err != nil || m.Name != "laptop" {
 		t.Fatalf("Redeem: %v %+v", err, m)
 	}
-	if _, err := iss.Redeem(ctx, code, pub, "laptop2"); err == nil {
+	if _, err := iss.Redeem(ctx, code, pub, proof, "laptop2"); err == nil {
 		t.Fatal("reuse of enrol code succeeded")
 	}
 }

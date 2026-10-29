@@ -18,6 +18,9 @@ import (
 
 const relayTestToken = "machrelay-test-token-0123456789"
 
+// testMachineKeys enrols the fake machines with the test hubs.
+var testMachineKeys = linktest.NewMachineKeys()
+
 func discardLogger() *slog.Logger { return slog.New(slog.DiscardHandler) }
 
 func testHub() *hub.Hub {
@@ -25,6 +28,7 @@ func testHub() *hub.Hub {
 		HelloTimeout: 5 * time.Second,
 		PingInterval: time.Second,
 		PingTimeout:  5 * time.Second,
+		Machines:     testMachineKeys,
 	})
 }
 
@@ -57,6 +61,7 @@ func runFakeMachine(t *testing.T, s *linktest.Server, ctx context.Context, name 
 		HTTPClient:   s.Client(),
 		Logger:       discardLogger(),
 		Role:         "machine",
+		Sign:         testMachineKeys.Add(name),
 	})
 	f.dial = c
 	f.serve(c)

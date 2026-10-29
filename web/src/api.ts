@@ -844,7 +844,10 @@ export async function listMachines(): Promise<MachineList | MachineError> {
   const data: unknown = await res.json().catch(() => null);
   if (isObject(data) && Array.isArray(data.machines) && typeof data.budget === 'number') {
     return {
-      machines: data.machines.filter((m): m is string => typeof m === 'string'),
+      // Rows are {name, online, ...}; the task view drives online ones.
+      machines: data.machines
+        .filter((m): m is { name: string; online: boolean } => isObject(m) && typeof m.name === 'string' && m.online === true)
+        .map((m) => m.name),
       budget: data.budget,
     };
   }

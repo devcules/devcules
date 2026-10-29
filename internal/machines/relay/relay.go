@@ -112,7 +112,7 @@ func (r *Relay) request(ctx context.Context, machine, typ string, data any) (lin
 		delete(r.pending, req.ID)
 		r.mu.Unlock()
 	}()
-	if err := r.hub.SendTo(machine, req); err != nil {
+	if err := r.hub.SendTo(hub.MachineAddr(machine), req); err != nil {
 		return link.Frame{}, err
 	}
 	timeout := time.NewTimer(roundTripTimeout)

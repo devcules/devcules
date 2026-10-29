@@ -106,7 +106,7 @@ func TestAgentsAPI(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { m.Shutdown(context.Background()) })
-	c, stopDial := terminalDialer(t, f.pipe, ctx, "laptop")
+	c, stopDial := terminalDialer(t, f.pipe, f.h, ctx, "laptop")
 	defer stopDial()
 	pty.Serve(ctx, c, m, fakeAgents{})
 	for deadline := time.Now().Add(10 * time.Second); f.h.Count() == 0 && time.Now().Before(deadline); {

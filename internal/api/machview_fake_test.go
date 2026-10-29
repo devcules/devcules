@@ -37,6 +37,7 @@ func linkFakeMachine(t *testing.T, s *linktest.Server, name string) *machviewFak
 		HTTPClient:   s.Client(),
 		Logger:       slog.New(slog.DiscardHandler),
 		Role:         "machine",
+		Sign:         testMachineKeys.Add(name),
 	})
 	f.dial = c
 	c.On(machframes.TypeScreen, func(ctx context.Context, req link.Frame) {

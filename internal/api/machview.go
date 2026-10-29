@@ -11,29 +11,6 @@ import (
 	machrelay "github.com/devcules/devcules/internal/machines/relay"
 )
 
-// machinesList serves GET /api/machines: the linked machine names
-// and the mirrored action budget, so the UI can offer the task view
-// and show what is left before it takes control.
-func machinesList(relay *machrelay.Relay) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if relay == nil {
-			writeAuthError(w, http.StatusServiceUnavailable, "machines not configured")
-			return
-		}
-		if !requireMethod(w, r, http.MethodGet) {
-			return
-		}
-		names := relay.Machines()
-		if names == nil {
-			names = []string{}
-		}
-		writeJSON(w, http.StatusOK, struct {
-			Machines []string `json:"machines"`
-			Budget   int      `json:"budget"`
-		}{Machines: names, Budget: relay.BudgetRemaining()})
-	})
-}
-
 // machinesBudget serves GET /api/machines-budget: the mirrored
 // remaining actions for the UI's counter. Serve tracks what it has
 // sent since the last reset; the machine's own counter stays the

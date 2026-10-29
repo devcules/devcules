@@ -24,6 +24,9 @@ import (
 
 const helperTestToken = "helper-test-token"
 
+// testMachineKeys enrols the fake machines with the test hubs.
+var testMachineKeys = linktest.NewMachineKeys()
+
 // fake drivers: canned answers, no real display needed.
 type fakeScreen struct{}
 
@@ -75,6 +78,7 @@ func fixture(t *testing.T) (*machrelay.Relay, *fakeInput) {
 		HelloTimeout: 5 * time.Second,
 		PingInterval: time.Second,
 		PingTimeout:  5 * time.Second,
+		Machines:     testMachineKeys,
 	})
 	r := machrelay.New(hb)
 	r.Run()
@@ -91,6 +95,7 @@ func fixture(t *testing.T) (*machrelay.Relay, *fakeInput) {
 		HTTPClient:   pipe.Client(),
 		Logger:       slog.New(slog.DiscardHandler),
 		Role:         "machine",
+		Sign:         testMachineKeys.Add("kitchen-mac"),
 	})
 	h.Serve(c)
 	done := make(chan error, 1)
@@ -251,6 +256,7 @@ func TestGroundRoundTrip(t *testing.T) {
 		HelloTimeout: 5 * time.Second,
 		PingInterval: time.Second,
 		PingTimeout:  5 * time.Second,
+		Machines:     testMachineKeys,
 	})
 	r := machrelay.New(hb)
 	r.Run()
@@ -266,6 +272,7 @@ func TestGroundRoundTrip(t *testing.T) {
 		HTTPClient:   pipe.Client(),
 		Logger:       slog.New(slog.DiscardHandler),
 		Role:         "machine",
+		Sign:         testMachineKeys.Add("kitchen-mac"),
 	})
 	h.Serve(c)
 	done := make(chan error, 1)
@@ -304,6 +311,7 @@ func TestGroundRefusedWithNoScreen(t *testing.T) {
 		HelloTimeout: 5 * time.Second,
 		PingInterval: time.Second,
 		PingTimeout:  5 * time.Second,
+		Machines:     testMachineKeys,
 	})
 	r := machrelay.New(hb)
 	r.Run()
@@ -319,6 +327,7 @@ func TestGroundRefusedWithNoScreen(t *testing.T) {
 		HTTPClient:   pipe.Client(),
 		Logger:       slog.New(slog.DiscardHandler),
 		Role:         "machine",
+		Sign:         testMachineKeys.Add("kitchen-mac"),
 	})
 	h.Serve(c)
 	done := make(chan error, 1)

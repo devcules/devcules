@@ -2,6 +2,7 @@ package dial
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -39,7 +40,9 @@ const replacedCode = websocket.StatusCode(4000)
 // defaults (15 s ping, 5 s ping timeout, 0.5–30 s backoff); tests set
 // millisecond values so reconnect runs without sleeping. Role is the
 // hello's role: "runner" by default, "machine" for machine helpers
-// (the hub keeps the two memberships apart).
+// (the hub keeps the two memberships apart). Sign makes the client a
+// machine: it skips the runner token and signs serve's challenge
+// nonce with the machine's enrolled ed25519 key.
 type Options struct {
 	PingInterval time.Duration
 	PingTimeout  time.Duration
@@ -48,6 +51,7 @@ type Options struct {
 	HTTPClient   *http.Client
 	Logger       *slog.Logger
 	Role         string
+	Sign         func(nonce []byte) []byte
 }
 
 func (o Options) withDefaults() Options {
@@ -241,7 +245,11 @@ func (b *backoffer) reset() { b.n = 0 }
 func (c *Client) connect(ctx context.Context) (bool, websocket.StatusCode) {
 	atomic.AddInt64(&c.attempts, 1)
 	header := http.Header{}
-	header.Set("Authorization", "Bearer "+c.token)
+	if c.opt.Sign != nil {
+		header.Set("Authorization", "Machine")
+	} else {
+		header.Set("Authorization", "Bearer "+c.token)
+	}
 	conn, resp, err := websocket.Dial(ctx, c.url, &websocket.DialOptions{
 		HTTPClient: c.opt.HTTPClient,
 		HTTPHeader: header,
@@ -275,19 +283,18 @@ func (c *Client) connect(ctx context.Context) (bool, websocket.StatusCode) {
 		c.opt.Logger.Debug("hello write failed", "err", shortErr(err))
 		return false, 0
 	}
-	rctx, stop := context.WithTimeout(ctx, c.opt.PingTimeout)
-	typ, raw, err := conn.Read(rctx)
-	stop()
-	if err != nil {
-		_ = conn.CloseNow()
-		c.opt.Logger.Debug("welcome read failed", "err", shortErr(err))
-		return false, 0
-	}
-	if typ != websocket.MessageText {
+	if c.opt.Sign != nil && !c.answerChallenge(ctx, conn) {
 		_ = conn.CloseNow()
 		return false, 0
 	}
-	welcome, err := link.Decode(raw)
+	welcome, err := c.readFrame(ctx, conn)
+	if c.opt.Sign != nil && websocket.CloseStatus(err) == websocket.StatusPolicyViolation {
+		if c.rejectLogged.CompareAndSwap(false, true) {
+			c.opt.Logger.Error("machine key rejected: enrol this machine again (devcules machine enrol <code>)")
+		}
+		_ = conn.CloseNow()
+		return false, 0
+	}
 	if err != nil || welcome.Type != "welcome" {
 		_ = conn.CloseNow()
 		c.opt.Logger.Debug("bad welcome", "err", shortErr(err))
@@ -300,7 +307,7 @@ func (c *Client) connect(ctx context.Context) (bool, websocket.StatusCode) {
 		return false, 0
 	}
 	c.setConn(conn, payload.Session)
-	c.opt.Logger.Info("runner linked")
+	c.opt.Logger.Info(c.opt.Role + " linked")
 	c.rejectLogged.Store(false)
 
 	code, reason := c.pump(ctx, conn)
@@ -312,6 +319,55 @@ func (c *Client) connect(ctx context.Context) (bool, websocket.StatusCode) {
 		c.opt.Logger.Info("link dropped, reconnecting", "close", fmt.Sprintf("%d %s", code, reason))
 	}
 	return true, code
+}
+
+// readFrame reads one text frame inside the ping timeout.
+func (c *Client) readFrame(ctx context.Context, conn *websocket.Conn) (link.Frame, error) {
+	rctx, stop := context.WithTimeout(ctx, c.opt.PingTimeout)
+	typ, raw, err := conn.Read(rctx)
+	stop()
+	if err != nil {
+		c.opt.Logger.Debug("handshake read failed", "err", shortErr(err))
+		return link.Frame{}, err
+	}
+	if typ != websocket.MessageText {
+		return link.Frame{}, errors.New("binary frame")
+	}
+	return link.Decode(raw)
+}
+
+// answerChallenge signs serve's nonce. A refused signature closes the
+// link with 1008 before any welcome; that is logged once at error
+// level, since only re-enrolling fixes it.
+func (c *Client) answerChallenge(ctx context.Context, conn *websocket.Conn) bool {
+	f, err := c.readFrame(ctx, conn)
+	if err != nil || f.Type != "challenge" {
+		c.opt.Logger.Debug("no challenge from serve", "err", shortErr(err))
+		return false
+	}
+	var ch struct {
+		Nonce string `json:"nonce"`
+	}
+	if err := json.Unmarshal(f.Data, &ch); err != nil {
+		return false
+	}
+	nonce, err := base64.RawURLEncoding.DecodeString(ch.Nonce)
+	if err != nil || len(nonce) != 32 {
+		return false
+	}
+	data, _ := json.Marshal(map[string]string{"sig": base64.StdEncoding.EncodeToString(c.opt.Sign(nonce))})
+	b, err := link.Encode(link.Frame{V: link.Version, Type: "challenge.answer", ID: link.NewID(), Data: data})
+	if err != nil {
+		return false
+	}
+	wctx, stop := context.WithTimeout(ctx, c.opt.PingTimeout)
+	err = conn.Write(wctx, websocket.MessageText, b)
+	stop()
+	if err != nil {
+		return false
+	}
+	// The welcome follows on success; on refusal serve closes 1008.
+	return true
 }
 
 // dialFailed logs one failed attempt. A 401 names the fix at error

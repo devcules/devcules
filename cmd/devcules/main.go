@@ -23,7 +23,7 @@ const (
 	exitUsage = 2
 )
 
-const usageLine = "usage: devcules [serve|runner|machine|hook [--agent <id>]|version|health|vault rotate|audit export|audit verify|help]"
+const usageLine = "usage: devcules [serve|runner|machine [enrol <code> [--name <name>]]|hook [--agent <id>]|version|health|vault rotate|audit export|audit verify|help]"
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
@@ -37,7 +37,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) > 0 {
 		name, rest = args[0], args[1:]
 	}
-	if len(rest) > 0 && name != "vault" && name != "audit" && name != "hook" {
+	if len(rest) > 0 && name != "vault" && name != "audit" && name != "hook" && name != "machine" {
 		return usage(stderr, "too many arguments: %q takes none", name)
 	}
 	var hookWith agents.Agent
@@ -108,6 +108,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	if role == "serve" || role == "runner" {
 		return runBlockingRole(cfg, role, stdout, stderr, sigs)
+	}
+	if role == "machine" {
+		return runMachine(cfg, rest, stdout, stderr, sigs, &http.Client{Timeout: 30 * time.Second})
 	}
 	return runRole(role, cfg, stdout)
 }

@@ -127,37 +127,44 @@ func TestRun(t *testing.T) {
 		}
 	})
 
-	// machine stays a stub and exits; serve binds and runner idles, so
-	// both block and are driven directly in serve_test.go and
-	// runner_test.go with fakes, and hook is driven in hook_test.go.
-	for _, role := range []string{"machine"} {
-		t.Run("role "+role, func(t *testing.T) {
-			code, stdout, stderr := invoke(t, map[string]string{}, role)
-			if code != exitOK {
-				t.Fatalf("exit = %d, want 0", code)
-			}
-			if !strings.Contains(stdout, role+": listening on 127.0.0.1:7659") {
-				t.Fatalf("stdout = %q, want role stub line", stdout)
-			}
-			if stderr != "" {
-				t.Fatalf("stderr = %q, want empty", stderr)
-			}
-		})
-	}
+	// serve binds and runner idles, so both block and are driven
+	// directly in serve_test.go and runner_test.go with fakes; hook is
+	// driven in hook_test.go and machine in machine_test.go. An
+	// unenrolled machine stops at once and says how to enrol.
+	t.Run("role machine", func(t *testing.T) {
+		code, _, stderr := invoke(t, map[string]string{}, "machine")
+		if code != exitError || !strings.Contains(stderr, "not enrolled") {
+			t.Fatalf("exit = %d, stderr = %q, want not enrolled", code, stderr)
+		}
+	})
 
 	t.Run("subcommand wins over role", func(t *testing.T) {
 		env := map[string]string{"DEVCULES_ROLE": "runner"}
-		code, stdout, _ := invoke(t, env, "machine")
-		if code != exitOK || !strings.HasPrefix(stdout, "machine:") {
-			t.Fatalf("exit = %d, stdout = %q, want the machine stub", code, stdout)
+		code, _, stderr := invoke(t, env, "machine")
+		if code != exitError || !strings.Contains(stderr, "not enrolled") {
+			t.Fatalf("exit = %d, stderr = %q, want the machine role", code, stderr)
 		}
 	})
 
 	t.Run("no subcommand uses role", func(t *testing.T) {
 		env := map[string]string{"DEVCULES_ROLE": "machine"}
-		code, stdout, _ := invoke(t, env)
-		if code != exitOK || !strings.HasPrefix(stdout, "machine:") {
-			t.Fatalf("exit = %d, stdout = %q, want the machine stub", code, stdout)
+		code, _, stderr := invoke(t, env)
+		if code != exitError || !strings.Contains(stderr, "not enrolled") {
+			t.Fatalf("exit = %d, stderr = %q, want the machine role", code, stderr)
+		}
+	})
+
+	t.Run("machine enrol needs a code", func(t *testing.T) {
+		code, _, stderr := invoke(t, map[string]string{}, "machine", "enrol")
+		if code != exitUsage || !strings.Contains(stderr, "want the code") {
+			t.Fatalf("exit = %d, stderr = %q, want usage", code, stderr)
+		}
+	})
+
+	t.Run("machine rejects other arguments", func(t *testing.T) {
+		code, _, _ := invoke(t, map[string]string{}, "machine", "frobnicate")
+		if code != exitUsage {
+			t.Fatalf("exit = %d, want %d", code, exitUsage)
 		}
 	})
 
@@ -216,16 +223,14 @@ func TestRun(t *testing.T) {
 		})
 	}
 
-	// The vault key is optional everywhere and forbidden outside serve.
-	// serve needs a key and runner blocks, so only the stub qualifies here.
-	for _, role := range []string{"machine"} {
-		t.Run(role+" runs without a vault key", func(t *testing.T) {
-			code, _, stderr := invoke(t, map[string]string{"DEVCULES_LISTEN": "127.0.0.1:1"}, role)
-			if code != exitOK {
-				t.Fatalf("exit = %d, stderr = %q, want 0", code, stderr)
-			}
-		})
-	}
+	// The vault key is optional everywhere and forbidden outside serve:
+	// an unenrolled machine gets past config to its enrolment check.
+	t.Run("machine runs without a vault key", func(t *testing.T) {
+		code, _, stderr := invoke(t, map[string]string{"DEVCULES_LISTEN": "127.0.0.1:1"}, "machine")
+		if code != exitError || !strings.Contains(stderr, "not enrolled") || strings.Contains(stderr, "VAULT") {
+			t.Fatalf("exit = %d, stderr = %q, want past config", code, stderr)
+		}
+	})
 
 	for _, role := range []string{"runner", "machine", "hook"} {
 		t.Run(role+" rejects a vault key", func(t *testing.T) {

@@ -75,11 +75,36 @@ even with a leaked token. `/link` never reads the session cookie.
 
 ## Machines
 
-Machines enrol via a one-time code that serve mints (`machines.Issuer.Mint`, code shown once,
-only its hash stored). A machine redeems it with its ed25519 pubkey; thereafter it
-authenticates on `GET /link` with `hello{role:"machine", name:"…"}`, plus an ephemeral
-nonce challenge: serve issues a server nonce, the machine signs it with its key (verified in
-`machines.Verify`). Nonces are memory-only and single-use. See `internal/machines`.
+A machine enrols once and then signs a fresh challenge on every
+connect. It never holds the runner token.
+
+1. The owner mints a one-time code in the Machines tab
+   (`POST /api/machines/enrol-code`, session and CSRF). It is 12
+   Crockford base32 characters shown as `XXXX-XXXX-XXXX`, valid for
+   15 minutes, single use, and only its hash is stored.
+2. On the computer, `devcules machine enrol <code> [--name <name>]`
+   makes an ed25519 key (`<DataDir>/machine.key`, `0600`; the private
+   key never leaves the machine) and posts `{code, name, pubkey, sig}`
+   to `POST /api/machines/enrol`. `sig` signs
+   `"devcules-enrol-v1\n" + code`, so serve knows the key is really
+   held. No session (a machine is not a browser); any `Origin` header
+   is 403 and attempts are limited to 10 per IP per 10 minutes. The
+   code is claimed before the machine row is written, so two racing
+   enrols never both win; a taken name is 409.
+3. `devcules machine` dials `GET /link` with `Authorization: Machine`
+   (no token) and sends `hello{role:"machine", name}`. Serve answers
+   `challenge {nonce}` (32 random bytes, base64url, memory only), the
+   machine answers `challenge.answer {sig}` (base64 ed25519 over the
+   nonce bytes) inside the hello timeout, and serve checks it against
+   the enrolled key before the `welcome`. A wrong key, an unknown
+   name or silence closes with 1008 "machine auth failed"; a link that
+   came in on the runner token may not claim the machine role (1008).
+
+The hub keys machine links as `machine/<name>` (`hub.MachineAddr`), so
+a runner and a machine on one computer can share the hostname without
+replacing each other; names never contain `/`. Removing a machine in
+the tab (`DELETE /api/machines/{name}`) deletes its key and closes its
+link with 1008 "machine removed".
 
 ## Machine frames (M4.5)
 

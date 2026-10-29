@@ -21,6 +21,9 @@ import (
 
 const machviewTestToken = "machview-test-token-0123456789a"
 
+// testMachineKeys enrols the fake machines with the test hubs.
+var testMachineKeys = linktest.NewMachineKeys()
+
 // machviewFixture builds the full mux (store, auth, hub, machine
 // relay) on a pipe server, with one fake machine linked from the
 // relay package's canned table. The fake lives in the relay tests;
@@ -44,6 +47,7 @@ func machviewFixture(t *testing.T, linked bool) (http.Handler, string) {
 		HelloTimeout: 5 * time.Second,
 		PingInterval: time.Second,
 		PingTimeout:  5 * time.Second,
+		Machines:     testMachineKeys,
 	})
 	r := machrelay.New(h)
 	r.Run()
@@ -157,13 +161,16 @@ func TestMachviewHappyPath(t *testing.T) {
 		t.Fatalf("list = %d (body %q)", w.Code, w.Body.String())
 	}
 	var list struct {
-		Machines []string `json:"machines"`
-		Budget   int      `json:"budget"`
+		Machines []struct {
+			Name   string `json:"name"`
+			Online bool   `json:"online"`
+		} `json:"machines"`
+		Budget int `json:"budget"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &list); err != nil {
 		t.Fatalf("list body: %q", w.Body.String())
 	}
-	if len(list.Machines) != 1 || list.Machines[0] != "kitchen-mac" || list.Budget != 40 {
+	if len(list.Machines) != 1 || list.Machines[0].Name != "kitchen-mac" || !list.Machines[0].Online || list.Budget != 40 {
 		t.Fatalf("list = %+v", list)
 	}
 

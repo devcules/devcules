@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -57,7 +58,10 @@ func terminalFixture(t *testing.T) (http.Handler, *linktest.Server, *hub.Hub, st
 	return mux, pipe, h, sessionCookie(t, mux, password)
 }
 
-func terminalDialer(t *testing.T, pipe *linktest.Server, ctx context.Context, name string) (*dial.Client, context.CancelFunc) {
+// terminalDialer links a runner named name and waits until h lists
+// it: the hub sends its welcome before it registers the link, so
+// Linked alone races the first request into "no runner linked".
+func terminalDialer(t *testing.T, pipe *linktest.Server, h *hub.Hub, ctx context.Context, name string) (*dial.Client, context.CancelFunc) {
 	t.Helper()
 	child, stop := context.WithCancel(ctx)
 	c := dial.New("ws://pipe/link", name, "test", terminalTestToken, dial.Options{
@@ -84,6 +88,13 @@ func terminalDialer(t *testing.T, pipe *linktest.Server, ctx context.Context, na
 	if !c.Linked() {
 		t.Fatalf("dialer %s never linked", name)
 	}
+	for time.Now().Before(deadline) {
+		if slices.Contains(h.Runners(), name) {
+			return c, stop
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatalf("the hub never listed runner %s", name)
 	return c, stop
 }
 
@@ -172,9 +183,9 @@ func TestTerminalOpenTimeoutIs504(t *testing.T) {
 	t.Parallel()
 	ctx, stop := context.WithCancel(context.Background())
 	defer stop()
-	mux, pipe, _, session := terminalFixture(t)
+	mux, pipe, h, session := terminalFixture(t)
 	// A linked runner with no terminal handlers never answers.
-	_, stopDial := terminalDialer(t, pipe, ctx, "silent")
+	_, stopDial := terminalDialer(t, pipe, h, ctx, "silent")
 	defer stopDial()
 
 	w := terminalRequest(t, mux, http.MethodPost, "/api/terminals", session)
@@ -275,7 +286,7 @@ func withTmuxRunner(t *testing.T, pipe *linktest.Server, h *hub.Hub, ctx context
 		t.Fatalf("pty manager: %s", err)
 	}
 	t.Cleanup(func() { m.Shutdown(context.Background()) })
-	c, stop := terminalDialer(t, pipe, ctx, name)
+	c, stop := terminalDialer(t, pipe, h, ctx, name)
 	pty.Serve(ctx, c, m, nil)
 	// The hub registers a link just after its welcome: wait for the
 	// hub's view so the first request finds the runner.
@@ -401,8 +412,8 @@ func TestTerminalUnknownRunnerChoice(t *testing.T) {
 	t.Parallel()
 	ctx, stop := context.WithCancel(context.Background())
 	defer stop()
-	mux, pipe, _, session := terminalFixture(t)
-	_, stopDial := terminalDialer(t, pipe, ctx, "r1")
+	mux, pipe, h, session := terminalFixture(t)
+	_, stopDial := terminalDialer(t, pipe, h, ctx, "r1")
 	defer stopDial()
 
 	w := terminalRequest(t, mux, http.MethodGet, "/api/terminals?runner=nope", session)

@@ -47,8 +47,12 @@ const (
 	PushSubscribe   = "push.subscribe"
 	PushRemove      = "push.remove"
 	AgentLaunch     = "agent.launch"
-	maxField        = 200
-	maxDetailItems  = 16
+	// Machines: minting a code, a machine enrolling itself, revoking.
+	MachineEnrolCode = "machine.enrol_code"
+	MachineEnrol     = "machine.enrol"
+	MachineRemove    = "machine.remove"
+	maxField         = 200
+	maxDetailItems   = 16
 )
 
 // Event is what a caller records. Actor is a username, or "system" or

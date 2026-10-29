@@ -225,3 +225,15 @@ func EnsureTokenFile(path, plaintext string) (token string, created bool, err er
 	}
 	return token, true, nil
 }
+
+// Kick closes the link at addr (a runner name or MachineAddr) with
+// 1008 and reason, for a revoked machine. A missing link is a no-op.
+// The drop and its unlink event follow from the read loop ending.
+func (h *Hub) Kick(addr, reason string) {
+	h.mu.Lock()
+	l, ok := h.links[addr]
+	h.mu.Unlock()
+	if ok {
+		settle(l.conn, websocket.StatusPolicyViolation, reason, 5*time.Second)
+	}
+}

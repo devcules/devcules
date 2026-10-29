@@ -23,7 +23,7 @@ function routes(table: Record<string, Reply>): ReturnType<typeof vi.fn> {
   return fn;
 }
 
-const linked = { machines: ['kitchen-mac'], budget: 40 };
+const linked = { machines: [{ name: 'kitchen-mac', online: true }], budget: 40 };
 
 afterEach(() => {
   vi.restoreAllMocks();

@@ -4,6 +4,26 @@ Devcules drives real computers through a machine helper linked over
 the same WebSocket protocol as runners (`docs/link.md`). Each machine
 enrols with a one-time code and proves itself with an ed25519 key.
 
+## Enrolling a computer
+
+1. In the Machines tab, press **Add a computer**: it shows a one-time
+   code (15 minutes) and the two commands to run.
+2. On that computer, with the `devcules` binary installed and tmux for
+   the shell:
+
+   ```sh
+   DEVCULES_SERVE_URL=https://devcules.example devcules machine enrol ABCD-EFGH-JKMN
+   devcules machine
+   ```
+
+   `enrol` keeps the key and name in `~/.local/share/devcules`
+   (`DEVCULES_DATA_DIR`); `devcules machine` remembers the serve it
+   enrolled with. The machine appears online in the tab.
+
+The handshake is in `docs/link.md` (Machines). A machine helper
+serves its senses (below) and, unless `DEVCULES_MACHINE_SHELL=off`,
+tmux terminals over the same link.
+
 ## Drivers
 
 The machine helper owns four small driver interfaces, one per sense.

@@ -217,6 +217,19 @@ func (r *Relay) AttachStream(ctx context.Context, runner, term string, cols, row
 			_ = conn.Close(websocket.StatusCode(codeUnknownTerm), "unknown terminal")
 			return
 		}
+		// The link may have died mid-request while the hub was still
+		// retiring it: linked() above saw the stale entry. Waiting for
+		// the hub to notice (the same 5 s ceiling as one request)
+		// turns that case into the runner-offline 1012 instead of a
+		// 1011 that looks like a relay bug.
+		deadline := time.Now().Add(roundTripTimeout)
+		for time.Now().Before(deadline) {
+			if !r.linked(runner) {
+				_ = conn.Close(websocket.StatusCode(codeRunnerOffline), "runner offline")
+				return
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
 		_ = conn.Close(websocket.StatusInternalError, "runner did not attach")
 		return
 	}

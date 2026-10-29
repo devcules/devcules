@@ -151,6 +151,7 @@ func (h *Hub) drop(name string, l *linkConn) {
 	defer h.mu.Unlock()
 	if h.links[name] == l {
 		delete(h.links, name)
+		delete(h.roles, name)
 		h.notifyLocked(name, false)
 	}
 }

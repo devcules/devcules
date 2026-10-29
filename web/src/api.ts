@@ -776,3 +776,202 @@ export async function removePushDevice(id: string): Promise<true | 'unauthorized
 export function testPush(): Write<PushResult> {
   return sendJSON('/api/push/test', 'POST', undefined, (d) => typeof d.sent === 'number');
 }
+
+// Machines (M4.5): the task view over a linked machine. Every call
+// resolves like the terminal ones: data, an expired session, a
+// missing machine ('offline'), or an unreachable server. A refusal
+// (budget exhausted, driver missing) carries the machine's reason.
+export type MachineError = 'unauthorized' | 'offline' | 'unreachable';
+
+export type MachineList = { machines: string[]; budget: number };
+export type GroundMatch = {
+  id: number;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  maskW: number;
+  maskH: number;
+  clickX: number;
+  clickY: number;
+};
+export type MachineTree = {
+  screenW?: number;
+  screenH?: number;
+  front?: string;
+  window?: string;
+  elements: Array<{
+    role: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    title?: string;
+    value?: string;
+  }>;
+  note?: string;
+};
+export type VerifyResult = { png: string; tree: MachineTree; note: string };
+
+async function machineFetch(path: string, init?: RequestInit): Promise<Response | MachineError> {
+  let res: Response;
+  try {
+    res = await fetch(path, init);
+  } catch {
+    return 'unreachable';
+  }
+  if (res.status === 401) {
+    return 'unauthorized';
+  }
+  return res;
+}
+
+function machineQuery(machine: string): string {
+  return machine === '' ? '' : `?machine=${encodeURIComponent(machine)}`;
+}
+
+export async function listMachines(): Promise<MachineList | MachineError> {
+  const res = await machineFetch('/api/machines');
+  if (typeof res === 'string') {
+    return res;
+  }
+  if (res.status === 503) {
+    return 'offline';
+  }
+  if (!res.ok) {
+    return 'unreachable';
+  }
+  const data: unknown = await res.json().catch(() => null);
+  if (isObject(data) && Array.isArray(data.machines) && typeof data.budget === 'number') {
+    return {
+      machines: data.machines.filter((m): m is string => typeof m === 'string'),
+      budget: data.budget,
+    };
+  }
+  return 'unreachable';
+}
+
+export async function machineBudget(machine = ''): Promise<{ remaining: number } | MachineError> {
+  const res = await machineFetch(`/api/machines-budget${machineQuery(machine)}`);
+  if (typeof res === 'string') {
+    return res;
+  }
+  if (res.status === 503) {
+    return 'offline';
+  }
+  if (!res.ok) {
+    return 'unreachable';
+  }
+  const data: unknown = await res.json().catch(() => null);
+  if (isObject(data) && typeof data.remaining === 'number') {
+    return { remaining: data.remaining };
+  }
+  return 'unreachable';
+}
+
+// machineScreenURL points at the live capture; the <img> re-fetches
+// it on its own, so no JSON wrapper here.
+export function machineScreenURL(machine: string): string {
+  return `/api/machines-screen${machineQuery(machine)}`;
+}
+
+export async function machineTree(machine = ''): Promise<MachineTree | MachineError> {
+  const res = await machineFetch(`/api/machines-tree${machineQuery(machine)}`);
+  if (typeof res === 'string') {
+    return res;
+  }
+  if (res.status === 503) {
+    return 'offline';
+  }
+  if (!res.ok) {
+    return 'unreachable';
+  }
+  const data: unknown = await res.json().catch(() => null);
+  if (isObject(data) && Array.isArray(data.elements)) {
+    return data as unknown as MachineTree;
+  }
+  return 'unreachable';
+}
+
+// machineInput injects one event — the take-control call. The machine
+// spends the budget there and refuses at zero; the refusal carries
+// its reason.
+export async function machineInput(
+  ev: { kind: string; x?: number; y?: number; key?: string; text?: string },
+  machine = '',
+): Promise<true | MachineError | { refused: string }> {
+  const res = await machineFetch(`/api/machines-input${machineQuery(machine)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(ev),
+  });
+  if (typeof res === 'string') {
+    return res;
+  }
+  if (res.status === 204) {
+    return true;
+  }
+  if (res.status === 503) {
+    return 'offline';
+  }
+  if (res.status === 504) {
+    return 'unreachable';
+  }
+  const data: unknown = await res.json().catch(() => null);
+  if (res.status >= 400 && res.status < 500 && isObject(data) && typeof data.error === 'string') {
+    return { refused: data.error };
+  }
+  if (res.status === 502 && isObject(data) && typeof data.error === 'string') {
+    return { refused: data.error };
+  }
+  return 'unreachable';
+}
+
+export async function machineGround(
+  phrase: string,
+  machine = '',
+): Promise<{ matches: GroundMatch[] } | MachineError | { refused: string }> {
+  const res = await machineFetch(`/api/machines-ground${machineQuery(machine)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phrase }),
+  });
+  if (typeof res === 'string') {
+    return res;
+  }
+  if (res.status === 503) {
+    return 'offline';
+  }
+  if (res.status === 504) {
+    return 'unreachable';
+  }
+  const data: unknown = await res.json().catch(() => null);
+  if (res.ok && isObject(data) && Array.isArray(data.matches)) {
+    return { matches: data.matches as GroundMatch[] };
+  }
+  if (res.status >= 400 && isObject(data) && typeof data.error === 'string') {
+    return { refused: data.error };
+  }
+  return 'unreachable';
+}
+
+export async function machineVerify(machine = ''): Promise<VerifyResult | MachineError | { refused: string }> {
+  const res = await machineFetch(`/api/machines-verify${machineQuery(machine)}`, { method: 'POST' });
+  if (typeof res === 'string') {
+    return res;
+  }
+  if (res.status === 503) {
+    return 'offline';
+  }
+  if (res.status === 504) {
+    return 'unreachable';
+  }
+  const data: unknown = await res.json().catch(() => null);
+  if (res.ok && isObject(data) && typeof data.png === 'string' && isObject(data.tree) && typeof data.note === 'string') {
+    return data as unknown as VerifyResult;
+  }
+  if (res.status >= 400 && isObject(data) && typeof data.error === 'string') {
+    return { refused: data.error };
+  }
+  return 'unreachable';
+}

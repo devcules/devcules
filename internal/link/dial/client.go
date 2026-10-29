@@ -37,7 +37,9 @@ const replacedCode = websocket.StatusCode(4000)
 
 // Options tunes heartbeat and backoff. Zero values take the production
 // defaults (15 s ping, 5 s ping timeout, 0.5–30 s backoff); tests set
-// millisecond values so reconnect runs without sleeping.
+// millisecond values so reconnect runs without sleeping. Role is the
+// hello's role: "runner" by default, "machine" for machine helpers
+// (the hub keeps the two memberships apart).
 type Options struct {
 	PingInterval time.Duration
 	PingTimeout  time.Duration
@@ -45,6 +47,7 @@ type Options struct {
 	MaxBackoff   time.Duration
 	HTTPClient   *http.Client
 	Logger       *slog.Logger
+	Role         string
 }
 
 func (o Options) withDefaults() Options {
@@ -62,6 +65,9 @@ func (o Options) withDefaults() Options {
 	}
 	if o.Logger == nil {
 		o.Logger = slog.New(slog.DiscardHandler)
+	}
+	if o.Role == "" {
+		o.Role = "runner"
 	}
 	return o
 }
@@ -256,7 +262,7 @@ func (c *Client) connect(ctx context.Context) (bool, websocket.StatusCode) {
 	// limit (terminal output in M1.4), and anything above 32 KiB would
 	// otherwise kill the link with 1009.
 	conn.SetReadLimit(link.MaxFrameBytes)
-	hello, err := link.Encode(link.Frame{V: link.Version, Type: "hello", ID: link.NewID(), Data: helloData(c.name, c.version)})
+	hello, err := link.Encode(link.Frame{V: link.Version, Type: "hello", ID: link.NewID(), Data: helloData(c.opt.Role, c.name, c.version)})
 	if err != nil {
 		_ = conn.CloseNow()
 		return false, 0
@@ -337,8 +343,8 @@ func shortErr(err error) string {
 	return s
 }
 
-func helloData(name, version string) []byte {
-	b, _ := json.Marshal(link.Hello{Role: "runner", Name: name, Version: version})
+func helloData(role, name, version string) []byte {
+	b, _ := json.Marshal(link.Hello{Role: role, Name: name, Version: version})
 	return b
 }
 

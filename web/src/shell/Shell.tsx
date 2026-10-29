@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { listApprovals } from '../api';
 import { Inbox, type PendingState } from '../screens/Approvals';
+import Machines from '../screens/Machines';
 import Terminals from '../screens/Terminals';
 import Settings from '../screens/Settings';
 import Activity from '../screens/Activity';
 
-type Tab = 'home' | 'terminals' | 'activity' | 'settings';
+type Tab = 'home' | 'terminals' | 'machines' | 'activity' | 'settings';
 
 const tabs: Array<{ id: Tab; label: string }> = [
   { id: 'home', label: 'Home' },
   { id: 'terminals', label: 'Terminals' },
+  { id: 'machines', label: 'Machines' },
   { id: 'activity', label: 'Activity' },
   { id: 'settings', label: 'Settings' },
 ];
@@ -93,6 +95,7 @@ export default function Shell({
           <Inbox pending={pending} focus={focus} onAnswered={poll} onSessionExpired={onSessionExpired} />
         )}
         {tab === 'terminals' && <Terminals onSessionExpired={onSessionExpired} />}
+        {tab === 'machines' && <Machines onSessionExpired={onSessionExpired} />}
         {tab === 'activity' && <Activity onSessionExpired={onSessionExpired} />}
         {tab === 'settings' && (
           <Settings username={username} onSignedOut={onSignedOut} onSessionExpired={onSessionExpired} />

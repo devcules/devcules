@@ -81,6 +81,33 @@ authenticates on `GET /link` with `hello{role:"machine", name:"…"}`, plus an e
 nonce challenge: serve issues a server nonce, the machine signs it with its key (verified in
 `machines.Verify`). Nonces are memory-only and single-use. See `internal/machines`.
 
+## Machine frames (M4.5)
+
+Machine helpers and serve exchange the `mach.*` frame types over the
+same link (`internal/machframes` holds the payload shapes; serve
+requests end in a verb, the machine answers under the request's
+frame id):
+
+- `mach.screen` → `mach.frame` — one PNG capture, capped by the
+  request's `maxBytes`
+- `mach.tree` → `mach.treeout` — the accessibility tree
+- `mach.words` → `mach.wordsout` — OCR words off the live screen
+- `mach.input` → `mach.ok` — one injected input event (move, tap,
+  key, text); the machine spends one budget unit here and answers
+  `mach.error "budget exhausted"` at zero
+- `mach.ground` → `mach.groundout` — SAM grounding of a noun phrase
+  against the live screen; the machine holds the router session, so
+  no key crosses the link
+- `mach.budget` → `mach.ok` — serve resets the task's remaining
+  actions (0-40)
+- `mach.verify` → `mach.verifyout` — the done-verifier: one fresh
+  capture plus one tree read with a note, answered together
+
+A refused request answers `mach.error` with the machine's fixed
+reason. Serve's side of the protocol lives in
+`internal/machines/relay`; the machine's in
+`internal/machines/helper`.
+
 ## Token lifecycle
 
 One mechanism for compose and single-binary deploys:

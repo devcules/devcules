@@ -18,6 +18,8 @@ import (
 	"github.com/devcules/devcules/internal/config"
 	"github.com/devcules/devcules/internal/launch"
 	"github.com/devcules/devcules/internal/link/hub"
+	"github.com/devcules/devcules/internal/machines"
+	machrelay "github.com/devcules/devcules/internal/machines/relay"
 	"github.com/devcules/devcules/internal/router"
 	"github.com/devcules/devcules/internal/store"
 	"github.com/devcules/devcules/internal/store/sqlite"
@@ -152,8 +154,12 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 	if created {
 		fmt.Fprintln(stderr, "Admin password (shown once): "+password)
 	}
+	// The machine relay watches the machine links the same way: the
+	// task view routes screen/input/tree/ground/verify to them.
+	machinesRelay := machrelay.New(h)
+	machinesRelay.Run()
 	srv := &http.Server{
-		Handler:           api.Handler(api.Options{Store: s, Auth: authSvc, Web: web.Embedded(), PublicURL: cfg.PublicURL, Link: h, Terminals: terms, Redact: redactor, RedactSettings: redactSettings, Router: llm, Launches: launches, AuditLog: auditLog, TraceStore: traces, MCP: mcpServer, ApprovalQueue: approvalSvc, Push: pushSvc}),
+		Handler:           api.Handler(api.Options{Store: s, Auth: authSvc, Web: web.Embedded(), PublicURL: cfg.PublicURL, Link: h, Terminals: terms, Redact: redactor, RedactSettings: redactSettings, Router: llm, Launches: launches, AuditLog: auditLog, TraceStore: traces, MCP: mcpServer, ApprovalQueue: approvalSvc, Push: pushSvc, Enrol: machines.NewIssuer(s), Machines: machinesRelay}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,

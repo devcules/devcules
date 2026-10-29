@@ -17,6 +17,7 @@ import (
 	"github.com/devcules/devcules/internal/launch"
 	"github.com/devcules/devcules/internal/link/hub"
 	"github.com/devcules/devcules/internal/machines"
+	machrelay "github.com/devcules/devcules/internal/machines/relay"
 	"github.com/devcules/devcules/internal/push"
 	"github.com/devcules/devcules/internal/redact"
 	"github.com/devcules/devcules/internal/router"
@@ -67,6 +68,10 @@ type Options struct {
 	// Enrol mints machine enrolment codes; nil answers the machine
 	// routes with 503.
 	Enrol *machines.Issuer
+	// Machines relays the machine task view (screen, input, tree,
+	// grounding, done-verify) to the linked machine helpers. Nil
+	// answers those routes with 503; serve always passes a real one.
+	Machines *machrelay.Relay
 }
 
 // Handler returns the M3.2 mux. /healthz, /readyz, GET /link, /llm/,
@@ -168,6 +173,16 @@ func Handler(o Options) http.Handler {
 	// it to the machine that redeems it. Both need a session.
 	mux.Handle("/api/machines/enrol-code", requireSession(o.Auth, machinesEnrolCode(o.Enrol)))
 	mux.Handle("/api/machines/redeem", requireSession(o.Auth, machinesRedeem(o.Enrol)))
+	// Machine task view (M4.5): the live screen, the accessibility
+	// tree, input injection (take control), SAM grounding and the
+	// done-verifier, all session-guarded, all over the link relay.
+	mux.Handle("/api/machines", requireSession(o.Auth, machinesList(o.Machines)))
+	mux.Handle("/api/machines-budget", requireSession(o.Auth, machinesBudget(o.Machines)))
+	mux.Handle("/api/machines-screen", requireSession(o.Auth, machinesScreen(o.Machines)))
+	mux.Handle("/api/machines-tree", requireSession(o.Auth, machinesTree(o.Machines)))
+	mux.Handle("/api/machines-input", requireSession(o.Auth, machinesInput(o.Machines, o.PublicURL)))
+	mux.Handle("/api/machines-ground", requireSession(o.Auth, machinesGround(o.Machines, o.PublicURL)))
+	mux.Handle("/api/machines-verify", requireSession(o.Auth, machinesVerify(o.Machines, o.PublicURL)))
 	mux.Handle("/", root(o.Web, o.Auth))
 	return secureHeaders(mux)
 }

@@ -284,7 +284,8 @@
 ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
 ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)
 ARCH_14 — accessibility tree (AX/AT-SPI/UIA walkers) + OCR (Vision/tesseract/WinRT), one shared TSV per walker
-ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point
+ARCH_16 — machine task view: screen/input/tree/ground over the link, budget at the machine, done-verifier before success" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -484,7 +485,8 @@ ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, ma
 ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
 ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)
 ARCH_14 — accessibility tree (AX/AT-SPI/UIA walkers) + OCR (Vision/tesseract/WinRT), one shared TSV per walker
-ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point
+ARCH_16 — machine task view: screen/input/tree/ground over the link, budget at the machine, done-verifier before success" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -679,7 +681,8 @@ ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, ma
 ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
 ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)
 ARCH_14 — accessibility tree (AX/AT-SPI/UIA walkers) + OCR (Vision/tesseract/WinRT), one shared TSV per walker
-ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point
+ARCH_16 — machine task view: screen/input/tree/ground over the link, budget at the machine, done-verifier before success" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -861,7 +864,8 @@ ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, ma
 ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
 ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)
 ARCH_14 — accessibility tree (AX/AT-SPI/UIA walkers) + OCR (Vision/tesseract/WinRT), one shared TSV per walker
-ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point
+ARCH_16 — machine task view: screen/input/tree/ground over the link, budget at the machine, done-verifier before success" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -1182,7 +1186,8 @@ ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, ma
 ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
 ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)
 ARCH_14 — accessibility tree (AX/AT-SPI/UIA walkers) + OCR (Vision/tesseract/WinRT), one shared TSV per walker
-ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point
+ARCH_16 — machine task view: screen/input/tree/ground over the link, budget at the machine, done-verifier before success" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -1408,7 +1413,8 @@ ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, ma
 ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
 ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)
 ARCH_14 — accessibility tree (AX/AT-SPI/UIA walkers) + OCR (Vision/tesseract/WinRT), one shared TSV per walker
-ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point
+ARCH_16 — machine task view: screen/input/tree/ground over the link, budget at the machine, done-verifier before success" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -1628,7 +1634,8 @@ ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, ma
 ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
 ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)
 ARCH_14 — accessibility tree (AX/AT-SPI/UIA walkers) + OCR (Vision/tesseract/WinRT), one shared TSV per walker
-ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point
+ARCH_16 — machine task view: screen/input/tree/ground over the link, budget at the machine, done-verifier before success" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -1851,7 +1858,8 @@ ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, ma
 ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
 ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)
 ARCH_14 — accessibility tree (AX/AT-SPI/UIA walkers) + OCR (Vision/tesseract/WinRT), one shared TSV per walker
-ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point
+ARCH_16 — machine task view: screen/input/tree/ground over the link, budget at the machine, done-verifier before success" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -2056,7 +2064,8 @@ ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, ma
 ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
 ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)
 ARCH_14 — accessibility tree (AX/AT-SPI/UIA walkers) + OCR (Vision/tesseract/WinRT), one shared TSV per walker
-ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point
+ARCH_16 — machine task view: screen/input/tree/ground over the link, budget at the machine, done-verifier before success" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -2261,7 +2270,8 @@ ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, ma
 ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
 ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)
 ARCH_14 — accessibility tree (AX/AT-SPI/UIA walkers) + OCR (Vision/tesseract/WinRT), one shared TSV per walker
-ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point
+ARCH_16 — machine task view: screen/input/tree/ground over the link, budget at the machine, done-verifier before success" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -2445,7 +2455,8 @@ ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, ma
 ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
 ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)
 ARCH_14 — accessibility tree (AX/AT-SPI/UIA walkers) + OCR (Vision/tesseract/WinRT), one shared TSV per walker
-ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point
+ARCH_16 — machine task view: screen/input/tree/ground over the link, budget at the machine, done-verifier before success" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -2617,7 +2628,8 @@ ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, ma
 ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
 ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)
 ARCH_14 — accessibility tree (AX/AT-SPI/UIA walkers) + OCR (Vision/tesseract/WinRT), one shared TSV per walker
-ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point
+ARCH_16 — machine task view: screen/input/tree/ground over the link, budget at the machine, done-verifier before success" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -2789,7 +2801,8 @@ ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, ma
 ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
 ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)
 ARCH_14 — accessibility tree (AX/AT-SPI/UIA walkers) + OCR (Vision/tesseract/WinRT), one shared TSV per walker
-ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point
+ARCH_16 — machine task view: screen/input/tree/ground over the link, budget at the machine, done-verifier before success" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -2955,7 +2968,8 @@ ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, ma
 ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
 ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)
 ARCH_14 — accessibility tree (AX/AT-SPI/UIA walkers) + OCR (Vision/tesseract/WinRT), one shared TSV per walker
-ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point
+ARCH_16 — machine task view: screen/input/tree/ground over the link, budget at the machine, done-verifier before success" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -3124,7 +3138,8 @@ ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, ma
 ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
 ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)
 ARCH_14 — accessibility tree (AX/AT-SPI/UIA walkers) + OCR (Vision/tesseract/WinRT), one shared TSV per walker
-ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point
+ARCH_16 — machine task view: screen/input/tree/ground over the link, budget at the machine, done-verifier before success" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -3296,7 +3311,8 @@ ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, ma
 ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
 ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)
 ARCH_14 — accessibility tree (AX/AT-SPI/UIA walkers) + OCR (Vision/tesseract/WinRT), one shared TSV per walker
-ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point
+ARCH_16 — machine task view: screen/input/tree/ground over the link, budget at the machine, done-verifier before success" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -3471,7 +3487,8 @@ ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, ma
 ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
 ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)
 ARCH_14 — accessibility tree (AX/AT-SPI/UIA walkers) + OCR (Vision/tesseract/WinRT), one shared TSV per walker
-ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point
+ARCH_16 — machine task view: screen/input/tree/ground over the link, budget at the machine, done-verifier before success" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -4095,7 +4112,8 @@ ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, ma
 ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
 ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)
 ARCH_14 — accessibility tree (AX/AT-SPI/UIA walkers) + OCR (Vision/tesseract/WinRT), one shared TSV per walker
-ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_15 — SAM 3.1 grounding: frame + noun phrase via the router to sam-3.1, masks decoded in pure Go, largest-region centre as the click point
+ARCH_16 — machine task view: screen/input/tree/ground over the link, budget at the machine, done-verifier before success" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>

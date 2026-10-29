@@ -112,3 +112,46 @@ the API and the MCP server expose them. Drivers are per-machine
 capabilities advertised in the link hello, and a driver that answers
 `ErrUnavailable` reports as "not on this machine" instead of failing
 the helper.
+
+## Task view and take control (M4.5)
+
+Serve exposes the machine's senses to the owner through
+session-guarded REST, relayed over the link by
+`internal/machines/relay` (request/reply correlated by frame id, 5 s
+round trip, mirroring the terminal relay):
+
+| Route | What it does |
+|---|---|
+| `GET /api/machines` | the linked machine names and the mirrored budget |
+| `GET /api/machines-screen?machine=` | one PNG capture (`image/png`) |
+| `GET /api/machines-tree?machine=` | the accessibility tree as JSON |
+| `POST /api/machines-input {kind,x,y,key,text}` | inject one input event — **take control** |
+| `POST /api/machines-ground {phrase}` | SAM matches with click points |
+| `POST /api/machines-verify` | the done-verifier's answer: base64 PNG, tree, note |
+| `GET /api/machines-budget` | the mirrored remaining actions |
+
+With several machines linked every route takes `?machine=<name>`;
+with exactly one the parameter may be omitted. Zero machines is 503.
+
+**The action budget is enforced at the machine, not serve.** The
+helper starts each task at the plan's 40 screen actions, spends one
+per injected input, and refuses at zero with `mach.error "budget
+exhausted"` — no serve-side bug or restart can move a machine past
+its budget. Serve keeps an in-memory mirror (start 40, decrement per
+accepted inject, reset on `mach.budget`) only so the UI can show
+what is left; a serve restart loses the mirror but never the
+authority, and the machine's counter is the one that refuses.
+
+**The done-verifier judges on the live screen.** `mach.verify` asks
+the machine for one fresh capture plus one fresh tree read, answered
+together with a note: a task may only report success against what
+the machine sees *now*, not against a frame from before its last
+action. An empty answer ("no screen: the verifier saw nothing") is
+a failure, not a pass.
+
+The web UI's Machines tab (M4.5) builds on these routes: the machine
+list, a live screen view that re-fetches every 2 s, a Take-control
+toggle that maps clicks on the rendered frame to screen pixels and
+posts `machines-input`, a phrase box that grounds and draws the
+match markers, and a Check-done button that shows the verifier's
+note with the remaining budget beside it.

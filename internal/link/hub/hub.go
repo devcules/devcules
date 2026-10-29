@@ -89,6 +89,7 @@ type Hub struct {
 
 	mu       sync.RWMutex
 	links    map[string]*linkConn
+	roles    map[string]string // link name -> "runner" | "machine"
 	handlers map[string]HandlerFunc
 	watchers []ChangeFunc
 	// events queue membership changes in map order; delivering marks
@@ -106,6 +107,7 @@ func New(expected [32]byte, opt Options) *Hub {
 		expected: expected,
 		opt:      opt.withDefaults(),
 		links:    map[string]*linkConn{},
+		roles:    map[string]string{},
 		handlers: map[string]HandlerFunc{},
 	}
 }
@@ -145,11 +147,26 @@ func (h *Hub) OnChange(fn ChangeFunc) {
 // uses it to pick the only runner (or require ?runner= when several
 // are linked); sorting keeps logs and errors deterministic.
 func (h *Hub) Runners() []string {
+	return h.roleNames("runner")
+}
+
+// Machines returns the sorted names of the live machine links. The
+// machine relay uses it to pick the only machine (or require
+// ?machine= when several are enrolled); sorting keeps logs and
+// errors deterministic.
+func (h *Hub) Machines() []string {
+	return h.roleNames("machine")
+}
+
+// roleNames lists the live links of one role, sorted.
+func (h *Hub) roleNames(role string) []string {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	names := make([]string, 0, len(h.links))
-	for name := range h.links {
-		names = append(names, name)
+	for name, r := range h.roles {
+		if r == role {
+			names = append(names, name)
+		}
 	}
 	sort.Strings(names)
 	return names
@@ -344,6 +361,7 @@ func (h *Hub) serve(ctx context.Context, conn *websocket.Conn) {
 		settle(old.conn, websocket.StatusCode(replacedCode), reasonReplaced, 5*time.Second)
 	}
 	h.links[hello.Name] = l
+	h.roles[hello.Name] = hello.Role
 	h.notifyLocked(hello.Name, true)
 	h.mu.Unlock()
 

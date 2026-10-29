@@ -4,6 +4,12 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-29, M4.1)
+
+- `internal/machines`: enrolment service (`Issuer.Mint/Redeem`) and ed25519 `NewNonce/Verify`; migration `0008` with `enrol_codes` + `machines` tables; store repos `Machines/EnrolCodes` with sqlite + storetest coverage; M4.1 diagram lane.
+- Link protocol now accepts `machine`. API serves `/api/machines` (issue + redeem flow); CLI supports `devcules machine enrol`.
+- Docs carry the new machine facts — `docs/link.md` gains a Machines section documenting codes, nonces and challenges.
+
 ### Added (2026-10-29, M3.4)
 
 - `plugins/providers/anthropic` and `plugins/providers/openai`: router providers for

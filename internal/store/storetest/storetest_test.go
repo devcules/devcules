@@ -33,6 +33,8 @@ type memDB struct {
 	traces    []store.TraceCall
 	approvals []store.Approval
 	push      []store.PushSubscription
+	machines  map[string]store.Machine
+	enrol     map[string]store.EnrolCode
 	closed    map[*memStore]bool
 }
 
@@ -93,6 +95,8 @@ func (s *memStore) Approvals() store.ApprovalsRepo {
 func (s *memStore) PushSubscriptions() store.PushSubscriptionsRepo {
 	return memPush{memLaunches{db: s.db, s: s}}
 }
+func (s *memStore) Machines() store.MachinesRepo     { return memMachines{memLaunches{db: s.db, s: s}} }
+func (s *memStore) EnrolCodes() store.EnrolCodesRepo { return memEnrol{memLaunches{db: s.db, s: s}} }
 
 // memApprovals and memPush reuse memLaunches' lock too.
 type memApprovals struct{ memLaunches }
@@ -986,4 +990,144 @@ func TestRunCatchesBroken(t *testing.T) {
 	if !strings.Contains(string(out), "FAIL: TestBrokenProbe") {
 		t.Fatalf("probe failed without the suite running:\n%s", out)
 	}
+}
+
+type memMachines struct{ memLaunches }
+
+func (r memMachines) Create(ctx context.Context, m store.Machine) error {
+	if err := r.lock(ctx); err != nil {
+		return err
+	}
+	defer r.db.mu.Unlock()
+	for _, o := range r.db.machines {
+		if o.ID == m.ID || o.Name == m.Name {
+			return fmt.Errorf("store: machine exists: %w", store.ErrExists)
+		}
+	}
+	r.db.machines[m.ID] = m
+	return nil
+}
+func (r memMachines) Get(ctx context.Context, id string) (store.Machine, error) {
+	if err := r.lock(ctx); err != nil {
+		return store.Machine{}, err
+	}
+	defer r.db.mu.Unlock()
+	m, ok := r.db.machines[id]
+	if !ok {
+		return store.Machine{}, fmt.Errorf("store: machine not found: %w", store.ErrNotFound)
+	}
+	return m, nil
+}
+func (r memMachines) GetByName(ctx context.Context, name string) (store.Machine, error) {
+	if err := r.lock(ctx); err != nil {
+		return store.Machine{}, err
+	}
+	defer r.db.mu.Unlock()
+	for _, m := range r.db.machines {
+		if m.Name == name {
+			return m, nil
+		}
+	}
+	return store.Machine{}, fmt.Errorf("store: machine name not found: %w", store.ErrNotFound)
+}
+func (r memMachines) List(ctx context.Context) ([]store.Machine, error) {
+	if err := r.lock(ctx); err != nil {
+		return nil, err
+	}
+	defer r.db.mu.Unlock()
+	out := make([]store.Machine, 0, len(r.db.machines))
+	for _, m := range r.db.machines {
+		out = append(out, m)
+	}
+	return out, nil
+}
+func (r memMachines) Touch(ctx context.Context, id string, at time.Time) error {
+	if err := r.lock(ctx); err != nil {
+		return err
+	}
+	defer r.db.mu.Unlock()
+	m := r.db.machines[id]
+	if m.ID == "" {
+		return fmt.Errorf("store: machine not found: %w", store.ErrNotFound)
+	}
+	m.LastSeen = at
+	r.db.machines[id] = m
+	return nil
+}
+func (r memMachines) Delete(ctx context.Context, id string) error {
+	if err := r.lock(ctx); err != nil {
+		return err
+	}
+	defer r.db.mu.Unlock()
+	delete(r.db.machines, id)
+	return nil
+}
+
+type memEnrol struct{ memLaunches }
+
+func (r memEnrol) Create(ctx context.Context, c store.EnrolCode) error {
+	if err := r.lock(ctx); err != nil {
+		return err
+	}
+	defer r.db.mu.Unlock()
+	for _, o := range r.db.enrol {
+		if string(o.CodeHash) == string(c.CodeHash) || o.ID == c.ID {
+			return fmt.Errorf("store: enrol exists: %w", store.ErrExists)
+		}
+	}
+	r.db.enrol[c.ID] = c
+	return nil
+}
+func (r memEnrol) GetByHash(ctx context.Context, hash []byte) (store.EnrolCode, error) {
+	if err := r.lock(ctx); err != nil {
+		return store.EnrolCode{}, err
+	}
+	defer r.db.mu.Unlock()
+	for _, c := range r.db.enrol {
+		if string(c.CodeHash) == string(hash) {
+			return c, nil
+		}
+	}
+	return store.EnrolCode{}, fmt.Errorf("store: enrol not found: %w", store.ErrNotFound)
+}
+func (r memEnrol) Use(ctx context.Context, id string, at time.Time) error {
+	if err := r.lock(ctx); err != nil {
+		return err
+	}
+	defer r.db.mu.Unlock()
+	c := r.db.enrol[id]
+	if c.ID == "" || !c.UsedAt.IsZero() {
+		return fmt.Errorf("store: enrol use: %w", store.ErrExists)
+	}
+	c.UsedAt = at
+	r.db.enrol[id] = c
+	return nil
+}
+func (r memEnrol) DeleteExpired(ctx context.Context, before time.Time) (int, error) {
+	if err := r.lock(ctx); err != nil {
+		return 0, err
+	}
+	defer r.db.mu.Unlock()
+	n := 0
+	for k, c := range r.db.enrol {
+		if !c.UsedAt.IsZero() {
+			continue
+		}
+		if c.ExpiresAt.Before(before) {
+			delete(r.db.enrol, k)
+			n++
+		}
+	}
+	return n, nil
+}
+func (r memEnrol) List(_ context.Context) ([]store.EnrolCode, error) {
+	if err := r.lock(nil); err != nil {
+		return nil, err
+	}
+	defer r.db.mu.Unlock()
+	out := make([]store.EnrolCode, 0, len(r.db.enrol))
+	for _, c := range r.db.enrol {
+		out = append(out, c)
+	}
+	return out, nil
 }

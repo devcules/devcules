@@ -61,6 +61,11 @@ type Store interface {
 	// Approvals returns the approval repo. It is approvals' repo: only
 	// internal/approvals and the store backends may use it.
 	Approvals() ApprovalsRepo
+	// Machines returns the enrolled-machine repo (M4.1: machines' repo).
+	Machines() MachinesRepo
+	// EnrolCodes returns the one-time enrolment code repo (M4.1).
+	EnrolCodes() EnrolCodesRepo
+
 	// PushSubscriptions returns the Web Push subscription repo. It is
 	// push's repo: only internal/push and the store backends may use
 	// it.
@@ -367,4 +372,38 @@ type PushSubscriptionsRepo interface {
 	// Delivered records an accepted push at at. A missing endpoint
 	// wraps ErrNotFound.
 	Delivered(ctx context.Context, endpoint string, at time.Time) error
+}
+
+type Machine struct {
+	ID         string
+	Name       string
+	PubKey     []byte
+	EnrolledAt time.Time
+	LastSeen   time.Time
+}
+
+type MachinesRepo interface {
+	Create(ctx context.Context, m Machine) error
+	Get(ctx context.Context, id string) (Machine, error)
+	GetByName(ctx context.Context, name string) (Machine, error)
+	List(ctx context.Context) ([]Machine, error)
+	Touch(ctx context.Context, id string, at time.Time) error
+	Delete(ctx context.Context, id string) error
+}
+
+type EnrolCode struct {
+	ID        string
+	CodeHash  []byte
+	Label     string
+	CreatedAt time.Time
+	ExpiresAt time.Time
+	UsedAt    time.Time
+}
+
+type EnrolCodesRepo interface {
+	Create(ctx context.Context, c EnrolCode) error
+	GetByHash(ctx context.Context, hash []byte) (EnrolCode, error)
+	Use(ctx context.Context, id string, at time.Time) error
+	DeleteExpired(ctx context.Context, before time.Time) (int, error)
+	List(ctx context.Context) ([]EnrolCode, error)
 }

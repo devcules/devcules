@@ -67,13 +67,13 @@ func setEnv(t *testing.T, vars map[string]string) {
 func baseConfig() Config {
 	dataDir := filepath.Join("/test/home", ".local", "share", "devcules")
 	return Config{
-		Role:            "serve",
-		Listen:          "127.0.0.1:7659",
-		DataDir:         dataDir,
-		ServeURL:        "http://serve:7659",
-		VaultKey:        validKey,
-		RunnerTokenFile: filepath.Join(dataDir, "runner.token"),
-		Workspace:       "/workspace",
+		Role:             "serve",
+		Listen:           "127.0.0.1:7659",
+		DataDir:          dataDir,
+		ServeURL:         "http://serve:7659",
+		VaultKey:         validKey,
+		RunnerTokenFile:  filepath.Join(dataDir, "runner.token"),
+		Workspace:        "/workspace",
 		MetaBaseURL:      "https://api.meta.ai",
 		AnthropicBaseURL: "https://api.anthropic.com",
 		OpenAIBaseURL:    "https://api.openai.com",

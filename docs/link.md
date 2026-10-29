@@ -50,7 +50,7 @@ Close codes and reasons:
 | Condition | Code | Reason |
 |---|---|---|
 | unsupported `v` | 1008 | `unsupported link version` |
-| unknown `role` (incl. `machine` until M4.1) | 1008 | `unknown role` |
+| unknown `role` | 1008 | `unknown role` |
 | no `hello` within 10 s (or first frame unusable) | 1008 | `no hello` |
 | duplicate runner name | 4000 | `replaced` (old link retires) |
 | serve or runner shutting down | 1001 | `serve shutdown` / `runner shutdown` |
@@ -72,6 +72,16 @@ and the token file.
 Any `Origin` header is rejected with 403: browsers always send one
 and the runner never does, so this blocks cross-site socket hijacking
 even with a leaked token. `/link` never reads the session cookie.
+
+## Machines
+
+Machines enrol via a one-time code that serve mints (`machines.Issuer.Mint`, code shown once,
+only its hash stored). A machine redeems it with its ed25519 pubkey; thereafter it
+authenticates on `GET /link` with `hello{role:"machine", name:"…"}`, plus an ephemeral
+nonce challenge: serve issues a server nonce, the machine signs it with its key (verified in
+`machines.Verify`). Nonces are memory-only and single-use. See `internal/machines`.
+
+Machines are a peer of runners on the link — same heartbeat, liveness, and reconnect rules.
 
 ## Token lifecycle
 

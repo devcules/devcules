@@ -229,7 +229,7 @@ func TestHandshakeFailures(t *testing.T) {
 		wantReason string
 	}{
 		{name: "unsupported version", first: `{"v":2,"type":"hello","id":"1","data":{"role":"runner","name":"r","version":"v"}}`, wantCode: websocket.StatusPolicyViolation, wantReason: "unsupported link version"},
-		{name: "unknown role", first: `{"v":1,"type":"hello","id":"1","data":{"role":"machine","name":"m","version":"v"}}`, wantCode: websocket.StatusPolicyViolation, wantReason: "unknown role"},
+		{name: "unknown role", first: `{"v":1,"type":"hello","id":"1","data":{"role":"bogus","name":"m","version":"v"}}`, wantCode: websocket.StatusPolicyViolation, wantReason: "unknown role"},
 		{name: "not hello", first: `{"v":1,"type":"welcome","id":"1","data":{"session":"s"}}`, wantCode: websocket.StatusPolicyViolation, wantReason: "no hello"},
 		{name: "garbage", first: `{{{`, wantCode: websocket.StatusPolicyViolation, wantReason: "no hello"},
 		{name: "no hello", first: ``, wantCode: websocket.StatusPolicyViolation, wantReason: "no hello"},

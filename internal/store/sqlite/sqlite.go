@@ -150,6 +150,12 @@ func (s *sqliteStore) LaunchTokens() store.LaunchTokensRepo {
 	return launchTokensRepo{db: s.db}
 }
 
+// Machines returns the machine registry.
+func (s *sqliteStore) Machines() store.MachinesRepo { return machinesRepo{db: s.db} }
+
+// EnrolCodes returns the enrolment-code repo.
+func (s *sqliteStore) EnrolCodes() store.EnrolCodesRepo { return enrolCodesRepo{db: s.db} }
+
 // Audit returns audit's append-only repo.
 func (s *sqliteStore) Audit() store.AuditRepo {
 	return auditRepo{db: s.db}

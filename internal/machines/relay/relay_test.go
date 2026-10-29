@@ -185,6 +185,18 @@ func machineRelayFixture(t *testing.T) (*Relay, *fakeMachine) {
 	mux.Handle("/link", h.Handler())
 	pipe := linktest.Serve(t, mux)
 	fake := runFakeMachine(t, pipe, context.Background(), "kitchen-mac")
+	// The dial registers with the hub asynchronously; a request racing
+	// it answers "no machine linked" even though the fixture is about
+	// to have one. Wait for the hub's view, exactly like the terminal
+	// tests wait for their runner.
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		if len(h.Machines()) == 1 {
+			return r, fake
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatal("the fake machine never linked")
 	return r, fake
 }
 

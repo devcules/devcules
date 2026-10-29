@@ -51,6 +51,15 @@ func machviewFixture(t *testing.T, linked bool) (http.Handler, string) {
 	if linked {
 		pipe := linktest.Serve(t, mux)
 		linkFakeMachine(t, pipe, "kitchen-mac")
+		// The dial registers asynchronously; wait for the hub's view
+		// so a request never races the link into "no machine linked".
+		deadline := time.Now().Add(10 * time.Second)
+		for time.Now().Before(deadline) {
+			if len(h.Machines()) == 1 {
+				break
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
 	}
 	return mux, sessionCookie(t, mux, password)
 }

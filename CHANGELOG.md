@@ -4,6 +4,10 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Fixed (2026-10-29, M4.5 follow-up)
+
+- tests: the machine relay fixtures returned before the fake machine's dial registered with the hub; on slower runners the first request raced the link into "no machine linked". Both fixtures now wait for the hub's view, like the terminal tests always did.
+
 ### Added (2026-10-29, M4.5)
 
 - `internal/machines/relay` + `internal/api/machview.go`: task view and take control (closes #23). Serve relays the machframes protocol to linked machines over the hub (pending-map request/reply correlation by frame id, 5 s round trip, mirroring the terminal relay) and exposes it session-guarded: `GET /api/machines` (names + mirrored budget), `GET /api/machines-screen` (PNG), `GET /api/machines-tree`, `POST /api/machines-input` (take control — the budget is spent at the machine, which refuses at zero), `POST /api/machines-ground` (SAM matches with click points), `POST /api/machines-verify` (the done-verifier: fresh capture + tree + note, so success is judged on the live screen) and `GET /api/machines-budget`. Zero machines is 503; several need `?machine=`. `cmd/devcules/serve.go` now wires the machine relay and passes `Enrol: machines.NewIssuer(s)` to the API options (the enrol routes were still behind a nil issuer there). The dial client learned a `Role` option so machine helpers link with `hello{role:"machine"}` and the hub lists them under `Machines()` apart from runners.

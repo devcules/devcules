@@ -37,3 +37,15 @@ test('terminals tab', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'New terminal' })).toBeVisible();
   await expect(page).toHaveScreenshot({ animations: 'disabled', caret: 'hide' });
 });
+
+test('settings', async ({ page }) => {
+  const signedIn = await page.request.post('/auth/sign-in', {
+    form: { username: 'admin', password },
+  });
+  expect(signedIn.status()).toBe(204);
+  await page.goto('/');
+  await expect(page.getByText('Nothing needs you.')).toBeVisible();
+  await page.getByRole('button', { name: 'Settings', exact: true }).first().click();
+  await expect(page.getByRole('button', { name: 'Add a passkey' })).toBeVisible();
+  await expect(page).toHaveScreenshot({ animations: 'disabled', caret: 'hide' });
+});

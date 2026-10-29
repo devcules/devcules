@@ -79,7 +79,7 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 	// streams retire with 1012 when their runner unlinks.
 	terms := relay.New(h, cfg.PublicURL)
 	terms.Run()
-	authSvc := auth.New(s)
+	authSvc := auth.New(s, auth.WithPasskeys(cfg.PublicURL, log))
 	password, created, err := authSvc.EnsureAdmin(context.Background())
 	if err != nil {
 		fmt.Fprintln(stderr, err.Error())

@@ -4,6 +4,41 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-28, M1.5)
+
+- Passkeys (WebAuthn): registration while signed in, usernameless
+  sign-in, and Settings management (rename, remove with confirm), on
+  `github.com/go-webauthn/webauthn` v0.18.2 (BSD-3-Clause) server-side
+  and `navigator.credentials` with our own base64url helpers in the
+  browser (no library). Resident key and user verification required,
+  attestation `none`, ES256/EdDSA; passkey sign-in opens a session
+  exactly like a password sign-in.
+- The RP id and origin come from `DEVCULES_PUBLIC_URL`: passkeys work
+  on `http://localhost:7659` and https names (e.g. via `tailscale
+  serve`), and stay off — with the reason in plain words — without a
+  public URL or on an IP host. The admin password always keeps
+  working and can never be removed.
+- Challenges are 32 random bytes, single use, expiring after 5
+  minutes, in an in-memory map (1,000 max) keyed by a ceremony id
+  cookie; a `serve` restart cancels in-flight ceremonies. Sign
+  counter enforced (both non-zero and not advancing rejects with a
+  `possible cloned passkey` warning); synced keys reporting 0 are
+  fine. See `docs/auth.md`.
+- Hardening from the review list: at most 2 concurrent argon2id
+  verifications (extra sign-ins wait, bounded by the request
+  context), and the per-IP failures map is bounded at 10,000
+  addresses (oldest evicted). Password and passkey sign-ins share
+  the limiter.
+- e2e passkeys spec (CDP virtual authenticator, own `localhost`
+  base URL): password sign-in, add a key, sign out, passkey sign-in,
+  remove it, passkey sign-in fails, password still works. The e2e
+  job starts the stack with
+  `DEVCULES_PUBLIC_URL=http://localhost:7659`, and the visual suite
+  runs at that name.
+- The passkey UI hides itself on a page opened at an IP address
+  (WebAuthn refuses those), and an autofill passkey the server
+  refuses now says so instead of failing silently.
+
 ### Added (2026-10-28, M1.4)
 
 - `internal/link/hub`: `Runners()` lists the live runner names

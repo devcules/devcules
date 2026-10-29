@@ -7,10 +7,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/devcules/devcules/internal/store"
+	"github.com/go-webauthn/webauthn/webauthn"
 )
 
 // AdminUsername is the single bootstrap login. There are no roles in
@@ -44,6 +47,18 @@ const (
 	SignInWindow      = time.Minute
 )
 
+// maxFailureIPs bounds the per-IP failures map: past this many
+// tracked addresses, recording a new one evicts the address whose
+// oldest failure is earliest. Attackers cannot grow the map without
+// bound, and eviction only forgets old failures, never grants access.
+const maxFailureIPs = 10000
+
+// maxArgonHashes caps concurrent argon2id verifications. One hash
+// holds 64 MiB briefly, so unbounded sign-ins would let a login flood
+// exhaust memory; extra sign-ins wait their turn, bounded by the
+// request context.
+const maxArgonHashes = 2
+
 // tokenBytes is the session entropy: 32 random bytes, hex-encoded
 // for the cookie.
 const tokenBytes = 32
@@ -59,19 +74,45 @@ var (
 	ErrUnauthorized = errors.New("auth: unauthorized")
 )
 
-// Service is password auth over the store's Users and Sessions repos.
-// The zero value is not usable; call New. Now is a clock seam for
+// Service is sign-in over the store's Users, Sessions and Passkeys
+// repos: passwords always, passkeys when WithPasskeys enables them.
+// The zero value is not usable; call New. now is a clock seam for
 // expiry tests; production always uses time.Now.
 type Service struct {
 	store    store.Store
 	mu       sync.Mutex
 	failures map[string][]time.Time
 	now      func() time.Time
+	argon    chan struct{}
+	log      *slog.Logger
+
+	// Passkey state, set once by WithPasskeys before serving. wa is
+	// nil when passkeys are off; passkeysOff then says why.
+	wa          *webauthn.WebAuthn
+	passkeysOff string
+	ceremonies  map[string]ceremony
+	// loginMu serializes passkey logins so the sign-counter
+	// check and its writeback are one atomic step.
+	loginMu sync.Mutex
 }
 
+// Option configures a Service. WithPasskeys is the only one.
+type Option func(*Service)
+
 // New returns a Service over s.
-func New(s store.Store) *Service {
-	return &Service{store: s, failures: map[string][]time.Time{}, now: time.Now}
+func New(s store.Store, opts ...Option) *Service {
+	a := &Service{
+		store:      s,
+		failures:   map[string][]time.Time{},
+		now:        time.Now,
+		argon:      make(chan struct{}, maxArgonHashes),
+		log:        slog.New(slog.NewTextHandler(io.Discard, nil)),
+		ceremonies: map[string]ceremony{},
+	}
+	for _, opt := range opts {
+		opt(a)
+	}
+	return a
 }
 
 // EnsureAdmin creates the admin user on first start and returns its
@@ -114,7 +155,42 @@ func (a *Service) EnsureAdmin(ctx context.Context) (password string, created boo
 // no proxy headers are trusted (there is no proxy in M1.1).
 func (a *Service) SignIn(ctx context.Context, username, password, clientIP string) (string, error) {
 	now := a.now()
+	if a.overLimit(clientIP, now) {
+		return "", ErrTooManyAttempts
+	}
+	fail := func() (string, error) {
+		a.recordFailure(clientIP, now)
+		return "", ErrInvalidCredentials
+	}
+
+	hash, err := a.store.Users().PasswordHash(ctx, username)
+	if err != nil {
+		if !errors.Is(err, store.ErrNotFound) {
+			return "", fmt.Errorf("auth: cannot look up user: %w", err)
+		}
+		if err := a.checkDummy(ctx); err != nil {
+			return "", err
+		}
+		return fail()
+	}
+	ok, err := a.checkPassword(ctx, hash, password)
+	if err != nil {
+		return "", err
+	}
+	if !ok {
+		return fail()
+	}
+
+	a.clearFailures(clientIP)
+	return a.mintSession(ctx, username, now)
+}
+
+// overLimit prunes the IP's failures outside the window and reports
+// whether the survivors reach the limit. Password and passkey
+// sign-ins share this limiter and its map.
+func (a *Service) overLimit(clientIP string, now time.Time) bool {
 	a.mu.Lock()
+	defer a.mu.Unlock()
 	var kept []time.Time
 	for _, f := range a.failures[clientIP] {
 		if now.Sub(f) < SignInWindow {
@@ -126,34 +202,77 @@ func (a *Service) SignIn(ctx context.Context, username, password, clientIP strin
 	} else {
 		a.failures[clientIP] = kept
 	}
-	over := len(kept) >= MaxSignInFailures
-	a.mu.Unlock()
-	if over {
-		return "", ErrTooManyAttempts
-	}
-	fail := func() (string, error) {
-		a.mu.Lock()
-		a.failures[clientIP] = append(a.failures[clientIP], now)
-		a.mu.Unlock()
-		return "", ErrInvalidCredentials
-	}
+	return len(kept) >= MaxSignInFailures
+}
 
-	hash, err := a.store.Users().PasswordHash(ctx, username)
-	if err != nil {
-		if !errors.Is(err, store.ErrNotFound) {
-			return "", fmt.Errorf("auth: cannot look up user: %w", err)
-		}
-		CheckDummyPassword()
-		return fail()
-	}
-	if !CheckPassword(hash, password) {
-		return fail()
-	}
-
+// recordFailure notes one more failure for the IP. A new address past
+// the map bound evicts the address with the oldest failure: the map
+// stays small, and eviction only forgets old failures.
+func (a *Service) recordFailure(clientIP string, now time.Time) {
 	a.mu.Lock()
-	delete(a.failures, clientIP)
-	a.mu.Unlock()
+	defer a.mu.Unlock()
+	if _, known := a.failures[clientIP]; !known && len(a.failures) >= maxFailureIPs {
+		// Every entry holds at least one failure: recordFailure only
+		// appends, and overLimit deletes empties instead of storing
+		// them.
+		oldest, at := "", now
+		first := true
+		for ip, failures := range a.failures {
+			if first || failures[0].Before(at) {
+				oldest, at, first = ip, failures[0], false
+			}
+		}
+		delete(a.failures, oldest)
+	}
+	a.failures[clientIP] = append(a.failures[clientIP], now)
+}
 
+// clearFailures forgets the IP's failures after a success, so a
+// legitimate user who mistypes is never locked out.
+func (a *Service) clearFailures(clientIP string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	delete(a.failures, clientIP)
+}
+
+// checkPassword verifies the password against its hash, waiting for
+// an argon2id slot first. A cancelled wait fails with the context,
+// not as invalid credentials: the caller stopped listening.
+func (a *Service) checkPassword(ctx context.Context, hash, password string) (bool, error) {
+	release, err := a.argonSlot(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer release()
+	return CheckPassword(hash, password), nil
+}
+
+// checkDummy burns one argon2id verification for an unknown username,
+// through the same slot as real verifications.
+func (a *Service) checkDummy(ctx context.Context) error {
+	release, err := a.argonSlot(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
+	CheckDummyPassword()
+	return nil
+}
+
+// argonSlot waits for one of the maxArgonHashes concurrent hash
+// slots. The wait is bounded by ctx.
+func (a *Service) argonSlot(ctx context.Context) (func(), error) {
+	select {
+	case a.argon <- struct{}{}:
+		return func() { <-a.argon }, nil
+	case <-ctx.Done():
+		return nil, fmt.Errorf("auth: waiting for a password check: %w", ctx.Err())
+	}
+}
+
+// mintSession opens a session for username and returns the raw cookie
+// value. Only the value's SHA-256 reaches the store.
+func (a *Service) mintSession(ctx context.Context, username string, now time.Time) (string, error) {
 	raw := make([]byte, tokenBytes)
 	if _, err := rand.Read(raw); err != nil {
 		return "", fmt.Errorf("auth: cannot mint session: %w", err)

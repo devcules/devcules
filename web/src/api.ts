@@ -46,6 +46,240 @@ export async function signOut(): Promise<void> {
   await fetch('/auth/sign-out', { method: 'POST' });
 }
 
+// Passkeys. Ceremony posts carry JSON; a dead server is always
+// 'unreachable', and only the session-carrying calls can answer
+// 'unauthorized' (the app returns to sign-in on those).
+export type PasskeyStatus = { enabled: true } | { enabled: false; reason: string };
+
+export async function passkeyStatus(): Promise<PasskeyStatus | 'unreachable'> {
+  let res: Response;
+  try {
+    res = await fetch('/auth/passkeys/status');
+  } catch {
+    return 'unreachable';
+  }
+  if (!res.ok) {
+    return 'unreachable';
+  }
+  let data: unknown;
+  try {
+    data = await res.json();
+  } catch {
+    return 'unreachable';
+  }
+  if (typeof data === 'object' && data !== null && 'enabled' in data) {
+    if (data.enabled === true) {
+      return { enabled: true };
+    }
+    if (data.enabled === false) {
+      const reason =
+        'reason' in data && typeof data.reason === 'string' ? data.reason : 'Passkeys are off.';
+      return { enabled: false, reason };
+    }
+  }
+  return 'unreachable';
+}
+
+async function passkeyPost(path: string, body?: unknown): Promise<Response | 'unreachable'> {
+  try {
+    return await fetch(
+      path,
+      body === undefined
+        ? { method: 'POST' }
+        : {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          },
+    );
+  } catch {
+    return 'unreachable';
+  }
+}
+
+async function passkeyOptions(res: Response): Promise<{ options: unknown } | 'unreachable'> {
+  try {
+    return { options: (await res.json()) as unknown };
+  } catch {
+    return 'unreachable';
+  }
+}
+
+// A begin answers 400 only when passkeys are off (the server has no
+// other 400 path there); the screen then re-reads the status reason.
+export async function beginRegisterPasskey(): Promise<
+  { options: unknown } | 'unauthorized' | 'disabled' | 'unreachable'
+> {
+  const res = await passkeyPost('/auth/passkeys/register/begin');
+  if (res === 'unreachable') {
+    return 'unreachable';
+  }
+  if (res.status === 401) {
+    return 'unauthorized';
+  }
+  if (res.status === 200) {
+    return passkeyOptions(res);
+  }
+  if (res.status === 400) {
+    return 'disabled';
+  }
+  return 'unreachable';
+}
+
+export async function finishRegisterPasskey(
+  payload: unknown,
+): Promise<'created' | 'unauthorized' | 'invalid' | 'unreachable'> {
+  const res = await passkeyPost('/auth/passkeys/register/finish', payload);
+  if (res === 'unreachable') {
+    return 'unreachable';
+  }
+  if (res.status === 401) {
+    return 'unauthorized';
+  }
+  if (res.status === 201) {
+    return 'created';
+  }
+  if (res.status === 400) {
+    return 'invalid';
+  }
+  return 'unreachable';
+}
+
+export async function beginPasskeyLogin(): Promise<
+  { options: unknown } | 'disabled' | 'unreachable'
+> {
+  const res = await passkeyPost('/auth/passkeys/login/begin');
+  if (res === 'unreachable') {
+    return 'unreachable';
+  }
+  if (res.status === 200) {
+    return passkeyOptions(res);
+  }
+  if (res.status === 400) {
+    return 'disabled';
+  }
+  return 'unreachable';
+}
+
+// A failed assertion is 401; a stale ceremony or a server fault is
+// never blamed on the key: both read as a plain failure, and the
+// next try begins a fresh ceremony.
+export async function finishPasskeyLogin(
+  payload: unknown,
+): Promise<'ok' | 'failed' | 'limited' | 'unreachable'> {
+  const res = await passkeyPost('/auth/passkeys/login/finish', payload);
+  if (res === 'unreachable') {
+    return 'unreachable';
+  }
+  if (res.status === 204) {
+    return 'ok';
+  }
+  if (res.status === 401 || res.status === 400) {
+    return 'failed';
+  }
+  if (res.status === 429) {
+    return 'limited';
+  }
+  return 'unreachable';
+}
+
+export type PasskeySummary = {
+  id: string;
+  name: string;
+  created: number;
+  lastUsed: number;
+  backedUp: boolean;
+};
+
+export async function listPasskeys(): Promise<
+  { passkeys: PasskeySummary[] } | 'unauthorized' | 'unreachable'
+> {
+  let res: Response;
+  try {
+    res = await fetch('/api/passkeys');
+  } catch {
+    return 'unreachable';
+  }
+  if (res.status === 401) {
+    return 'unauthorized';
+  }
+  if (!res.ok) {
+    return 'unreachable';
+  }
+  let data: unknown;
+  try {
+    data = await res.json();
+  } catch {
+    return 'unreachable';
+  }
+  if (typeof data === 'object' && data !== null && 'passkeys' in data && Array.isArray(data.passkeys)) {
+    return {
+      passkeys: data.passkeys.filter(
+        (p): p is PasskeySummary =>
+          typeof p === 'object' &&
+          p !== null &&
+          'id' in p &&
+          typeof p.id === 'string' &&
+          'name' in p &&
+          typeof p.name === 'string' &&
+          'created' in p &&
+          typeof p.created === 'number' &&
+          'lastUsed' in p &&
+          typeof p.lastUsed === 'number' &&
+          'backedUp' in p &&
+          typeof p.backedUp === 'boolean',
+      ),
+    };
+  }
+  return 'unreachable';
+}
+
+export async function renamePasskey(
+  id: string,
+  name: string,
+): Promise<true | 'unauthorized' | 'invalid' | 'missing' | 'unreachable'> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/passkeys/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+  } catch {
+    return 'unreachable';
+  }
+  if (res.status === 401) {
+    return 'unauthorized';
+  }
+  if (res.status === 204) {
+    return true;
+  }
+  if (res.status === 400) {
+    return 'invalid';
+  }
+  if (res.status === 404) {
+    return 'missing';
+  }
+  return 'unreachable';
+}
+
+export async function deletePasskey(id: string): Promise<true | 'unauthorized' | 'unreachable'> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/passkeys/${id}`, { method: 'DELETE' });
+  } catch {
+    return 'unreachable';
+  }
+  if (res.status === 401) {
+    return 'unauthorized';
+  }
+  // DELETE stays idempotent server-side: 204 either way.
+  if (res.status === 204) {
+    return true;
+  }
+  return 'unreachable';
+}
+
 export type TerminalSummary = { term: string; created: number };
 
 // Every terminal call resolves to one of these: data, an expired

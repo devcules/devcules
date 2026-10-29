@@ -35,13 +35,14 @@ type Options struct {
 	Terminals *relay.Relay
 }
 
-// Handler returns the M1.3 mux. /healthz, /readyz and GET /link stay
+// Handler returns the M1.5 mux. /healthz, /readyz and GET /link stay
 // public (/link authenticates with its own credential, never the session
-// cookie); POST /auth/sign-in is the public login call; the static
-// app (Web) is public too, since it holds no data; everything else
-// needs a live session and answers 401 without one. Only GET routes
-// are registered for reads: the mux itself answers 405 to wrong
-// methods. Every response carries the security headers.
+// cookie); POST /auth/sign-in is the public password call, the
+// passkey login pair and the passkey status read are public too; the
+// static app (Web) is public too, since it holds no data; everything
+// else needs a live session and answers 401 without one. Only GET
+// routes are registered for reads: the mux itself answers 405 to
+// wrong methods. Every response carries the security headers.
 func Handler(o Options) http.Handler {
 	// Patterns carry no method on purpose: the "/" catch-all below
 	// would swallow method-mismatched requests before the mux could
@@ -60,6 +61,20 @@ func Handler(o Options) http.Handler {
 	mux.Handle("/auth/sign-in", csrf(o.PublicURL, signIn(o.Auth)))
 	mux.Handle("/auth/sign-out", csrf(o.PublicURL, requireSession(o.Auth, signOut(o.Auth))))
 	mux.Handle("/auth/me", requireSession(o.Auth, me()))
+	// Passkey ceremonies: registration needs a session, sign-in is
+	// public, and every POST carries the CSRF check. The status read
+	// is public so the sign-in screen can ask before offering
+	// passkeys.
+	mux.Handle("/auth/passkeys/status", passkeyStatus(o.Auth))
+	mux.Handle("/auth/passkeys/register/begin", csrf(o.PublicURL, requireSession(o.Auth, passkeyRegisterBegin(o.Auth))))
+	mux.Handle("/auth/passkeys/register/finish", csrf(o.PublicURL, requireSession(o.Auth, passkeyRegisterFinish(o.Auth))))
+	mux.Handle("/auth/passkeys/login/begin", csrf(o.PublicURL, passkeyLoginBegin(o.Auth)))
+	mux.Handle("/auth/passkeys/login/finish", csrf(o.PublicURL, passkeyLoginFinish(o.Auth)))
+	// Passkey management sorts above "/" like the terminal routes:
+	// the mux prefers longer patterns, so /api/passkeys never falls
+	// through to the app shell.
+	mux.Handle("/api/passkeys", requireSession(o.Auth, passkeysRoot(o.Auth)))
+	mux.Handle("/api/passkeys/", requireSession(o.Auth, passkeyOne(o.Auth, o.PublicURL)))
 	// Terminal routes sort above "/": the mux prefers longer patterns,
 	// so /api/terminals never falls through to the app shell. The
 	// collection holds list and open; anything deeper is one terminal
@@ -187,20 +202,28 @@ func signIn(svc *auth.Service) http.HandlerFunc {
 			// never name files or drivers.
 			writeAuthError(w, http.StatusInternalServerError, "internal error")
 		default:
-			http.SetCookie(w, &http.Cookie{
-				Name:     auth.CookieName,
-				Value:    value,
-				Path:     "/",
-				HttpOnly: true,
-				Secure:   true,
-				SameSite: http.SameSiteStrictMode,
-				// The browser drops the cookie at the absolute
-				// timeout even if the server never sees it again.
-				MaxAge: int(auth.AbsoluteTimeout.Seconds()),
-			})
+			setSessionCookie(w, value)
 			w.WriteHeader(http.StatusNoContent)
 		}
 	}
+}
+
+// setSessionCookie files the session value: HttpOnly, Secure and
+// SameSite=Strict on Path=/, dropped by the browser at the absolute
+// timeout even if the server never sees it again. Password and
+// passkey sign-ins share it byte for byte.
+func setSessionCookie(w http.ResponseWriter, value string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     auth.CookieName,
+		Value:    value,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		// The browser drops the cookie at the absolute
+		// timeout even if the server never sees it again.
+		MaxAge: int(auth.AbsoluteTimeout.Seconds()),
+	})
 }
 
 // signOut closes the session and clears the cookie. It runs behind
@@ -242,11 +265,8 @@ func me() http.HandlerFunc {
 		if !requireMethod(w, r, http.MethodGet) {
 			return
 		}
-		username, ok := r.Context().Value(usernameKey{}).(string)
+		username, ok := requestUsername(r)
 		if !ok {
-			// Unreachable through requireSession, which always sets
-			// the username before calling on: a miswired mux must
-			// fail loudly, never as another user.
 			writeAuthError(w, http.StatusInternalServerError, "internal error")
 			return
 		}

@@ -43,6 +43,9 @@ type Store interface {
 	// Sessions returns the session repo. It is auth's repo: only auth
 	// and the store backends may use it.
 	Sessions() SessionsRepo
+	// Passkeys returns the passkey repo. It is auth's repo: only auth
+	// and the store backends may use it.
+	Passkeys() PasskeysRepo
 }
 
 // UsersRepo stores one argon2id hash per username. Passwords themselves
@@ -55,6 +58,11 @@ type UsersRepo interface {
 	// PasswordHash returns the stored hash, or an error wrapping
 	// ErrNotFound when the username is unknown.
 	PasswordHash(ctx context.Context, username string) (string, error)
+	// EnsureWebAuthnHandle returns the user's opaque WebAuthn user
+	// handle, minting 32 random bytes on first call. The handle is
+	// never the username, and it never changes once minted. An
+	// unknown username is an error wrapping ErrNotFound.
+	EnsureWebAuthnHandle(ctx context.Context, username string) ([]byte, error)
 }
 
 // Session is one login. TokenHash is the SHA-256 of the bearer token;
@@ -78,4 +86,48 @@ type SessionsRepo interface {
 	Touch(ctx context.Context, tokenHash string, at time.Time) error
 	// Delete removes the session. A missing session is not an error.
 	Delete(ctx context.Context, tokenHash string) error
+}
+
+// Passkey is one registered WebAuthn credential. ID is the credential
+// id, PublicKey its COSE-encoded public key; neither is secret, but
+// both are opaque to the store. SignCount is the authenticator's
+// signature counter at last use, AAGUID identifies the authenticator
+// model, and Transports names how it can be reached. BackupEligible
+// says the key may leave the device (a synced passkey), BackupState
+// says it has. Name is the user-facing label. Times are UTC.
+type Passkey struct {
+	ID             []byte
+	Username       string
+	PublicKey      []byte
+	SignCount      uint32
+	AAGUID         []byte
+	Transports     []string
+	BackupEligible bool
+	BackupState    bool
+	Name           string
+	CreatedAt      time.Time
+	LastUsedAt     time.Time
+}
+
+// PasskeysRepo stores WebAuthn credentials by credential id.
+type PasskeysRepo interface {
+	// Create stores a passkey. A duplicate credential id is an error
+	// wrapping ErrExists and never overwrites the stored row. An
+	// empty id, username, public key or name is an error.
+	Create(ctx context.Context, p Passkey) error
+	// ListByUser returns the user's passkeys, oldest first. An
+	// unknown username returns an empty list, not an error.
+	ListByUser(ctx context.Context, username string) ([]Passkey, error)
+	// Get returns the passkey, or an error wrapping ErrNotFound.
+	Get(ctx context.Context, id []byte) (Passkey, error)
+	// UpdateAfterLogin records a successful sign-in: the new sign
+	// count, the backup state the assertion reported, and when it
+	// happened. Nothing else changes. A missing passkey is an error
+	// wrapping ErrNotFound.
+	UpdateAfterLogin(ctx context.Context, id []byte, signCount uint32, backedUp bool, lastUsed time.Time) error
+	// Rename changes the user-facing label. An empty name is an
+	// error; a missing passkey is an error wrapping ErrNotFound.
+	Rename(ctx context.Context, id []byte, name string) error
+	// Delete removes the passkey. A missing passkey is not an error.
+	Delete(ctx context.Context, id []byte) error
 }

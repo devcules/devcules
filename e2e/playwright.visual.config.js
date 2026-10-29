@@ -11,7 +11,11 @@ export default defineConfig({
   fullyParallel: true,
   reporter: 'list',
   use: {
-    baseURL: process.env.E2E_BASE_URL || 'http://127.0.0.1:7659',
+    // localhost, not 127.0.0.1: the stack runs with
+    // DEVCULES_PUBLIC_URL=http://localhost:7659 (RP ID localhost), and
+    // WebAuthn ceremonies only complete on localhost or https — a page
+    // on 127.0.0.1 could show the button but never finish one.
+    baseURL: process.env.E2E_BASE_URL || 'http://localhost:7659',
   },
   projects: [
     { name: 'desktop-dark', use: { browserName: 'chromium', viewport: { width: 1280, height: 800 }, colorScheme: 'dark' } },

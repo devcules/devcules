@@ -4,6 +4,7 @@ package elements
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"testing"
 	"time"
@@ -48,7 +49,13 @@ func TestDarwinDriverWiring(t *testing.T) {
 // walker when swiftc exists — the fixture shapes stay pinned to what
 // the real script prints. Skipped without swiftc or an AX-permitted
 // session; CI (Linux) never runs it.
+//
+// Opt-in (DEVCULES_LIVE_MAC=1): the walker's AX calls make macOS ask
+// for Accessibility on behalf of whatever started `go test`.
 func TestDarwinDriverRealWalker(t *testing.T) {
+	if os.Getenv("DEVCULES_LIVE_MAC") != "1" {
+		t.Skip("live macOS walker is opt-in: DEVCULES_LIVE_MAC=1")
+	}
 	if _, err := exec.LookPath("swiftc"); err != nil {
 		t.Skip("no swiftc")
 	}

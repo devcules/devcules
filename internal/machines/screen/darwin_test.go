@@ -14,7 +14,14 @@ const defaultTestTimeout = 5 * time.Second
 // TestDarwinCapture takes one real capture when the tool is there. A
 // headless or unpermitted session may refuse; that must be an error,
 // never a nil image without one.
+//
+// It is opt-in (DEVCULES_LIVE_MAC=1): the first capture makes macOS ask
+// the person at the keyboard for Screen Recording on behalf of whatever
+// started `go test`, which a routine test run must never do.
 func TestDarwinCapture(t *testing.T) {
+	if os.Getenv("DEVCULES_LIVE_MAC") != "1" {
+		t.Skip("live macOS capture is opt-in: DEVCULES_LIVE_MAC=1")
+	}
 	d, err := New()
 	if err != nil {
 		t.Skipf("screencapture unavailable: %s", err)

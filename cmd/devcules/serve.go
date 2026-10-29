@@ -23,7 +23,9 @@ import (
 	"github.com/devcules/devcules/internal/store/sqlite"
 	"github.com/devcules/devcules/internal/terminals/relay"
 	"github.com/devcules/devcules/internal/web"
+	"github.com/devcules/devcules/plugins/providers/anthropic"
 	"github.com/devcules/devcules/plugins/providers/meta"
+	"github.com/devcules/devcules/plugins/providers/openai"
 )
 
 // drainTimeout bounds graceful shutdown: serve stops accepting, drains
@@ -88,7 +90,7 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 	go pruneTracesDaily(pruneCtx, 24*time.Hour, traces, cfg.TraceDays, log)
 	llm, err := router.New(router.Options{
 		Tracer:    traces,
-		Providers: []router.Provider{meta.New(cfg.MetaBaseURL)},
+		Providers: []router.Provider{meta.New(cfg.MetaBaseURL), anthropic.New(cfg.AnthropicBaseURL), openai.New(cfg.OpenAIBaseURL)},
 		Keys:      v,
 		Tokens:    launches,
 		Redactor:  redactor,

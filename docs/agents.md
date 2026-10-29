@@ -1,4 +1,4 @@
-# Agents (M3.3)
+# Agents (M3.4)
 
 A coding agent CLI runs in a terminal of its own on a runner, with
 everything it needs to go through Devcules: its model calls through
@@ -13,6 +13,8 @@ manager behind the small `pty.Launcher` interface.
 | Agent | Package | Provider | Since |
 |---|---|---|---|
 | Muse Code | `plugins/agents/musecode` | `meta` | M3.3 |
+| Claude Code | `plugins/agents/claudecode` | `anthropic` | M3.4 |
+| Muse | `plugins/agents/codex` | `openai` | M3.4 |
 
 ## A launch
 
@@ -81,6 +83,20 @@ The hook answers Muse the way its docs say: exit `0` with no output
 allows, exit `2` with the reason on stderr blocks. Any other exit
 would let the call through (Muse fails open), so the adapter never
 uses one.
+
+
+## Claude Code
+
+Facts in `docs/integrations.md`. The adapter detects `claude --version`, writes a private
+`settings.json` pointing at the `anthropic` provider's router URL (`ANTHROPIC_BASE_URL`)
+with the launch token as the key, installs the hook, and runs `claude --model <model>`.
+
+## Muse
+
+Facts in `docs/integrations.md`. The adapter detects `codex --version`, writes its private
+`codex/config.json` pointing at the `openai` provider's router (`OPENAI_BASE_URL`), the MCP
+server with bearer auth, and the hook as a `pre_exec_command` (timeout 960 s), then runs
+`codex --model <model>`.
 
 ## Routes (serve, session required)
 

@@ -44,7 +44,9 @@ type Config struct {
 	MetaAPIKey      string
 	// MetaBaseURL is the Meta Model API origin the router forwards to
 	// (DEVCULES_META_BASE_URL, default https://api.meta.ai).
-	MetaBaseURL string
+	MetaBaseURL      string
+	AnthropicBaseURL string
+	OpenAIBaseURL    string
 	// TraceDays is how long model call traces are kept
 	// (DEVCULES_TRACE_DAYS, default 30; 0 keeps them forever).
 	TraceDays int
@@ -241,6 +243,24 @@ func Load() (Config, error) {
 			cfg.MetaBaseURL = strings.TrimRight(v, "/")
 		} else {
 			fail(`DEVCULES_META_BASE_URL invalid: %s (want empty or an http(s) URL with a host)`, describeURL(v))
+		}
+	}
+
+	cfg.AnthropicBaseURL = "https://api.anthropic.com"
+	if v, set := os.LookupEnv("DEVCULES_ANTHROPIC_BASE_URL"); set && v != "" {
+		if checkWebURL(v) {
+			cfg.AnthropicBaseURL = strings.TrimRight(v, "/")
+		} else {
+			fail(`DEVCULES_ANTHROPIC_BASE_URL invalid: %s (want empty or an http(s) URL with a host)`, describeURL(v))
+		}
+	}
+
+	cfg.OpenAIBaseURL = "https://api.openai.com"
+	if v, set := os.LookupEnv("DEVCULES_OPENAI_BASE_URL"); set && v != "" {
+		if checkWebURL(v) {
+			cfg.OpenAIBaseURL = strings.TrimRight(v, "/")
+		} else {
+			fail(`DEVCULES_OPENAI_BASE_URL invalid: %s (want empty or an http(s) URL with a host)`, describeURL(v))
 		}
 	}
 

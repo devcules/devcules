@@ -74,8 +74,10 @@ func baseConfig() Config {
 		VaultKey:        validKey,
 		RunnerTokenFile: filepath.Join(dataDir, "runner.token"),
 		Workspace:       "/workspace",
-		MetaBaseURL:     "https://api.meta.ai",
-		TraceDays:       30,
+		MetaBaseURL:      "https://api.meta.ai",
+		AnthropicBaseURL: "https://api.anthropic.com",
+		OpenAIBaseURL:    "https://api.openai.com",
+		TraceDays:        30,
 	}
 }
 

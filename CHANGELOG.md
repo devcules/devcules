@@ -4,6 +4,20 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-29, M3.4)
+
+- `plugins/providers/anthropic` and `plugins/providers/openai`: router providers for
+  Claude Messages (`x-api-key`) and OpenAI Responses/Chat Completions (Bearer auth),
+  each with `DEVCULES_*_BASE_URL` (`https://api.anthropic.com`, `https://api.openai.com`)
+  and the usual trailing-slash-tolerant `New`, `ID`, `BaseURL`, `Auth`. No provider imported
+  by the router — serve wires them in.
+- `plugins/agents/claudecode` and `plugins/agents/codex`: composable adapters mirroring
+  `musecode`'s modular contract (`Detect`/`LaunchSpec`/`HookCall`/`HookAnswer`), private
+  settings dirs, per-launch tokens never on a command line, Devcules MCP + approval hooks,
+  and shared `agenttest` passing. Registered in `cmd/devcules/agents.go`.
+- Docs: `docs/agents.md` lists all three agents; new sections in `docs/integrations.md`
+  for the APIs/CLIs; `docs/config.md` gets two new env rows.
+
 ### Added (2026-10-29, M3.3)
 
 - `plugins/agents`: the agent adapter interface, a registry, and

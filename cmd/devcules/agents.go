@@ -8,12 +8,14 @@ import (
 	"github.com/devcules/devcules/internal/terminals"
 	"github.com/devcules/devcules/internal/terminals/pty"
 	"github.com/devcules/devcules/plugins/agents"
+	"github.com/devcules/devcules/plugins/agents/claudecode"
+	"github.com/devcules/devcules/plugins/agents/codex"
 	"github.com/devcules/devcules/plugins/agents/musecode"
 )
 
 // agentList is every coding agent adapter this build offers.
 func agentList() []agents.Agent {
-	return []agents.Agent{musecode.New()}
+	return []agents.Agent{musecode.New(), claudecode.New(), codex.New()}
 }
 
 // agentLauncher adapts the plugins/agents registry to the runner's

@@ -275,7 +275,14 @@
                 <mxCell id="za1" edge="1" parent="1" source="z-plugins" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#82B366;strokeWidth=2;dashed=1;dashPattern=8 6;animated=1;fontSize=11;labelBackgroundColor=#FFFFFFexitX=0;exitY=0.85;exitDx=0;exitDy=0;entryX=1;entryY=0.85;entryDx=0;entryDy=0;" target="z-internal" value="✓ plug-ins may import core interfaces (the only direction)">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-            </root>
+            
+            <mxCell id="s13-4a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.anthropic.com&lt;/b&gt;&lt;br&gt;x-api-key — Claude Messages, count_tokens" vertex="1"><mxGeometry x="1260" y="920" width="190" height="50" as="geometry"/></mxCell>
+            <mxCell id="s13-4b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.openai.com&lt;/b&gt;&lt;br&gt;Bearer — Responses / Chat Completions" vertex="1"><mxGeometry x="1470" y="920" width="200" height="50" as="geometry"/></mxCell>
+
+
+            <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+
+</root>
         </mxGraphModel>
     </diagram>
     <diagram id="arch2" name="Arch_2">
@@ -464,7 +471,14 @@
                         </Array>
                     </mxGeometry>
                 </mxCell>
-            </root>
+            
+            <mxCell id="s13-4a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.anthropic.com&lt;/b&gt;&lt;br&gt;x-api-key — Claude Messages, count_tokens" vertex="1"><mxGeometry x="1260" y="920" width="190" height="50" as="geometry"/></mxCell>
+            <mxCell id="s13-4b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.openai.com&lt;/b&gt;&lt;br&gt;Bearer — Responses / Chat Completions" vertex="1"><mxGeometry x="1470" y="920" width="200" height="50" as="geometry"/></mxCell>
+
+
+            <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+
+</root>
         </mxGraphModel>
     </diagram>
     <diagram id="arch3" name="Arch_3">
@@ -648,7 +662,14 @@
                         </Array>
                     </mxGeometry>
                 </mxCell>
-            </root>
+            
+            <mxCell id="s13-4a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.anthropic.com&lt;/b&gt;&lt;br&gt;x-api-key — Claude Messages, count_tokens" vertex="1"><mxGeometry x="1260" y="920" width="190" height="50" as="geometry"/></mxCell>
+            <mxCell id="s13-4b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.openai.com&lt;/b&gt;&lt;br&gt;Bearer — Responses / Chat Completions" vertex="1"><mxGeometry x="1470" y="920" width="200" height="50" as="geometry"/></mxCell>
+
+
+            <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+
+</root>
         </mxGraphModel>
     </diagram>
     <diagram id="arch4" name="Arch_4">
@@ -819,7 +840,14 @@
                         </Array>
                     </mxGeometry>
                 </mxCell>
-            </root>
+            
+            <mxCell id="s13-4a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.anthropic.com&lt;/b&gt;&lt;br&gt;x-api-key — Claude Messages, count_tokens" vertex="1"><mxGeometry x="1260" y="920" width="190" height="50" as="geometry"/></mxCell>
+            <mxCell id="s13-4b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.openai.com&lt;/b&gt;&lt;br&gt;Bearer — Responses / Chat Completions" vertex="1"><mxGeometry x="1470" y="920" width="200" height="50" as="geometry"/></mxCell>
+
+
+            <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+
+</root>
         </mxGraphModel>
     </diagram>
     <diagram id="arch5" name="Arch_5">
@@ -1129,7 +1157,14 @@
                         </Array>
                     </mxGeometry>
                 </mxCell>
-            </root>
+            
+            <mxCell id="s13-4a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.anthropic.com&lt;/b&gt;&lt;br&gt;x-api-key — Claude Messages, count_tokens" vertex="1"><mxGeometry x="1260" y="920" width="190" height="50" as="geometry"/></mxCell>
+            <mxCell id="s13-4b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.openai.com&lt;/b&gt;&lt;br&gt;Bearer — Responses / Chat Completions" vertex="1"><mxGeometry x="1470" y="920" width="200" height="50" as="geometry"/></mxCell>
+
+
+            <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+
+</root>
         </mxGraphModel>
     </diagram>
     <diagram id="arch6" name="Arch_6">
@@ -1344,7 +1379,14 @@
                 <mxCell id="a6-n4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;M2 vault · tokens · audit&lt;/b&gt; — API tokens and&lt;br&gt;audit events join the same mux" vertex="1">
                     <mxGeometry height="62" width="410" x="1270" y="1452" as="geometry"/>
                 </mxCell>
-            </root>
+            
+            <mxCell id="s13-4a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.anthropic.com&lt;/b&gt;&lt;br&gt;x-api-key — Claude Messages, count_tokens" vertex="1"><mxGeometry x="1260" y="920" width="190" height="50" as="geometry"/></mxCell>
+            <mxCell id="s13-4b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.openai.com&lt;/b&gt;&lt;br&gt;Bearer — Responses / Chat Completions" vertex="1"><mxGeometry x="1470" y="920" width="200" height="50" as="geometry"/></mxCell>
+
+
+            <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+
+</root>
         </mxGraphModel>
     </diagram>
     <diagram id="arch7" name="Arch_7">
@@ -1553,7 +1595,14 @@
                 <mxCell id="a7-x5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;every later screen reuses this&lt;/b&gt; — tokens, shell, the 401 → sign-in rule and the visual-baseline habit" vertex="1">
                     <mxGeometry height="66" width="760" x="920" y="1286" as="geometry"/>
                 </mxCell>
-            </root>
+            
+            <mxCell id="s13-4a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.anthropic.com&lt;/b&gt;&lt;br&gt;x-api-key — Claude Messages, count_tokens" vertex="1"><mxGeometry x="1260" y="920" width="190" height="50" as="geometry"/></mxCell>
+            <mxCell id="s13-4b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.openai.com&lt;/b&gt;&lt;br&gt;Bearer — Responses / Chat Completions" vertex="1"><mxGeometry x="1470" y="920" width="200" height="50" as="geometry"/></mxCell>
+
+
+            <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+
+</root>
         </mxGraphModel>
     </diagram>
     <diagram id="arch8" name="Arch_8">
@@ -1765,7 +1814,14 @@
                 <mxCell id="a8-x5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;the link is the only way into the runner&lt;/b&gt; — nothing listens on the runner side, and the runner never holds the vault (arch_test.go)" vertex="1">
                     <mxGeometry height="66" width="760" x="920" y="1286" as="geometry"/>
                 </mxCell>
-            </root>
+            
+            <mxCell id="s13-4a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.anthropic.com&lt;/b&gt;&lt;br&gt;x-api-key — Claude Messages, count_tokens" vertex="1"><mxGeometry x="1260" y="920" width="190" height="50" as="geometry"/></mxCell>
+            <mxCell id="s13-4b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.openai.com&lt;/b&gt;&lt;br&gt;Bearer — Responses / Chat Completions" vertex="1"><mxGeometry x="1470" y="920" width="200" height="50" as="geometry"/></mxCell>
+
+
+            <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+
+</root>
         </mxGraphModel>
     </diagram>
     <diagram id="arch9" name="Arch_9">
@@ -1959,7 +2015,14 @@
                 <mxCell id="a9-q16" edge="1" parent="1" source="a9-x2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" target="a9-x4" value="">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-            </root>
+            
+            <mxCell id="s13-4a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.anthropic.com&lt;/b&gt;&lt;br&gt;x-api-key — Claude Messages, count_tokens" vertex="1"><mxGeometry x="1260" y="920" width="190" height="50" as="geometry"/></mxCell>
+            <mxCell id="s13-4b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.openai.com&lt;/b&gt;&lt;br&gt;Bearer — Responses / Chat Completions" vertex="1"><mxGeometry x="1470" y="920" width="200" height="50" as="geometry"/></mxCell>
+
+
+            <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+
+</root>
         </mxGraphModel>
     </diagram>
     <diagram id="arch10" name="Arch_10">
@@ -2153,7 +2216,14 @@
                 <mxCell id="a10-q16" edge="1" parent="1" source="a10-x1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" target="a10-x3" value="">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-            </root>
+            
+            <mxCell id="s13-4a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.anthropic.com&lt;/b&gt;&lt;br&gt;x-api-key — Claude Messages, count_tokens" vertex="1"><mxGeometry x="1260" y="920" width="190" height="50" as="geometry"/></mxCell>
+            <mxCell id="s13-4b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.openai.com&lt;/b&gt;&lt;br&gt;Bearer — Responses / Chat Completions" vertex="1"><mxGeometry x="1470" y="920" width="200" height="50" as="geometry"/></mxCell>
+
+
+            <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+
+</root>
         </mxGraphModel>
     </diagram>
     <diagram id="arch11" name="Arch_11">
@@ -2326,7 +2396,14 @@
                 <mxCell id="a11-e13" edge="1" parent="1" source="a11-6.1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a11-6.2" value="">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-            </root>
+            
+            <mxCell id="s13-4a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.anthropic.com&lt;/b&gt;&lt;br&gt;x-api-key — Claude Messages, count_tokens" vertex="1"><mxGeometry x="1260" y="920" width="190" height="50" as="geometry"/></mxCell>
+            <mxCell id="s13-4b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.openai.com&lt;/b&gt;&lt;br&gt;Bearer — Responses / Chat Completions" vertex="1"><mxGeometry x="1470" y="920" width="200" height="50" as="geometry"/></mxCell>
+
+
+            <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+
+</root>
         </mxGraphModel>
     </diagram>
     <diagram id="arch12" name="Arch_12">
@@ -2487,7 +2564,14 @@
                 <mxCell id="a12-e10" edge="1" parent="1" source="a12-6.1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a12-6.2" value="">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-            </root>
+            
+            <mxCell id="s13-4a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.anthropic.com&lt;/b&gt;&lt;br&gt;x-api-key — Claude Messages, count_tokens" vertex="1"><mxGeometry x="1260" y="920" width="190" height="50" as="geometry"/></mxCell>
+            <mxCell id="s13-4b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.openai.com&lt;/b&gt;&lt;br&gt;Bearer — Responses / Chat Completions" vertex="1"><mxGeometry x="1470" y="920" width="200" height="50" as="geometry"/></mxCell>
+
+
+            <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+
+</root>
         </mxGraphModel>
     </diagram>
     <diagram id="arch13" name="Arch_13">
@@ -2648,7 +2732,14 @@
                 <mxCell id="a13-e10" edge="1" parent="1" source="a13-6.1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a13-6.2" value="">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-            </root>
+            
+            <mxCell id="s13-4a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.anthropic.com&lt;/b&gt;&lt;br&gt;x-api-key — Claude Messages, count_tokens" vertex="1"><mxGeometry x="1260" y="920" width="190" height="50" as="geometry"/></mxCell>
+            <mxCell id="s13-4b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.openai.com&lt;/b&gt;&lt;br&gt;Bearer — Responses / Chat Completions" vertex="1"><mxGeometry x="1470" y="920" width="200" height="50" as="geometry"/></mxCell>
+
+
+            <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+
+</root>
         </mxGraphModel>
     </diagram>
     <diagram id="arch14" name="Arch_14">
@@ -2803,7 +2894,14 @@
                 <mxCell id="a14-e10" edge="1" parent="1" source="a14-6.1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a14-6.2" value="">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-            </root>
+            
+            <mxCell id="s13-4a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.anthropic.com&lt;/b&gt;&lt;br&gt;x-api-key — Claude Messages, count_tokens" vertex="1"><mxGeometry x="1260" y="920" width="190" height="50" as="geometry"/></mxCell>
+            <mxCell id="s13-4b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.openai.com&lt;/b&gt;&lt;br&gt;Bearer — Responses / Chat Completions" vertex="1"><mxGeometry x="1470" y="920" width="200" height="50" as="geometry"/></mxCell>
+
+
+            <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+
+</root>
         </mxGraphModel>
     </diagram>
     <diagram id="arch15" name="Arch_15">
@@ -2961,7 +3059,14 @@
                 <mxCell id="a15-e10" edge="1" parent="1" source="a15-6.1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a15-6.2" value="">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-            </root>
+            
+            <mxCell id="s13-4a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.anthropic.com&lt;/b&gt;&lt;br&gt;x-api-key — Claude Messages, count_tokens" vertex="1"><mxGeometry x="1260" y="920" width="190" height="50" as="geometry"/></mxCell>
+            <mxCell id="s13-4b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.openai.com&lt;/b&gt;&lt;br&gt;Bearer — Responses / Chat Completions" vertex="1"><mxGeometry x="1470" y="920" width="200" height="50" as="geometry"/></mxCell>
+
+
+            <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+
+</root>
         </mxGraphModel>
     </diagram>
     <diagram id="arch16" name="Arch_16">
@@ -3122,7 +3227,14 @@
                 <mxCell id="a16-e12" edge="1" parent="1" source="a16-6.1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a16-6.2" value="">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-            </root>
+            
+            <mxCell id="s13-4a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.anthropic.com&lt;/b&gt;&lt;br&gt;x-api-key — Claude Messages, count_tokens" vertex="1"><mxGeometry x="1260" y="920" width="190" height="50" as="geometry"/></mxCell>
+            <mxCell id="s13-4b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.openai.com&lt;/b&gt;&lt;br&gt;Bearer — Responses / Chat Completions" vertex="1"><mxGeometry x="1470" y="920" width="200" height="50" as="geometry"/></mxCell>
+
+
+            <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+
+</root>
         </mxGraphModel>
     </diagram>
     <diagram id="arch17" name="Arch_17">
@@ -3286,7 +3398,14 @@
                 <mxCell id="a17-e14" edge="1" parent="1" source="a17-6.1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a17-6.2" value="">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-            </root>
+            
+            <mxCell id="s13-4a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.anthropic.com&lt;/b&gt;&lt;br&gt;x-api-key — Claude Messages, count_tokens" vertex="1"><mxGeometry x="1260" y="920" width="190" height="50" as="geometry"/></mxCell>
+            <mxCell id="s13-4b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.openai.com&lt;/b&gt;&lt;br&gt;Bearer — Responses / Chat Completions" vertex="1"><mxGeometry x="1470" y="920" width="200" height="50" as="geometry"/></mxCell>
+
+
+            <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+
+</root>
         </mxGraphModel>
     </diagram>
     <diagram id="archcombined" name="Arch_Combined">
@@ -3899,7 +4018,14 @@
                 <mxCell id="s78" edge="1" parent="1" source="s17-4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="s17-5" value="">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-            </root>
+            
+            <mxCell id="s13-4a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.anthropic.com&lt;/b&gt;&lt;br&gt;x-api-key — Claude Messages, count_tokens" vertex="1"><mxGeometry x="1260" y="920" width="190" height="50" as="geometry"/></mxCell>
+            <mxCell id="s13-4b" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;api.openai.com&lt;/b&gt;&lt;br&gt;Bearer — Responses / Chat Completions" vertex="1"><mxGeometry x="1470" y="920" width="200" height="50" as="geometry"/></mxCell>
+
+
+            <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+
+</root>
         </mxGraphModel>
     </diagram>
 </mxfile>

@@ -4,6 +4,20 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-29, M3.1)
+
+- `internal/mcp`: the Devcules MCP server at `POST /mcp`. It serves the
+  stateless MCP `2026-07-28` revision (`server/discover`, `_meta` and
+  header checks, `resultType`) and the handshake revisions `2025-11-25`,
+  `2025-06-18` and `2025-03-26` on the same endpoint, with no sessions.
+- Agents authenticate with their launch token. Tool calls are
+  rate-limited per launch, audited as `mcp.call`, and logged without
+  their arguments.
+- Read-only built-in tools: `status`, `launch_info`, `my_trace` (the
+  caller's own calls only), `list_terminals` and `check_redaction`.
+- A tool registry later milestones add to, with name and schema checks.
+- See `docs/mcp.md`; the MCP facts are in `docs/integrations.md`.
+
 ### Added (2026-10-29, M2.4)
 
 - `internal/audit`: an append-only audit log of sign-ins (and failed

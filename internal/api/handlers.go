@@ -53,12 +53,15 @@ type Options struct {
 	// 503; so does a nil TraceStore.
 	AuditLog   *audit.Log
 	TraceStore *trace.Store
+	// MCP serves POST /mcp, the MCP server agents reach with their
+	// launch token (internal/mcp). Nil answers it with 503.
+	MCP http.Handler
 }
 
-// Handler returns the M2.4 mux. /healthz, /readyz, GET /link and
-// /llm/ stay public (/link and the model router authenticate with
-// their own credentials, the runner token and launch tokens, never the
-// session cookie); POST /auth/sign-in is the public password call, the
+// Handler returns the M3.1 mux. /healthz, /readyz, GET /link, /llm/
+// and /mcp stay public (/link, the model router and the MCP server
+// authenticate with their own credentials, the runner token and launch
+// tokens, never the session cookie); POST /auth/sign-in is the public password call, the
 // passkey login pair and the passkey status read are public too; the
 // static app (Web) is public too, since it holds no data; everything
 // else needs a live session and answers 401 without one. Only GET
@@ -115,6 +118,14 @@ func Handler(o Options) http.Handler {
 	} else {
 		mux.HandleFunc("/llm/", func(w http.ResponseWriter, r *http.Request) {
 			writeAuthError(w, http.StatusServiceUnavailable, "model router not configured")
+		})
+	}
+	// The MCP server takes launch tokens too, and checks Origin itself.
+	if o.MCP != nil {
+		mux.Handle("/mcp", o.MCP)
+	} else {
+		mux.HandleFunc("/mcp", func(w http.ResponseWriter, r *http.Request) {
+			writeAuthError(w, http.StatusServiceUnavailable, "MCP server not configured")
 		})
 	}
 	providers := func() []string { return nil }

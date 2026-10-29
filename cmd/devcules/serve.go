@@ -122,6 +122,14 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 	// streams retire with 1012 when their runner unlinks.
 	terms := relay.New(h, cfg.PublicURL)
 	terms.Run()
+	mcpServer, err := setupMCP(cfg, h, terms, llm, launches, traces, auditLog, redactor, redactSettings, log)
+	if err != nil {
+		fmt.Fprintln(stderr, err.Error())
+		h.Close()
+		b.Close()
+		s.Close()
+		return exitError
+	}
 	authSvc := auth.New(s, auth.WithPasskeys(cfg.PublicURL, log))
 	password, created, err := authSvc.EnsureAdmin(context.Background())
 	if err != nil {
@@ -135,7 +143,7 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 		fmt.Fprintln(stderr, "Admin password (shown once): "+password)
 	}
 	srv := &http.Server{
-		Handler:           api.Handler(api.Options{Store: s, Auth: authSvc, Web: web.Embedded(), PublicURL: cfg.PublicURL, Link: h, Terminals: terms, Redact: redactor, RedactSettings: redactSettings, Router: llm, Launches: launches, AuditLog: auditLog, TraceStore: traces}),
+		Handler:           api.Handler(api.Options{Store: s, Auth: authSvc, Web: web.Embedded(), PublicURL: cfg.PublicURL, Link: h, Terminals: terms, Redact: redactor, RedactSettings: redactSettings, Router: llm, Launches: launches, AuditLog: auditLog, TraceStore: traces, MCP: mcpServer}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,

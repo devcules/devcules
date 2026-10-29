@@ -128,3 +128,22 @@ func TestRouterNotConfigured(t *testing.T) {
 		t.Fatalf("revoke = %d", w.Code)
 	}
 }
+
+func TestMCPMount(t *testing.T) {
+	mux, _ := fixture(t, "")
+	if w := doJSONBearer(mux, "/mcp", "{}", "x"); w.Code != http.StatusServiceUnavailable || !strings.Contains(w.Body.String(), "MCP server not configured") {
+		t.Fatalf("unconfigured /mcp = %d %s", w.Code, w.Body)
+	}
+	s, err := sqlite.Open(context.Background(), filepath.Join(t.TempDir(), "t.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+	// /mcp is public: the MCP server does its own launch token check,
+	// and no session cookie is needed to reach it.
+	stub := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusTeapot) })
+	mux = Handler(Options{Store: s, Auth: auth.New(s), Web: testWeb(), MCP: stub})
+	if w := doJSONBearer(mux, "/mcp", "{}", "x"); w.Code != http.StatusTeapot || w.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Fatalf("/mcp = %d %v", w.Code, w.Header())
+	}
+}

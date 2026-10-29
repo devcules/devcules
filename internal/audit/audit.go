@@ -36,6 +36,7 @@ const (
 	TraceRead      = "trace.read"
 	AuditExport    = "audit.export"
 	VaultRotate    = "vault.rotate"
+	MCPCall        = "mcp.call"
 	maxField       = 200
 	maxDetailItems = 16
 )

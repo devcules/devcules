@@ -190,6 +190,35 @@ esac
 curl -fsS -b "$jar2" "$URL/api/audit/export?verify=1" | grep -q '"ok":true' || fail "the audit chain does not verify through the API"
 $COMPOSE exec -T serve devcules audit verify | grep -q '^audit chain ok' || fail "devcules audit verify failed"
 
+# M3.1 MCP server: a fresh launch token reaches /mcp in both protocol
+# eras, check_redaction masks the key without sending it anywhere, the
+# call is audited as mcp.call, and the logs hold neither.
+mcp_body=$(curl -fsS -b "$jar2" -H 'Content-Type: application/json' \
+  -d '{"label":"smoke mcp","ttlMinutes":10}' "$URL/api/launch-tokens") || fail "mint the MCP launch token"
+mcp_token=$(printf '%s' "$mcp_body" | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')
+meta='"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}'
+mcp() { # method, name ("" for none), params without _meta
+  curl -sS -H "Authorization: Bearer $mcp_token" -H 'Content-Type: application/json' \
+    -H 'MCP-Protocol-Version: 2026-07-28' -H "Mcp-Method: $1" ${2:+-H "Mcp-Name: $2"} \
+    -d '{"jsonrpc":"2.0","id":1,"method":"'"$1"'","params":{'"$3"'}}' "$URL/mcp"
+}
+mcp server/discover "" "$meta" | grep -q '"supportedVersions":\["2026-07-28"' || fail "MCP server/discover"
+mcp tools/list "" "$meta" | grep -q '"name":"check_redaction"' || fail "MCP tools/list has no check_redaction"
+checked=$(mcp tools/call check_redaction '"name":"check_redaction","arguments":{"text":"key '"$fake_key"'"},'"$meta") || fail "MCP tools/call"
+case "$checked" in
+  *"$fake_key"*) fail "check_redaction returned the key unmasked" ;;
+  *'"text":"key REDACTED_SECRET_'*) ;;
+  *) fail "check_redaction did not mask the key: $checked" ;;
+esac
+curl -fsS -H "Authorization: Bearer $mcp_token" -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"1"}}}' \
+  "$URL/mcp" | grep -q '"protocolVersion":"2025-06-18"' || fail "MCP legacy initialize"
+[ "$(curl -sS -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d '{}' "$URL/mcp")" = "401" ] || fail "/mcp without a launch token is not 401"
+curl -fsS -b "$jar2" "$URL/api/audit/export" | grep -q '"action":"mcp.call","target":"check_redaction"' || fail "the MCP call is not audited"
+if $COMPOSE logs --no-color serve | grep -qF -e "$fake_key" -e "$mcp_token"; then
+  fail "serve logs leak the key or the MCP launch token"
+fi
+
 serve_id=$($COMPOSE ps -q serve)
 start=$SECONDS
 $COMPOSE stop -t 20 serve >/dev/null

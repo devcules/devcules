@@ -21,6 +21,7 @@ tab.
 | `trace.read` | Someone opens a trace | launch id |
 | `audit.export` | The log is exported (API or CLI) | |
 | `vault.rotate` | `devcules vault rotate` (actor `cli`) | `from`, `to` key ids |
+| `mcp.call` | An agent calls a tool on the MCP server (actor `launch:<id>`) | tool name, `label`, `error` when it failed (`docs/mcp.md`). Never the arguments |
 
 Every entry has a sequence number, a UTC time, the actor, the action,
 the target, the client IP (the connection's, no proxy headers) and a

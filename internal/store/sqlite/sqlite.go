@@ -130,6 +130,11 @@ func (s *sqliteStore) Passkeys() store.PasskeysRepo {
 	return passkeysRepo{db: s.db}
 }
 
+// Secrets returns the vault's sealed-secret repo.
+func (s *sqliteStore) Secrets() store.SecretsRepo {
+	return secretsRepo{db: s.db}
+}
+
 // usersRepo implements store.UsersRepo on the users table.
 type usersRepo struct {
 	db *sql.DB
@@ -449,6 +454,73 @@ func scanPasskey(row passkeyScanner, p *store.Passkey) error {
 	}
 	if p.LastUsedAt, err = parseTime(used, "last_used_at"); err != nil {
 		return err
+	}
+	return nil
+}
+
+// secretsRepo implements store.SecretsRepo on the secrets table.
+// Values are sealed by the vault before they arrive; errors name the
+// secret, never its bytes.
+type secretsRepo struct {
+	db *sql.DB
+}
+
+// Put creates or overwrites the sealed value for name.
+func (r secretsRepo) Put(ctx context.Context, name string, sealed []byte, at time.Time) error {
+	switch {
+	case name == "":
+		return fmt.Errorf("store: secret name must not be empty")
+	case len(sealed) == 0:
+		return fmt.Errorf("store: secret %q value must not be empty", name)
+	}
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO secrets (name, sealed, updated_at) VALUES (?, ?, ?)
+		 ON CONFLICT(name) DO UPDATE SET sealed = excluded.sealed, updated_at = excluded.updated_at`,
+		name, sealed, formatTime(at))
+	if err != nil {
+		return fmt.Errorf("store: secret put %q failed: %w", name, err)
+	}
+	return nil
+}
+
+// Get returns the sealed value, or an error wrapping store.ErrNotFound.
+func (r secretsRepo) Get(ctx context.Context, name string) ([]byte, error) {
+	var sealed []byte
+	err := r.db.QueryRowContext(ctx, `SELECT sealed FROM secrets WHERE name = ?`, name).Scan(&sealed)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("store: secret %q not found: %w", name, store.ErrNotFound)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("store: secret get %q failed: %w", name, err)
+	}
+	return sealed, nil
+}
+
+// Names lists every stored name, sorted.
+func (r secretsRepo) Names(ctx context.Context) ([]string, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT name FROM secrets ORDER BY name`)
+	if err != nil {
+		return nil, fmt.Errorf("store: secret names failed: %w", err)
+	}
+	defer rows.Close()
+	names := []string{}
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			return nil, fmt.Errorf("store: secret names failed: %w", err)
+		}
+		names = append(names, n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("store: secret names failed: %w", err)
+	}
+	return names, nil
+}
+
+// Delete removes name. A missing name is not an error.
+func (r secretsRepo) Delete(ctx context.Context, name string) error {
+	if _, err := r.db.ExecContext(ctx, `DELETE FROM secrets WHERE name = ?`, name); err != nil {
+		return fmt.Errorf("store: secret delete %q failed: %w", name, err)
 	}
 	return nil
 }

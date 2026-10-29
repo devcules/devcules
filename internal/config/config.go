@@ -28,7 +28,10 @@ type Config struct {
 	Listen      string
 	DataDir     string
 	DatabaseURL string
-	VaultKey    string // optional: serve generates one on first start (M2.1)
+	VaultKey    string // optional: serve generates a key file on first start
+	// VaultNewKey is read only by `devcules vault rotate`, and only when
+	// VaultKey is set: it names the key to rotate to.
+	VaultNewKey string
 	ServeURL    string
 	RunnerToken string
 	// RunnerTokenFile names the token file for both roles. It defaults
@@ -41,12 +44,21 @@ type Config struct {
 	MetaAPIKey      string
 }
 
-// ForRole returns c for the named role. The vault key lives only in serve,
-// so a runner, machine or hook process that was handed one is a
-// misconfiguration: the untrusted side must never be able to read it.
+// ForRole returns c for the named role. Vault keys and provider keys live
+// only in serve (and the `vault` maintenance command, which runs beside
+// it), so a runner, machine or hook process that was handed one is a
+// misconfiguration: the untrusted side must never be able to read them.
 func (c Config) ForRole(role string) (Config, error) {
-	if role != "serve" && c.VaultKey != "" {
-		return Config{}, fmt.Errorf("invalid config:\n  - DEVCULES_VAULT_KEY must not be set for %s: the key lives only in serve (unset DEVCULES_VAULT_KEY and DEVCULES_VAULT_KEY_FILE)", role)
+	if role != "serve" && role != "vault" {
+		for _, s := range []struct{ name, value string }{
+			{"DEVCULES_VAULT_KEY", c.VaultKey},
+			{"DEVCULES_VAULT_NEW_KEY", c.VaultNewKey},
+			{"META_API_KEY", c.MetaAPIKey},
+		} {
+			if s.value != "" {
+				return Config{}, fmt.Errorf("invalid config:\n  - %s must not be set for %s: it lives only in serve (unset %s and %s_FILE)", s.name, role, s.name, s.name)
+			}
+		}
 	}
 	c.Role = role
 	return c, nil
@@ -112,6 +124,11 @@ func Load() (Config, error) {
 		fail(`%s`, problem)
 	} else {
 		cfg.VaultKey = v
+	}
+	if v, problem := readSecret("DEVCULES_VAULT_NEW_KEY", checkVaultKey); problem != "" {
+		fail(`%s`, problem)
+	} else {
+		cfg.VaultNewKey = v
 	}
 
 	cfg.ServeURL = "http://serve:7659"

@@ -46,6 +46,18 @@ if $COMPOSE exec -T runner printenv DEVCULES_VAULT_KEY >/dev/null 2>&1; then
 fi
 [ "$($COMPOSE port serve 7659)" = "127.0.0.1:7659" ] || fail "port not bound to 127.0.0.1 only"
 
+# M2.1 vault: serve generated its key file 0600 in the data volume,
+# opened the vault, and never logged the key itself.
+[ "$($COMPOSE exec -T serve stat -c '%a %u' /data/vault.key)" = "600 10001" ] || fail "vault key file not 0600/uid 10001"
+$COMPOSE logs --no-color serve | grep -q '"msg":"vault open"' || fail "serve did not open the vault"
+vault_key=$($COMPOSE exec -T serve cat /data/vault.key | tr -d '\r\n')
+if $COMPOSE logs --no-color serve | grep -qF "$vault_key"; then
+  fail "serve logs leak the vault key"
+fi
+if $COMPOSE exec -T runner test -e /data/vault.key 2>/dev/null; then
+  fail "runner can see the vault key file"
+fi
+
 # M1.1 sign-in flow: the bootstrap password comes from the serve logs
 # (fresh volumes only). curl sends no Origin header, so the CSRF check
 # lets it through like any non-browser client.

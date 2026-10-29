@@ -26,6 +26,7 @@ type memDB struct {
 	handles  map[string][]byte
 	sessions map[string]store.Session
 	passkeys map[string]store.Passkey
+	secrets  map[string][]byte
 	closed   map[*memStore]bool
 }
 
@@ -45,6 +46,7 @@ func newMemDB() *memDB {
 		handles:  map[string][]byte{},
 		sessions: map[string]store.Session{},
 		passkeys: map[string]store.Passkey{},
+		secrets:  map[string][]byte{},
 		closed:   map[*memStore]bool{},
 	}
 }
@@ -59,6 +61,77 @@ func (s *memStore) Sessions() store.SessionsRepo {
 
 func (s *memStore) Passkeys() store.PasskeysRepo {
 	return memPasskeys{db: s.db, s: s}
+}
+
+func (s *memStore) Secrets() store.SecretsRepo {
+	return memSecrets{db: s.db, s: s}
+}
+
+type memSecrets struct {
+	db *memDB
+	s  *memStore
+}
+
+func (m memSecrets) Put(ctx context.Context, name string, sealed []byte, _ time.Time) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if name == "" || len(sealed) == 0 {
+		return fmt.Errorf("store: secret name and value must not be empty")
+	}
+	m.db.mu.Lock()
+	defer m.db.mu.Unlock()
+	if m.db.closed[m.s] {
+		return fmt.Errorf("store: memStore is closed")
+	}
+	m.db.secrets[name] = bytes.Clone(sealed)
+	return nil
+}
+
+func (m memSecrets) Get(ctx context.Context, name string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	m.db.mu.Lock()
+	defer m.db.mu.Unlock()
+	if m.db.closed[m.s] {
+		return nil, fmt.Errorf("store: memStore is closed")
+	}
+	v, ok := m.db.secrets[name]
+	if !ok {
+		return nil, fmt.Errorf("store: secret not found: %w", store.ErrNotFound)
+	}
+	return bytes.Clone(v), nil
+}
+
+func (m memSecrets) Names(ctx context.Context) ([]string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	m.db.mu.Lock()
+	defer m.db.mu.Unlock()
+	if m.db.closed[m.s] {
+		return nil, fmt.Errorf("store: memStore is closed")
+	}
+	names := make([]string, 0, len(m.db.secrets))
+	for n := range m.db.secrets {
+		names = append(names, n)
+	}
+	slices.Sort(names)
+	return names, nil
+}
+
+func (m memSecrets) Delete(ctx context.Context, name string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	m.db.mu.Lock()
+	defer m.db.mu.Unlock()
+	if m.db.closed[m.s] {
+		return fmt.Errorf("store: memStore is closed")
+	}
+	delete(m.db.secrets, name)
+	return nil
 }
 
 type memUsers struct {

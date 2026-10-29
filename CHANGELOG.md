@@ -4,6 +4,22 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-29, M2.1)
+
+- `internal/vault`: AES-256-GCM secrets at rest. A vault key (from
+  `DEVCULES_VAULT_KEY` / `_FILE`, or a generated `0600` `vault.key` in
+  the data dir) wraps a random data key kept in meta; each secret is
+  sealed under the data key and bound to its name. Wrong keys stop
+  serve with both key ids and next steps; logs show ids, never keys.
+- `devcules vault rotate`: rewraps the data key in one write. The key
+  file rotates itself (crash-safe via `vault.key.new`); an env key
+  rotates to `DEVCULES_VAULT_NEW_KEY`.
+- `META_API_KEY` moves into the vault (`provider/meta/api_key`) on
+  start. Vault keys and `META_API_KEY` are now refused outside serve.
+- Store: the vault's `Secrets()` repo with migration `0004` and
+  storetest cases; `arch_test.go` keeps it with the vault.
+- See `docs/vault.md`.
+
 ### Added (2026-10-28, M1.5)
 
 - Passkeys (WebAuthn): registration while signed in, usernameless

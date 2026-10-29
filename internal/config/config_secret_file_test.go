@@ -325,18 +325,31 @@ func TestLoadErrorsNeverLeakURLPasswords(t *testing.T) {
 	}
 }
 
-// TestForRole pins the trust split: only serve may hold the vault key.
+// TestForRole pins the trust split: only serve (and the vault command
+// beside it) may hold the vault keys or a provider key.
 func TestForRole(t *testing.T) {
 	withKey := Config{Role: "serve", VaultKey: validKey}
-	if got, err := withKey.ForRole("serve"); err != nil || got.Role != "serve" || got.VaultKey != validKey {
-		t.Fatalf("ForRole(serve) = %+v, %v; want the key kept", got, err)
+	for _, role := range []string{"serve", "vault"} {
+		if got, err := withKey.ForRole(role); err != nil || got.Role != role || got.VaultKey != validKey {
+			t.Fatalf("ForRole(%s) = %+v, %v; want the key kept", role, got, err)
+		}
+	}
+	secrets := []struct {
+		name string
+		cfg  Config
+	}{
+		{"DEVCULES_VAULT_KEY", withKey},
+		{"DEVCULES_VAULT_NEW_KEY", Config{VaultNewKey: validKey}},
+		{"META_API_KEY", Config{MetaAPIKey: "tok"}},
 	}
 	for _, role := range []string{"runner", "machine", "hook"} {
-		_, err := withKey.ForRole(role)
-		want := "invalid config:\n  - DEVCULES_VAULT_KEY must not be set for " + role +
-			": the key lives only in serve (unset DEVCULES_VAULT_KEY and DEVCULES_VAULT_KEY_FILE)"
-		if err == nil || err.Error() != want {
-			t.Fatalf("ForRole(%s) error = %v, want %q", role, err, want)
+		for _, s := range secrets {
+			_, err := s.cfg.ForRole(role)
+			want := "invalid config:\n  - " + s.name + " must not be set for " + role +
+				": it lives only in serve (unset " + s.name + " and " + s.name + "_FILE)"
+			if err == nil || err.Error() != want {
+				t.Fatalf("ForRole(%s) with %s error = %v, want %q", role, s.name, err, want)
+			}
 		}
 		got, err := Config{Role: "serve"}.ForRole(role)
 		if err != nil || got.Role != role {

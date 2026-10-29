@@ -16,7 +16,10 @@ never reach the store, plus the `webauthn_handle` from M1.5) and
 values never reach the store), with migration `0002`. M1.5 adds
 auth's third repo the same way: `Passkeys()` (one row per credential:
 id, COSE public key, sign count, AAGUID, transports, backup flags,
-name, both timestamps), with migration `0003`.
+name, both timestamps), with migration `0003`. M2.1 adds the vault's
+repo, `Secrets()` (sealed bytes by name; the vault encrypts before the
+store sees anything), with migration `0004`. The vault's wrapped data
+key sits in `Meta()` under `vault.dek`.
 
 ## How a later module adds a repo
 

@@ -46,6 +46,24 @@ type Store interface {
 	// Passkeys returns the passkey repo. It is auth's repo: only auth
 	// and the store backends may use it.
 	Passkeys() PasskeysRepo
+	// Secrets returns the sealed-secret repo. It is the vault's repo:
+	// only the vault and the store backends may use it.
+	Secrets() SecretsRepo
+}
+
+// SecretsRepo stores sealed secrets by name. Values arrive already
+// encrypted by the vault; the store never sees plaintext and treats
+// them as opaque bytes.
+type SecretsRepo interface {
+	// Put creates or overwrites the sealed value for name. An empty
+	// name or an empty value is an error.
+	Put(ctx context.Context, name string, sealed []byte, at time.Time) error
+	// Get returns the sealed value, or an error wrapping ErrNotFound.
+	Get(ctx context.Context, name string) ([]byte, error)
+	// Names lists every stored name, sorted.
+	Names(ctx context.Context) ([]string, error)
+	// Delete removes name. A missing name is not an error.
+	Delete(ctx context.Context, name string) error
 }
 
 // UsersRepo stores one argon2id hash per username. Passwords themselves

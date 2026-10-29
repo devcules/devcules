@@ -102,13 +102,21 @@ func jsonLines(t *testing.T, stdout string) []map[string]any {
 	return out
 }
 
+// testVaultKey is a valid vault key that must never reach a log line;
+// testMetaKey is a provider key with the same rule.
+const (
+	testVaultKey = "VE9QU0VDUkVULVZBVUxULUtFWS0zMi1CWVRFUy0hISE="
+	testMetaKey  = "meta-TOPSECRET-SHOULD-NEVER-LOG"
+)
+
 func serveConfig(dir string) config.Config {
 	return config.Config{
-		Listen:    "127.0.0.1:1",
-		DataDir:   dir,
-		ServeURL:  "http://serve:7659",
-		VaultKey:  "TOPSECRET-SHOULD-NEVER-LOG",
-		Workspace: "/workspace",
+		Listen:     "127.0.0.1:1",
+		DataDir:    dir,
+		ServeURL:   "http://serve:7659",
+		VaultKey:   testVaultKey,
+		MetaAPIKey: testMetaKey,
+		Workspace:  "/workspace",
 	}
 }
 
@@ -130,11 +138,18 @@ func TestRunServeShutdown(t *testing.T) {
 		t.Fatal("bus subscriber channel never closed by shutdown")
 	}
 	lines := jsonLines(t, stdout)
-	if len(lines) != 5 {
-		t.Fatalf("got %d log lines, want token-created/passkeys/listening/shutdown/stopped", len(lines))
+	if len(lines) != 7 {
+		t.Fatalf("got %d log lines, want vault/meta-key/token-created/passkeys/listening/shutdown/stopped", len(lines))
 	}
+	if lines[0]["msg"] != "vault open" || lines[0]["key_id"] == "" {
+		t.Fatalf("first line = %v, want the vault key id", lines[0])
+	}
+	if lines[1]["secret"] != "provider/meta/api_key" {
+		t.Fatalf("second line = %v, want META_API_KEY moved into the vault", lines[1])
+	}
+	lines = lines[2:]
 	if lines[0]["msg"] != "runner token file created" {
-		t.Fatalf("first line = %v, want the token mint note", lines[0])
+		t.Fatalf("third line = %v, want the token mint note", lines[0])
 	}
 	if lines[0]["path"] != dir+string(filepath.Separator)+"runner.token" {
 		t.Fatalf("token path = %v, want the default file in the data dir", lines[0])
@@ -152,7 +167,7 @@ func TestRunServeShutdown(t *testing.T) {
 	}
 	for _, line := range lines {
 		for _, v := range line {
-			if s, ok := v.(string); ok && strings.Contains(s, "TOPSECRET") {
+			if s, ok := v.(string); ok && (strings.Contains(s, "TOPSECRET") || strings.Contains(s, testVaultKey)) {
 				t.Fatalf("log line leaks a secret: %v", line)
 			}
 		}
@@ -263,6 +278,7 @@ func TestRunServeBadDataDir(t *testing.T) {
 func TestRunBlockingRoleRunner(t *testing.T) {
 	cfg := serveConfig(t.TempDir())
 	cfg.VaultKey = ""
+	cfg.MetaAPIKey = ""
 	cfg.RunnerToken = "test-token"
 	sigs := make(chan os.Signal, 1)
 	var stdout, stderr bytes.Buffer

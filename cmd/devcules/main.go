@@ -20,7 +20,7 @@ const (
 	exitUsage = 2
 )
 
-const usageLine = "usage: devcules [serve|runner|machine|hook|version|health|help]"
+const usageLine = "usage: devcules [serve|runner|machine|hook|version|health|vault rotate|help]"
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
@@ -34,7 +34,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) > 0 {
 		name, rest = args[0], args[1:]
 	}
-	if len(rest) > 0 {
+	if len(rest) > 0 && name != "vault" {
 		return usage(stderr, "too many arguments: %q takes none", name)
 	}
 
@@ -46,7 +46,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	case "help", "-h", "--help":
 		fmt.Fprintln(stdout, usageLine)
 		return exitOK
-	case "", "serve", "runner", "machine", "hook", "health":
+	case "", "serve", "runner", "machine", "hook", "health", "vault":
 	default:
 		return usage(stderr, "unknown subcommand %q", name)
 	}
@@ -64,6 +64,13 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	if name == "health" {
 		return runHealth(cfg, stdout, stderr)
+	}
+	if name == "vault" {
+		if cfg, err = cfg.ForRole("vault"); err != nil {
+			fmt.Fprintln(stderr, err.Error())
+			return exitError
+		}
+		return runVault(cfg, rest, stdout, stderr, openSQLite)
 	}
 	// No subcommand: DEVCULES_ROLE decides.
 	role := name

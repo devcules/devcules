@@ -26,8 +26,11 @@ yet. `DEVCULES_TAG` selects another tag once releases exist.
 | `DEVCULES_PUBLIC_URL` | Passed through to serve; empty by default. |
 | `DEVCULES_TAG` | Image tag, default `edge`. |
 
-No vault key is needed: it stays optional, and the runner carries no
-secrets at all — only `DEVCULES_SERVE_URL`.
+No vault key is needed: serve generates `/data/vault.key` on first
+start, in the `devcules-data` volume beside the database. Back the two
+up together: without the key, the vault's secrets are lost. The runner
+carries no secrets at all — only `DEVCULES_SERVE_URL` — and never
+mounts `/data`.
 
 The health check is declared on `serve` only (in `deploy/compose.yaml`,
 using `devcules health`). The image has no `HEALTHCHECK`, because it would

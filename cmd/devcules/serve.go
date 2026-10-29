@@ -58,6 +58,12 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 		fmt.Fprintln(stderr, err.Error())
 		return exitError
 	}
+	if _, err := openVault(context.Background(), cfg, s, log); err != nil {
+		fmt.Fprintln(stderr, err.Error())
+		b.Close()
+		s.Close()
+		return exitError
+	}
 	tokenPath := cfg.RunnerTokenFile
 	if tokenPath == "" {
 		tokenPath = filepath.Join(cfg.DataDir, "runner.token")

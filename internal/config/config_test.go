@@ -19,6 +19,8 @@ var configEnv = []string{
 	"DEVCULES_DATABASE_URL",
 	"DEVCULES_VAULT_KEY",
 	"DEVCULES_VAULT_KEY_FILE",
+	"DEVCULES_VAULT_NEW_KEY",
+	"DEVCULES_VAULT_NEW_KEY_FILE",
 	"DEVCULES_SERVE_URL",
 	"DEVCULES_RUNNER_TOKEN",
 	"DEVCULES_RUNNER_TOKEN_FILE",
@@ -186,6 +188,16 @@ func TestLoad(t *testing.T) {
 			name:    "vault key wrong length",
 			env:     map[string]string{"DEVCULES_VAULT_KEY": "YQ=="},
 			wantErr: "invalid config:\n  - DEVCULES_VAULT_KEY invalid: decodes to 1 bytes (want 32)",
+		},
+		{
+			name: "new vault key for rotation",
+			env:  merge(key, map[string]string{"DEVCULES_VAULT_NEW_KEY": validKey}),
+			want: with(baseConfig(), func(c *Config) { c.VaultNewKey = validKey }),
+		},
+		{
+			name:    "new vault key wrong length",
+			env:     merge(key, map[string]string{"DEVCULES_VAULT_NEW_KEY": "YQ=="}),
+			wantErr: "invalid config:\n  - DEVCULES_VAULT_NEW_KEY invalid: decodes to 1 bytes (want 32)",
 		},
 		{
 			name: "serve url https",

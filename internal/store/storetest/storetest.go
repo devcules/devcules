@@ -317,6 +317,39 @@ func Run(t *testing.T, newStore func(t *testing.T) store.Store) {
 		check(t, !bytes.Equal(other, first), "two users share one handle, want distinct handles")
 	})
 
+	t.Run("Secrets", func(t *testing.T) {
+		s := newStore(t)
+		defer s.Close()
+		r := s.Secrets()
+		name := key(t, "provider/meta")
+		at := time.Date(2026, 10, 29, 1, 0, 0, 0, time.UTC)
+
+		_, err := r.Get(ctx, name)
+		mustNotFound(t, err, "Get missing secret")
+		mustFail(t, r.Put(ctx, "", []byte("x"), at), "Put with an empty name")
+		mustFail(t, r.Put(ctx, name, nil, at), "Put with an empty value")
+		mustf(t, r.Put(ctx, name, []byte{1, 2, 3}, at), "Put")
+		got, err := r.Get(ctx, name)
+		mustf(t, err, "Get")
+		check(t, bytes.Equal(got, []byte{1, 2, 3}), fmt.Sprintf("sealed = %v, want [1 2 3]", got))
+		mustf(t, r.Put(ctx, name, []byte{4}, at.Add(time.Minute)), "overwrite Put")
+		got, err = r.Get(ctx, name)
+		mustf(t, err, "Get after overwrite")
+		check(t, bytes.Equal(got, []byte{4}), fmt.Sprintf("sealed = %v after overwrite, want [4]", got))
+
+		other := key(t, "a-first")
+		mustf(t, r.Put(ctx, other, []byte{9}, at), "Put second")
+		names, err := r.Names(ctx)
+		mustf(t, err, "Names")
+		check(t, slices.Contains(names, name) && slices.Contains(names, other), fmt.Sprintf("Names = %v, want both stored names", names))
+		check(t, slices.IsSorted(names), fmt.Sprintf("Names = %v, want sorted", names))
+
+		mustf(t, r.Delete(ctx, name), "Delete")
+		_, err = r.Get(ctx, name)
+		mustNotFound(t, err, "Get after Delete")
+		mustf(t, r.Delete(ctx, name), "Delete missing (must be a no-op)")
+	})
+
 	t.Run("Ping", func(t *testing.T) {
 		s := newStore(t)
 		mustf(t, s.Ping(ctx), "Ping")

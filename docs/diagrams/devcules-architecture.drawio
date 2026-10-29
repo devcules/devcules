@@ -2156,15 +2156,188 @@
             </root>
         </mxGraphModel>
     </diagram>
-    <diagram id="archcombined" name="Arch_Combined">
-        <mxGraphModel dx="1750" dy="34" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="2130" math="0" shadow="0">
+    <diagram id="arch11" name="Arch_11">
+        <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1750" pageHeight="1420" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
-                <mxCell id="t2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=18;fontStyle=1;fontColor=#333333" value="&lt;b&gt;ARCH_COMBINED&lt;/b&gt; — Devcules today and where it grows — one modular monolith, one trust split; blue = shipped (M0.1 → M1.5: CI/CD · config · store · bus · image + compose · auth · web shell · link · terminals · passkeys), ghosts = planned (PLAN.md §9). This page gains a solid block every build." vertex="1">
+                <mxCell id="t12" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=17;fontStyle=1;fontColor=#333333" value="&lt;b&gt;ARCH_11&lt;/b&gt; — Build 11 (M2.1): the vault. Provider keys are sealed at rest with AES-256-GCM inside serve. A vault key wraps one data key, so rotating the vault key is a single write, and every secret is bound to its name." vertex="1">
+                    <mxGeometry height="60" width="1090" x="40" y="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend12" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3B3B3;fontSize=11;align=left;verticalAlign=top;spacing=8" value="&lt;b&gt;How to read&lt;/b&gt;&lt;br&gt;• blue = shipped in this build (M2.1)&lt;br&gt;• grey dashed = planned module (milestone tag)&lt;br&gt;• dashed + animated = a secret on its way in or out (plays in the draw.io app)&lt;br&gt;• red = a refusal, or a known limit" vertex="1">
+                    <mxGeometry height="94" width="570" x="1140" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-z1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;1 · WHERE THE VAULT KEY COMES FROM&lt;/b&gt; — cmd/devcules/vault.go, at serve start" vertex="1">
+                    <mxGeometry height="330" width="820" x="40" y="118" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-1.1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;DEVCULES_VAULT_KEY / _FILE&lt;/b&gt;&lt;br&gt;base64 of 32 bytes&lt;br&gt;validated by config" vertex="1">
+                    <mxGeometry height="86" width="260" x="70" y="186" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-1.2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;or vault.key (generated)&lt;/b&gt;&lt;br&gt;&amp;lt;DataDir&amp;gt;/vault.key · 0600&lt;br&gt;warns: back it up with the DB" vertex="1">
+                    <mxGeometry height="86" width="240" x="350" y="186" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-1.3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;serve-only&lt;/b&gt;&lt;br&gt;runner, machine, hook refuse&lt;br&gt;a vault key or META_API_KEY" vertex="1">
+                    <mxGeometry height="86" width="220" x="610" y="186" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-1.4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;pending rotation settled&lt;/b&gt;&lt;br&gt;vault.key.new: committed →&lt;br&gt;rename · not committed → remove" vertex="1">
+                    <mxGeometry height="86" width="260" x="70" y="312" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-1.5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;key id in logs&lt;/b&gt;&lt;br&gt;12 hex chars · never the key&lt;br&gt;“vault open”, key_id" vertex="1">
+                    <mxGeometry height="86" width="240" x="350" y="312" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-1.6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;META_API_KEY&lt;/b&gt;&lt;br&gt;moved into the vault on start&lt;br&gt;then it can leave the env" vertex="1">
+                    <mxGeometry height="86" width="220" x="610" y="312" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-z2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;2 · TWO KEYS&lt;/b&gt; — internal/vault: envelope encryption" vertex="1">
+                    <mxGeometry height="330" width="820" x="890" y="118" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-2.1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;vault key (KEK)&lt;/b&gt;&lt;br&gt;never stored in the database&lt;br&gt;wraps the data key only" vertex="1">
+                    <mxGeometry height="86" width="250" x="920" y="186" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-2.2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;data key (DEK)&lt;/b&gt;&lt;br&gt;32 random bytes, minted once&lt;br&gt;meta “vault.dek” (wrapped)" vertex="1">
+                    <mxGeometry height="86" width="250" x="1190" y="186" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-2.3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;secrets&lt;/b&gt;&lt;br&gt;sealed under the DEK&lt;br&gt;name bound as associated data" vertex="1">
+                    <mxGeometry height="86" width="220" x="1460" y="186" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-2.4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#B85450;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;wrong key&lt;/b&gt;&lt;br&gt;stops serve before listening&lt;br&gt;both key ids + next steps" vertex="1">
+                    <mxGeometry height="86" width="250" x="920" y="312" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-2.5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;seal format&lt;/b&gt;&lt;br&gt;version 1 · 12-byte nonce&lt;br&gt;AES-256-GCM ciphertext" vertex="1">
+                    <mxGeometry height="86" width="250" x="1190" y="312" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-2.6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;no plaintext at rest&lt;/b&gt;&lt;br&gt;the store sees sealed bytes&lt;br&gt;a fresh nonce per seal" vertex="1">
+                    <mxGeometry height="86" width="220" x="1460" y="312" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-z3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;3 · THE VAULT API&lt;/b&gt; — what serve&#x27;s other modules call (router next, M2.3)" vertex="1">
+                    <mxGeometry height="470" width="1090" x="40" y="484" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-3.1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;Open(store, key)&lt;/b&gt;&lt;br&gt;unwraps the DEK&lt;br&gt;mints it on first open" vertex="1">
+                    <mxGeometry height="86" width="240" x="70" y="552" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-3.2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;Put(name, value)&lt;/b&gt;&lt;br&gt;seal → Secrets().Put&lt;br&gt;“provider/meta/api_key”" vertex="1">
+                    <mxGeometry height="86" width="250" x="340" y="552" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-3.3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;Get(name)&lt;/b&gt;&lt;br&gt;open, or ErrNotFound&lt;br&gt;moved or altered → refused" vertex="1">
+                    <mxGeometry height="86" width="240" x="620" y="552" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-3.4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;Names · Delete&lt;/b&gt;&lt;br&gt;names only, values stay sealed&lt;br&gt;delete of a missing name is fine" vertex="1">
+                    <mxGeometry height="86" width="220" x="890" y="552" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-3.b1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;no logging inside the vault&lt;/b&gt; — errors name the secret, never its value; there is no HTTP API, so nothing outside serve&#x27;s process can read a secret" vertex="1">
+                    <mxGeometry height="66" width="1040" x="70" y="780" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-3.b2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;arch_test.go&lt;/b&gt; — the runner role never depends on internal/vault (transitively), and only the vault and the store backends call store.Secrets()" vertex="1">
+                    <mxGeometry height="66" width="1040" x="70" y="864" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-z4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;4 · STORE&lt;/b&gt; — Secrets() is the vault&#x27;s repo" vertex="1">
+                    <mxGeometry height="470" width="560" x="1150" y="484" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-4.1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;0004_secrets.sql&lt;/b&gt;&lt;br&gt;name (PK) · sealed BLOB&lt;br&gt;updated_at" vertex="1">
+                    <mxGeometry height="86" width="250" x="1180" y="552" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-4.2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;SecretsRepo&lt;/b&gt;&lt;br&gt;Put · Get · Names · Delete&lt;br&gt;opaque bytes only" vertex="1">
+                    <mxGeometry height="86" width="230" x="1450" y="552" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-4.3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;meta vault.dek&lt;/b&gt;&lt;br&gt;“v1:&amp;lt;key id&amp;gt;:&amp;lt;wrapped DEK&amp;gt;”&lt;br&gt;one row, one write" vertex="1">
+                    <mxGeometry height="86" width="250" x="1180" y="664" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-4.4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;storetest&lt;/b&gt;&lt;br&gt;the same contract cases&lt;br&gt;for every backend" vertex="1">
+                    <mxGeometry height="86" width="230" x="1450" y="664" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-4.b1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;backups&lt;/b&gt; — take devcules.db and vault.key together: the database alone cannot be opened" vertex="1">
+                    <mxGeometry height="66" width="500" x="1180" y="780" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-4.b2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;Postgres&lt;/b&gt; — the same repo on Postgres is a stretch goal" vertex="1">
+                    <mxGeometry height="66" width="500" x="1180" y="864" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-z5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;5 · ROTATION&lt;/b&gt; — devcules vault rotate" vertex="1">
+                    <mxGeometry height="400" width="820" x="40" y="974" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-5.1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;key file&lt;/b&gt;&lt;br&gt;write vault.key.new → rewrap&lt;br&gt;→ rename over vault.key" vertex="1">
+                    <mxGeometry height="86" width="360" x="70" y="1042" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-5.2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;env key&lt;/b&gt;&lt;br&gt;DEVCULES_VAULT_NEW_KEY → rewrap&lt;br&gt;then swap the env and restart" vertex="1">
+                    <mxGeometry height="86" width="370" x="460" y="1042" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-5.3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;crash-safe&lt;/b&gt;&lt;br&gt;one meta write: old wrap or new&lt;br&gt;never a mix of both" vertex="1">
+                    <mxGeometry height="86" width="360" x="70" y="1164" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-5.4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;running serve&lt;/b&gt;&lt;br&gt;keeps its unwrapped DEK&lt;br&gt;needs the new key on restart" vertex="1">
+                    <mxGeometry height="86" width="370" x="460" y="1164" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-5.b1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;tests&lt;/b&gt; — encrypt/decrypt · wrong key · rotation (both modes) · crash before rewrap and before rename · moved and tampered values · key file 0600 · no key in logs" vertex="1">
+                    <mxGeometry height="66" width="760" x="70" y="1286" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-z6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;6 · NOT IN THIS BUILD, AND NEXT&lt;/b&gt;" vertex="1">
+                    <mxGeometry height="400" width="820" x="890" y="974" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-6.1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;M2.2 redact&lt;/b&gt;&lt;br&gt;secrets masked before&lt;br&gt;they reach a model" vertex="1">
+                    <mxGeometry height="86" width="360" x="920" y="1042" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-6.2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;M2.3 router + Meta provider&lt;/b&gt;&lt;br&gt;reads provider/meta/api_key&lt;br&gt;from the vault" vertex="1">
+                    <mxGeometry height="86" width="370" x="1310" y="1042" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-6.3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;per-launch tokens (M2.3)&lt;/b&gt;&lt;br&gt;agents get scoped tokens&lt;br&gt;never vault secrets" vertex="1">
+                    <mxGeometry height="86" width="360" x="920" y="1164" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-6.4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;data key re-encryption&lt;/b&gt;&lt;br&gt;rotating the DEK itself&lt;br&gt;(not needed yet)" vertex="1">
+                    <mxGeometry height="86" width="370" x="1310" y="1164" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-6.b1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;UI for secrets&lt;/b&gt; — adding provider keys from Settings comes with the router and the assistant (M2.3, M5.1)" vertex="1">
+                    <mxGeometry height="66" width="760" x="920" y="1286" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-e1" edge="1" parent="1" source="a11-1.1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a11-1.2" value="else">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-e2" edge="1" parent="1" source="a11-1.2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" target="a11-1.5" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-e3" edge="1" parent="1" source="a11-2.1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0" target="a11-1.3" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-e4" edge="1" parent="1" source="a11-2.1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a11-2.2" value="wraps">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-e5" edge="1" parent="1" source="a11-2.2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a11-2.3" value="seals">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-e6" edge="1" parent="1" source="a11-2.1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#B85450;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" target="a11-2.4" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-e7" edge="1" parent="1" source="a11-3.1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a11-3.2" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-e8" edge="1" parent="1" source="a11-3.2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a11-3.3" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-e9" edge="1" parent="1" source="a11-3.3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a11-3.4" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-e10" edge="1" parent="1" source="a11-4.1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a11-4.2" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-e11" edge="1" parent="1" source="a11-4.2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" target="a11-4.4" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-e12" edge="1" parent="1" source="a11-5.1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a11-5.2" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a11-e13" edge="1" parent="1" source="a11-6.1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a11-6.2" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="archcombined" name="Arch_Combined">
+        <mxGraphModel dx="1750" dy="34" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="2220" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="t2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=18;fontStyle=1;fontColor=#333333" value="&lt;b&gt;ARCH_COMBINED&lt;/b&gt; — Devcules today and where it grows — one modular monolith, one trust split; blue = shipped (M0.1 → M2.1: CI/CD · config · store · bus · image + compose · auth · web shell · link · terminals · passkeys · vault), ghosts = planned (PLAN.md §9). This page gains a solid block every build." vertex="1">
                     <mxGeometry height="76" width="1150" x="40" y="22" as="geometry"/>
                 </mxCell>
-                <mxCell id="legend2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3B3B3;fontSize=11;align=left;verticalAlign=top;spacing=8" value="&lt;b&gt;How to read&lt;/b&gt;&lt;br&gt;• blue = shipped in this build (M0.1 CI/CD · M0.2 config + subcommands · M0.3 store · M0.4 bus · M0.5 image + compose · M1.1 auth · M1.2 web shell · M1.3 link · M1.4 terminals · M1.5 passkeys)&lt;br&gt;• grey dashed ghost = planned module (milestone tag)&lt;br&gt;• dashed + animated = live traffic (plays in the draw.io app)&lt;br&gt;• red vertical bar = trust split — real keys never cross it; enforced today by arch_test.go (M0.1)" vertex="1">
+                <mxCell id="legend2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3B3B3;fontSize=11;align=left;verticalAlign=top;spacing=8" value="&lt;b&gt;How to read&lt;/b&gt;&lt;br&gt;• blue = shipped in this build (M0.1 CI/CD · M0.2 config + subcommands · M0.3 store · M0.4 bus · M0.5 image + compose · M1.1 auth · M1.2 web shell · M1.3 link · M1.4 terminals · M1.5 passkeys · M2.1 vault)&lt;br&gt;• grey dashed ghost = planned module (milestone tag)&lt;br&gt;• dashed + animated = live traffic (plays in the draw.io app)&lt;br&gt;• red vertical bar = trust split — real keys never cross it; enforced today by arch_test.go (M0.1)" vertex="1">
                     <mxGeometry height="130" width="470" x="1250" y="30" as="geometry"/>
                 </mxCell>
                 <mxCell id="phone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;phone / browser&lt;/b&gt; — PWA (M1.2 ✓)&lt;br&gt;approve risky steps from anywhere" vertex="1">
@@ -2179,7 +2352,7 @@
                 <mxCell id="m-config" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;config&lt;/b&gt; (M0.2 ✓)&lt;br&gt;env + file, validated at start" vertex="1">
                     <mxGeometry height="60" width="300" x="360" y="260" as="geometry"/>
                 </mxCell>
-                <mxCell id="m-store" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;store&lt;/b&gt; (M0.3 ✓)&lt;br&gt;Store interface · SQLite · storetest&lt;br&gt;+ PasskeysRepo (M1.5 ✓)" vertex="1">
+                <mxCell id="m-store" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;store&lt;/b&gt; (M0.3 ✓)&lt;br&gt;Store interface · SQLite · storetest&lt;br&gt;+ Passkeys (M1.5 ✓) · Secrets (M2.1 ✓)" vertex="1">
                     <mxGeometry height="60" width="300" x="360" y="340" as="geometry"/>
                 </mxCell>
                 <mxCell id="m-bus" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;bus&lt;/b&gt; (M0.4 ✓)&lt;br&gt;Bus interface · memory · bustest" vertex="1">
@@ -2188,7 +2361,7 @@
                 <mxCell id="m-redact" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;redact&lt;/b&gt; (M2)&lt;br&gt;Gitleaks + PII detectors · placeholders · restore" vertex="1">
                     <mxGeometry height="60" width="300" x="360" y="500" as="geometry"/>
                 </mxCell>
-                <mxCell id="m-vault" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;vault&lt;/b&gt; (M2)&lt;br&gt;AES-256-GCM · real API keys · never logged" vertex="1">
+                <mxCell id="m-vault" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;vault&lt;/b&gt; (M2.1 ✓)&lt;br&gt;AES-256-GCM · data key wrapped by the vault key&lt;br&gt;rotate · never logged" vertex="1">
                     <mxGeometry height="60" width="300" x="360" y="580" as="geometry"/>
                 </mxCell>
                 <mxCell id="m-approvals" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;approvals&lt;/b&gt; (M3)&lt;br&gt;pending decisions · critical-step policy" vertex="1">
@@ -2257,8 +2430,8 @@
                 <mxCell id="mach-note" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;install&lt;/b&gt;: curl …/install/machine.sh · machine.ps1 — SHA-256 checked, served by serve (M4)" vertex="1">
                     <mxGeometry height="100" width="520" x="1160" y="840" as="geometry"/>
                 </mxCell>
-                <mxCell id="strip-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=13;fontColor=#333333" value="&lt;b&gt;SHIPPED — M0.1: CI/CD pipeline (Arch_1) · M0.2: config + subcommands (Arch_2) · M0.3: the store (Arch_3) · M0.4: the event bus (Arch_4) · M0.5: image + compose + health (Arch_5) · M1.1: auth (Arch_6) · M1.2: web shell (Arch_7) · M1.3: the link (Arch_8) · M1.4: terminals (Arch_9) · M1.5: passkeys (Arch_10)&lt;/b&gt; — these builds ship every future module above" vertex="1">
-                    <mxGeometry height="1070" width="1710" x="40" y="1000" as="geometry"/>
+                <mxCell id="strip-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=13;fontColor=#333333" value="&lt;b&gt;SHIPPED — M0.1: CI/CD pipeline (Arch_1) · M0.2: config + subcommands (Arch_2) · M0.3: the store (Arch_3) · M0.4: the event bus (Arch_4) · M0.5: image + compose + health (Arch_5) · M1.1: auth (Arch_6) · M1.2: web shell (Arch_7) · M1.3: the link (Arch_8) · M1.4: terminals (Arch_9) · M1.5: passkeys (Arch_10) · M2.1: vault (Arch_11)&lt;/b&gt; — these builds ship every future module above" vertex="1">
+                    <mxGeometry height="1160" width="1710" x="40" y="1000" as="geometry"/>
                 </mxCell>
                 <mxCell id="s-repo" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;GitHub repo&lt;/b&gt;&lt;br&gt;PR · main · tag v*" vertex="1">
                     <mxGeometry height="70" width="160" x="70" y="1070" as="geometry"/>
@@ -2578,6 +2751,33 @@
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="s51" edge="1" parent="1" source="s10-harden" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0" target="s10-auth" value="shared limiter">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s11-1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;vault key&lt;/b&gt;&lt;br&gt;— env, _FILE or a generated&lt;br&gt;0600 vault.key · key id only" vertex="1">
+                    <mxGeometry height="70" width="280" x="70" y="2070" as="geometry"/>
+                </mxCell>
+                <mxCell id="s11-2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;internal/vault&lt;/b&gt;&lt;br&gt;— — AES-256-GCM · wrapped data key&lt;br&gt;name-bound secrets" vertex="1">
+                    <mxGeometry height="70" width="330" x="370" y="2070" as="geometry"/>
+                </mxCell>
+                <mxCell id="s11-3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;Secrets() + 0004&lt;/b&gt;&lt;br&gt;— — sealed bytes by name&lt;br&gt;meta vault.dek" vertex="1">
+                    <mxGeometry height="70" width="300" x="720" y="2070" as="geometry"/>
+                </mxCell>
+                <mxCell id="s11-4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;devcules vault rotate&lt;/b&gt;&lt;br&gt;— — one rewrap write&lt;br&gt;crash-safe key file" vertex="1">
+                    <mxGeometry height="70" width="320" x="1040" y="2070" as="geometry"/>
+                </mxCell>
+                <mxCell id="s11-5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;META_API_KEY&lt;/b&gt;&lt;br&gt;— — moved into the vault on start&lt;br&gt;serve-only, like the vault keys" vertex="1">
+                    <mxGeometry height="70" width="360" x="1380" y="2070" as="geometry"/>
+                </mxCell>
+                <mxCell id="s52" edge="1" parent="1" source="s11-1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="s11-2" value="wraps">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s53" edge="1" parent="1" source="s11-2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="s11-3" value="seals">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s54" edge="1" parent="1" source="s11-3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="s11-4" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s55" edge="1" parent="1" source="s11-5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0" target="s11-4" value="">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
             </root>

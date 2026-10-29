@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"slices"
@@ -28,6 +29,8 @@ type memDB struct {
 	passkeys map[string]store.Passkey
 	secrets  map[string][]byte
 	launches map[string]store.LaunchToken
+	audit    []store.AuditEntry
+	traces   []store.TraceCall
 	closed   map[*memStore]bool
 }
 
@@ -71,6 +74,158 @@ func (s *memStore) Secrets() store.SecretsRepo {
 
 func (s *memStore) LaunchTokens() store.LaunchTokensRepo {
 	return memLaunches{db: s.db, s: s}
+}
+
+func (s *memStore) Audit() store.AuditRepo {
+	return memAudit{memLaunches{db: s.db, s: s}}
+}
+
+func (s *memStore) Traces() store.TracesRepo {
+	return memTraces{memLaunches{db: s.db, s: s}}
+}
+
+// memAudit and memTraces reuse memLaunches' lock.
+type memAudit struct{ memLaunches }
+
+func (m memAudit) Append(ctx context.Context, e store.AuditEntry) error {
+	if err := m.lock(ctx); err != nil {
+		return err
+	}
+	defer m.db.mu.Unlock()
+	if e.Seq != int64(len(m.db.audit))+1 {
+		return fmt.Errorf("store: audit seq %d is not next: %w", e.Seq, store.ErrConflict)
+	}
+	e.Detail = maps.Clone(e.Detail)
+	if e.Detail == nil {
+		e.Detail = map[string]string{}
+	}
+	m.db.audit = append(m.db.audit, e)
+	return nil
+}
+
+func (m memAudit) Last(ctx context.Context) (store.AuditEntry, error) {
+	if err := m.lock(ctx); err != nil {
+		return store.AuditEntry{}, err
+	}
+	defer m.db.mu.Unlock()
+	if len(m.db.audit) == 0 {
+		return store.AuditEntry{}, fmt.Errorf("store: audit log is empty: %w", store.ErrNotFound)
+	}
+	return m.db.audit[len(m.db.audit)-1], nil
+}
+
+func (m memAudit) After(ctx context.Context, after int64, limit int) ([]store.AuditEntry, error) {
+	if err := m.lock(ctx); err != nil {
+		return nil, err
+	}
+	defer m.db.mu.Unlock()
+	var out []store.AuditEntry
+	for _, e := range m.db.audit {
+		if e.Seq > after && len(out) < limit {
+			out = append(out, e)
+		}
+	}
+	return out, nil
+}
+
+func (m memAudit) Before(ctx context.Context, before int64, limit int) ([]store.AuditEntry, error) {
+	if err := m.lock(ctx); err != nil {
+		return nil, err
+	}
+	defer m.db.mu.Unlock()
+	var out []store.AuditEntry
+	for i := len(m.db.audit) - 1; i >= 0; i-- {
+		if e := m.db.audit[i]; (before <= 0 || e.Seq < before) && len(out) < limit {
+			out = append(out, e)
+		}
+	}
+	return out, nil
+}
+
+type memTraces struct{ memLaunches }
+
+func (m memTraces) Add(ctx context.Context, c store.TraceCall) (int64, error) {
+	if c.LaunchID == "" {
+		return 0, fmt.Errorf("store: trace launch id must not be empty")
+	}
+	if err := m.lock(ctx); err != nil {
+		return 0, err
+	}
+	defer m.db.mu.Unlock()
+	c.ID = int64(len(m.db.traces)) + 1
+	if c.Redacted == nil {
+		c.Redacted = map[string]int{}
+	}
+	m.db.traces = append(m.db.traces, c)
+	return c.ID, nil
+}
+
+func (m memTraces) Summaries(ctx context.Context, limit int) ([]store.TraceSession, error) {
+	if err := m.lock(ctx); err != nil {
+		return nil, err
+	}
+	defer m.db.mu.Unlock()
+	var out []store.TraceSession
+	idx := map[string]int{}
+	for i := len(m.db.traces) - 1; i >= 0; i-- {
+		c := m.db.traces[i]
+		if c.LaunchID == "" {
+			continue
+		}
+		j, ok := idx[c.LaunchID]
+		if !ok {
+			j = len(out)
+			idx[c.LaunchID] = j
+			out = append(out, store.TraceSession{LaunchID: c.LaunchID, First: c.At, Last: c.At})
+		}
+		s := &out[j]
+		s.Calls++
+		s.InputTokens += c.InputTokens
+		s.OutputTokens += c.OutputTokens
+		for _, n := range c.Redacted {
+			s.Redacted += n
+		}
+		if c.At.Before(s.First) {
+			s.First = c.At
+		}
+		if c.At.After(s.Last) {
+			s.Last = c.At
+		}
+	}
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
+func (m memTraces) Calls(ctx context.Context, launchID string) ([]store.TraceCall, error) {
+	if err := m.lock(ctx); err != nil {
+		return nil, err
+	}
+	defer m.db.mu.Unlock()
+	var out []store.TraceCall
+	for _, c := range m.db.traces {
+		if c.LaunchID == launchID {
+			out = append(out, c)
+		}
+	}
+	return out, nil
+}
+
+func (m memTraces) DeleteBefore(ctx context.Context, before time.Time) (int, error) {
+	if err := m.lock(ctx); err != nil {
+		return 0, err
+	}
+	defer m.db.mu.Unlock()
+	n := 0
+	for i, c := range m.db.traces {
+		if c.LaunchID != "" && c.At.Before(before) {
+			// Keep ids stable: a deleted call leaves a hole.
+			m.db.traces[i] = store.TraceCall{ID: c.ID}
+			n++
+		}
+	}
+	return n, nil
 }
 
 type memLaunches struct {

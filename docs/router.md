@@ -106,6 +106,16 @@ The request body may be 32 MiB and a non-streamed reply 64 MiB. The
 body has a 2 minute read window; the reply has no write deadline, so
 long streams are not cut by serve's server-wide timeouts.
 
+## Traces
+
+Every call that passes the token check is traced for its launch
+(`docs/audit.md`): the model, the last user text of the redacted
+request, the reply text and tool calls as the provider sent them, token
+counts from `usage`, the status, the duration and the redaction counts.
+The router reads the provider's own bytes for this, never the restored
+reply, so a trace holds placeholders, not values. A blocked request is
+traced with its counts and no text.
+
 ## Logs
 
 One line per call, `llm call`, with the provider, path, status,

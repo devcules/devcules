@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/devcules/devcules/internal/audit"
 	"github.com/devcules/devcules/internal/auth"
 )
 
@@ -80,7 +81,7 @@ func passkeyRegisterBegin(svc *auth.Service) http.HandlerFunc {
 // passkeyRegisterFinish verifies the creation response and stores
 // the credential: 201. Failures are 400, never 401: the session is
 // fine, the ceremony is not, and the UI must not route to sign-in.
-func passkeyRegisterFinish(svc *auth.Service) http.HandlerFunc {
+func passkeyRegisterFinish(svc *auth.Service, rec auditor) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !requireMethod(w, r, http.MethodPost) {
 			return
@@ -101,6 +102,7 @@ func passkeyRegisterFinish(svc *auth.Service) http.HandlerFunc {
 		clearCeremonyCookie(w)
 		switch err := svc.FinishRegistration(r.Context(), username, ceremonyID, body); {
 		case err == nil:
+			rec.record(r, audit.PasskeyAdd, "", nil)
 			w.WriteHeader(http.StatusCreated)
 		case errors.Is(err, auth.ErrPasskeysDisabled):
 			writeAuthError(w, http.StatusBadRequest, "passkeys are not enabled")
@@ -145,7 +147,7 @@ func passkeyLoginBegin(svc *auth.Service) http.HandlerFunc {
 // exactly like a password sign-in: 204 with the session cookie. A
 // failed assertion is 401 and counts against the shared per-IP
 // limiter; a bad ceremony is 400 and uncounted.
-func passkeyLoginFinish(svc *auth.Service) http.HandlerFunc {
+func passkeyLoginFinish(svc *auth.Service, rec auditor) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !requireMethod(w, r, http.MethodPost) {
 			return
@@ -160,9 +162,15 @@ func passkeyLoginFinish(svc *auth.Service) http.HandlerFunc {
 		value, err := svc.FinishLogin(r.Context(), ceremonyID, body, clientIP(r))
 		switch {
 		case err == nil:
+			if rec.log != nil {
+				// The assertion names no user; the new session does.
+				username, _ := svc.Authenticate(r.Context(), value)
+				rec.as(r, username, audit.SignIn, "", map[string]string{"method": "passkey"})
+			}
 			setSessionCookie(w, value)
 			w.WriteHeader(http.StatusNoContent)
 		case errors.Is(err, auth.ErrTooManyAttempts):
+			rec.signInFailed(r, "passkey", "throttled")
 			w.Header().Set("Retry-After", "60")
 			writeAuthError(w, http.StatusTooManyRequests, "too many sign-in attempts, try again later")
 		case errors.Is(err, auth.ErrBadCeremony):
@@ -170,6 +178,7 @@ func passkeyLoginFinish(svc *auth.Service) http.HandlerFunc {
 		case errors.Is(err, auth.ErrPasskeysDisabled):
 			writeAuthError(w, http.StatusBadRequest, "passkeys are not enabled")
 		case errors.Is(err, auth.ErrPasskeyInvalid):
+			rec.signInFailed(r, "passkey", "invalid")
 			writeAuthError(w, http.StatusUnauthorized, "passkey verification failed")
 		default:
 			writeAuthError(w, http.StatusInternalServerError, "internal error")
@@ -265,7 +274,7 @@ func passkeysRoot(svc *auth.Service) http.Handler {
 // credential id base64url-encoded: PATCH renames it, DELETE removes
 // it idempotently (unknown ids still 204). Writes need a session
 // plus the CSRF origin check.
-func passkeyOne(svc *auth.Service, publicURL string) http.Handler {
+func passkeyOne(svc *auth.Service, publicURL string, rec auditor) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id, ok := passkeyPath(r.URL.Path)
 		if !ok {
@@ -295,6 +304,7 @@ func passkeyOne(svc *auth.Service, publicURL string) http.Handler {
 				}
 				switch err := svc.RenamePasskey(r.Context(), username, rawID, named.Name); {
 				case err == nil:
+					rec.record(r, audit.PasskeyRename, id, map[string]string{"name": named.Name})
 					w.WriteHeader(http.StatusNoContent)
 				case errors.Is(err, auth.ErrPasskeyName):
 					writeAuthError(w, http.StatusBadRequest, "invalid passkey name")
@@ -312,9 +322,13 @@ func passkeyOne(svc *auth.Service, publicURL string) http.Handler {
 					return
 				}
 				// Idempotent: unknown ids are already gone.
-				if err := svc.DeletePasskey(r.Context(), username, rawID); err != nil && !errors.Is(err, auth.ErrPasskeyNotFound) {
+				err := svc.DeletePasskey(r.Context(), username, rawID)
+				if err != nil && !errors.Is(err, auth.ErrPasskeyNotFound) {
 					writeAuthError(w, http.StatusInternalServerError, "internal error")
 					return
+				}
+				if err == nil {
+					rec.record(r, audit.PasskeyRemove, id, nil)
 				}
 				w.WriteHeader(http.StatusNoContent)
 			})).ServeHTTP(w, r)

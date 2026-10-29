@@ -20,7 +20,7 @@ const (
 	exitUsage = 2
 )
 
-const usageLine = "usage: devcules [serve|runner|machine|hook|version|health|vault rotate|help]"
+const usageLine = "usage: devcules [serve|runner|machine|hook|version|health|vault rotate|audit export|audit verify|help]"
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
@@ -34,7 +34,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) > 0 {
 		name, rest = args[0], args[1:]
 	}
-	if len(rest) > 0 && name != "vault" {
+	if len(rest) > 0 && name != "vault" && name != "audit" {
 		return usage(stderr, "too many arguments: %q takes none", name)
 	}
 
@@ -49,7 +49,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	case "help", "-h", "--help":
 		fmt.Fprintln(stdout, usageLine)
 		return exitOK
-	case "", "serve", "runner", "machine", "hook", "health", "vault":
+	case "", "serve", "runner", "machine", "hook", "health", "vault", "audit":
 	default:
 		return usage(stderr, "unknown subcommand %q", name)
 	}
@@ -67,6 +67,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	if name == "health" {
 		return runHealth(cfg, stdout, stderr)
+	}
+	if name == "audit" {
+		// The audit commands read the store only; they hold no
+		// secrets, so they run anywhere serve's data is.
+		return runAudit(cfg, rest, os.Stdin, stdout, stderr, openSQLite)
 	}
 	if name == "vault" {
 		if cfg, err = cfg.ForRole("vault"); err != nil {

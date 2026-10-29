@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/devcules/devcules/internal/audit"
 	"github.com/devcules/devcules/internal/launch"
 )
 
@@ -15,7 +16,7 @@ import (
 // their secrets), POST mints one and shows it once. Agents normally
 // get theirs at launch (M3.3); this is the manual door, for scripts
 // and for testing a provider with curl.
-func launchesRoot(tokens *launch.Tokens, providers func() []string, publicURL string) http.Handler {
+func launchesRoot(tokens *launch.Tokens, providers func() []string, publicURL string, rec auditor) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if tokens == nil {
 			writeAuthError(w, http.StatusServiceUnavailable, "launch tokens not configured")
@@ -59,6 +60,7 @@ func launchesRoot(tokens *launch.Tokens, providers func() []string, publicURL st
 					writeAuthError(w, http.StatusInternalServerError, "internal error")
 					return
 				}
+				rec.record(r, audit.LaunchMint, l.ID, map[string]string{"label": l.Label, "provider": l.Provider, "expires": l.Expires.Format(time.RFC3339)})
 				w.Header().Set("Content-Type", "application/json")
 				w.Header().Set("Cache-Control", "no-store")
 				w.WriteHeader(http.StatusCreated)
@@ -76,7 +78,7 @@ func launchesRoot(tokens *launch.Tokens, providers func() []string, publicURL st
 
 // launchOne serves /api/launch-tokens/{id}: DELETE revokes it (204,
 // also when already revoked; 404 for an unknown id).
-func launchOne(tokens *launch.Tokens, publicURL string) http.Handler {
+func launchOne(tokens *launch.Tokens, publicURL string, rec auditor) http.Handler {
 	return csrf(publicURL, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if tokens == nil {
 			writeAuthError(w, http.StatusServiceUnavailable, "launch tokens not configured")
@@ -92,6 +94,7 @@ func launchOne(tokens *launch.Tokens, publicURL string) http.Handler {
 		}
 		switch err := tokens.Revoke(r.Context(), id); {
 		case err == nil:
+			rec.record(r, audit.LaunchRevoke, id, nil)
 			w.WriteHeader(http.StatusNoContent)
 		case errors.Is(err, launch.ErrNotFound):
 			writeAuthError(w, http.StatusNotFound, "no such launch token")

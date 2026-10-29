@@ -100,6 +100,7 @@ func runVault(cfg config.Config, args []string, stdout, stderr io.Writer, open s
 			fmt.Fprintln(stderr, err.Error())
 			return exitError
 		}
+		recordRotation(ctx, s, oldID, newID)
 		fmt.Fprintf(stdout, "Vault key rotated (%s -> %s) in %s. Restart serve to use it.\n", oldID, newID, vaultKeyPath(cfg))
 		return exitOK
 	}
@@ -122,6 +123,7 @@ func runVault(cfg config.Config, args []string, stdout, stderr io.Writer, open s
 		fmt.Fprintln(stderr, err.Error())
 		return exitError
 	}
+	recordRotation(ctx, s, oldKey.ID(), newKey.ID())
 	fmt.Fprintf(stdout, "Vault key rotated (%s -> %s). Now set DEVCULES_VAULT_KEY to the value of DEVCULES_VAULT_NEW_KEY, unset DEVCULES_VAULT_NEW_KEY, and restart serve.\n", oldKey.ID(), newKey.ID())
 	return exitOK
 }

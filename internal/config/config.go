@@ -45,6 +45,9 @@ type Config struct {
 	// MetaBaseURL is the Meta Model API origin the router forwards to
 	// (DEVCULES_META_BASE_URL, default https://api.meta.ai).
 	MetaBaseURL string
+	// TraceDays is how long model call traces are kept
+	// (DEVCULES_TRACE_DAYS, default 30; 0 keeps them forever).
+	TraceDays int
 }
 
 // ForRole returns c for the named role. Vault keys and provider keys live
@@ -219,6 +222,15 @@ func Load() (Config, error) {
 			cfg.MetaBaseURL = strings.TrimRight(v, "/")
 		} else {
 			fail(`DEVCULES_META_BASE_URL invalid: %s (want empty or an http(s) URL with a host)`, describeURL(v))
+		}
+	}
+
+	cfg.TraceDays = 30
+	if v, set := os.LookupEnv("DEVCULES_TRACE_DAYS"); set && v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 && n <= 3650 {
+			cfg.TraceDays = n
+		} else {
+			fail(`DEVCULES_TRACE_DAYS invalid: %q (want a whole number of days, 0 to 3650; 0 keeps traces forever)`, v)
 		}
 	}
 

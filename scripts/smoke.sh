@@ -166,6 +166,30 @@ fi
 [ "$(curl -sS -o /dev/null -w '%{http_code}' -b "$jar2" -X DELETE "$URL/api/launch-tokens/$llm_id")" = "204" ] || fail "revoke launch token"
 [ "$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $llm_token" "$URL/llm/meta/v1/models")" = "401" ] || fail "a revoked launch token still works"
 
+# M2.4 audit and traces: the launch's calls are traced with the key as
+# its placeholder, and the audit log holds the mint and the revoke in
+# a chain both the API and `devcules audit verify` accept.
+trace=$(curl -fsS -b "$jar2" "$URL/api/traces/$llm_id") || fail "GET /api/traces/{id}"
+case "$trace" in
+  *"$fake_key"*) fail "the trace holds the key unmasked" ;;
+  *'"question":"key REDACTED_SECRET_'*) ;;
+  *) fail "the trace has no masked question: $trace" ;;
+esac
+calls=$(printf '%s' "$trace" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)["calls"]))')
+[ "$calls" -ge 3 ] || fail "the trace holds $calls calls, want the models poll, the chat and the stream"
+audit_log=$(curl -fsS -b "$jar2" "$URL/api/audit/export") || fail "GET /api/audit/export"
+for action in auth.sign_in launch.mint trace.read launch.revoke audit.export; do
+  case "$audit_log" in
+    *"\"action\":\"$action\""*) ;;
+    *) fail "the audit log has no $action" ;;
+  esac
+done
+case "$audit_log" in
+  *"$llm_token"*|*"$fake_key"*) fail "the audit log leaks a token or a key" ;;
+esac
+curl -fsS -b "$jar2" "$URL/api/audit/export?verify=1" | grep -q '"ok":true' || fail "the audit chain does not verify through the API"
+$COMPOSE exec -T serve devcules audit verify | grep -q '^audit chain ok' || fail "devcules audit verify failed"
+
 serve_id=$($COMPOSE ps -q serve)
 start=$SECONDS
 $COMPOSE stop -t 20 serve >/dev/null

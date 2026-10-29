@@ -10,7 +10,7 @@ export default defineConfig({
   // projects), so the default run must not collect it — otherwise a
   // missing baseline fails the flow job, and a present one gets
   // compared twice under the wrong project names.
-  testMatch: ['signin.spec.js', 'terminals.spec.js', 'passkeys.spec.js'],
+  testMatch: ['signin.spec.js', 'terminals.spec.js', 'passkeys.spec.js', 'activity.spec.js'],
   timeout: 30_000,
   fullyParallel: true,
   reporter: 'list',

@@ -25,7 +25,10 @@ placeholder key is the vault secret `redact/hmac_key`. M2.3 adds
 the launch tokens' repo, `LaunchTokens()` (one row per token: id,
 SHA-256 of the token, label, provider, created, expiry, revoked and
 last-used times; the token itself never reaches the store), with
-migration `0005`.
+migration `0005`. M2.4 adds two repos with migration `0006`:
+`Audit()` (append-only: `Append` takes only the next sequence number,
+there is no update or delete, and SQLite triggers refuse both) and
+`Traces()` (one row per model call; text carries placeholders only).
 
 ## How a later module adds a repo
 

@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { Home } from '../screens/Empty';
 import Terminals from '../screens/Terminals';
 import Settings from '../screens/Settings';
+import Activity from '../screens/Activity';
 
-type Tab = 'home' | 'terminals' | 'settings';
+type Tab = 'home' | 'terminals' | 'activity' | 'settings';
 
 const tabs: Array<{ id: Tab; label: string }> = [
   { id: 'home', label: 'Home' },
   { id: 'terminals', label: 'Terminals' },
+  { id: 'activity', label: 'Activity' },
   { id: 'settings', label: 'Settings' },
 ];
 
@@ -37,6 +39,7 @@ export default function Shell({
       <main className="flex flex-1 flex-col pt-[env(safe-area-inset-top)] pb-20 md:pb-0">
         {tab === 'home' && <Home />}
         {tab === 'terminals' && <Terminals onSessionExpired={onSessionExpired} />}
+        {tab === 'activity' && <Activity onSessionExpired={onSessionExpired} />}
         {tab === 'settings' && (
           <Settings username={username} onSignedOut={onSignedOut} onSessionExpired={onSessionExpired} />
         )}

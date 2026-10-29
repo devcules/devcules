@@ -171,6 +171,7 @@ type fixture struct {
 	token  string
 	logs   *bytes.Buffer
 	keys   keys
+	traces *recTracer
 }
 
 func newFixture(t *testing.T, chunk int, policy redact.Policy) *fixture {
@@ -201,15 +202,17 @@ func newFixture(t *testing.T, chunk int, policy redact.Policy) *fixture {
 	}
 	var logs bytes.Buffer
 	k := keys{KeySecret("mock"): upstreamKey}
+	tr := &recTracer{}
 	rt, err := New(Options{
 		Providers: []Provider{testProvider{base: srv.URL}},
 		Keys:      k, Tokens: tokens, Redactor: r, Settings: settings,
-		Log: slog.New(slog.NewJSONHandler(&logs, nil)),
+		Log:    slog.New(slog.NewJSONHandler(&logs, nil)),
+		Tracer: tr,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &fixture{router: rt, up: up, tokens: tokens, token: token, logs: &logs, keys: k}
+	return &fixture{router: rt, up: up, tokens: tokens, token: token, logs: &logs, keys: k, traces: tr}
 }
 
 func (f *fixture) do(method, path, body string, hdr map[string]string) *httptest.ResponseRecorder {

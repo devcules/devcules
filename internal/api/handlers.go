@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/devcules/devcules/internal/audit"
 	"github.com/devcules/devcules/internal/auth"
 	"github.com/devcules/devcules/internal/launch"
 	"github.com/devcules/devcules/internal/link/hub"
@@ -18,6 +19,7 @@ import (
 	"github.com/devcules/devcules/internal/router"
 	"github.com/devcules/devcules/internal/store"
 	"github.com/devcules/devcules/internal/terminals/relay"
+	"github.com/devcules/devcules/internal/trace"
 )
 
 // Options wires the mux. Store serves readiness, Auth serves the auth
@@ -46,9 +48,14 @@ type Options struct {
 	// those tokens. Nil answers their routes with 503.
 	Router   *router.Router
 	Launches *launch.Tokens
+	// AuditLog records who did what; TraceStore serves the model call
+	// traces. A nil AuditLog records nothing and answers its routes with
+	// 503; so does a nil TraceStore.
+	AuditLog   *audit.Log
+	TraceStore *trace.Store
 }
 
-// Handler returns the M2.3 mux. /healthz, /readyz, GET /link and
+// Handler returns the M2.4 mux. /healthz, /readyz, GET /link and
 // /llm/ stay public (/link and the model router authenticate with
 // their own credentials, the runner token and launch tokens, never the
 // session cookie); POST /auth/sign-in is the public password call, the
@@ -63,6 +70,7 @@ func Handler(o Options) http.Handler {
 	// answer 405, so each handler enforces its own method instead.
 	// "/link" still wins over "/": the mux prefers the longer pattern.
 	mux := http.NewServeMux()
+	rec := auditor{o.AuditLog}
 	mux.HandleFunc("/healthz", healthz)
 	mux.HandleFunc("/readyz", readyz(o.Store, o.Link))
 	if o.Link != nil {
@@ -72,8 +80,8 @@ func Handler(o Options) http.Handler {
 			http.Error(w, "link not configured", http.StatusServiceUnavailable)
 		})
 	}
-	mux.Handle("/auth/sign-in", csrf(o.PublicURL, signIn(o.Auth)))
-	mux.Handle("/auth/sign-out", csrf(o.PublicURL, requireSession(o.Auth, signOut(o.Auth))))
+	mux.Handle("/auth/sign-in", csrf(o.PublicURL, signIn(o.Auth, rec)))
+	mux.Handle("/auth/sign-out", csrf(o.PublicURL, requireSession(o.Auth, signOut(o.Auth, rec))))
 	mux.Handle("/auth/me", requireSession(o.Auth, me()))
 	// Passkey ceremonies: registration needs a session, sign-in is
 	// public, and every POST carries the CSRF check. The status read
@@ -81,24 +89,24 @@ func Handler(o Options) http.Handler {
 	// passkeys.
 	mux.Handle("/auth/passkeys/status", passkeyStatus(o.Auth))
 	mux.Handle("/auth/passkeys/register/begin", csrf(o.PublicURL, requireSession(o.Auth, passkeyRegisterBegin(o.Auth))))
-	mux.Handle("/auth/passkeys/register/finish", csrf(o.PublicURL, requireSession(o.Auth, passkeyRegisterFinish(o.Auth))))
+	mux.Handle("/auth/passkeys/register/finish", csrf(o.PublicURL, requireSession(o.Auth, passkeyRegisterFinish(o.Auth, rec))))
 	mux.Handle("/auth/passkeys/login/begin", csrf(o.PublicURL, passkeyLoginBegin(o.Auth)))
-	mux.Handle("/auth/passkeys/login/finish", csrf(o.PublicURL, passkeyLoginFinish(o.Auth)))
+	mux.Handle("/auth/passkeys/login/finish", csrf(o.PublicURL, passkeyLoginFinish(o.Auth, rec)))
 	// Passkey management sorts above "/" like the terminal routes:
 	// the mux prefers longer patterns, so /api/passkeys never falls
 	// through to the app shell.
 	mux.Handle("/api/passkeys", requireSession(o.Auth, passkeysRoot(o.Auth)))
-	mux.Handle("/api/passkeys/", requireSession(o.Auth, passkeyOne(o.Auth, o.PublicURL)))
+	mux.Handle("/api/passkeys/", requireSession(o.Auth, passkeyOne(o.Auth, o.PublicURL, rec)))
 	// Terminal routes sort above "/": the mux prefers longer patterns,
 	// so /api/terminals never falls through to the app shell. The
 	// collection holds list and open; anything deeper is one terminal
 	// (DELETE) or its stream (GET upgrade).
-	mux.Handle("/api/terminals", requireSession(o.Auth, terminalsRoot(o.Terminals, o.PublicURL)))
-	mux.Handle("/api/terminals/", requireSession(o.Auth, terminalOne(o.Terminals, o.PublicURL)))
+	mux.Handle("/api/terminals", requireSession(o.Auth, terminalsRoot(o.Terminals, o.PublicURL, rec)))
+	mux.Handle("/api/terminals/", requireSession(o.Auth, terminalOne(o.Terminals, o.PublicURL, rec)))
 	// Redaction settings: reads need a session, the policy write and
 	// the test box add the CSRF check.
 	mux.Handle("/api/redact", requireSession(o.Auth, redactRoot(o.Redact, o.RedactSettings)))
-	mux.Handle("/api/redact/policy", csrf(o.PublicURL, requireSession(o.Auth, redactPolicy(o.Redact, o.RedactSettings))))
+	mux.Handle("/api/redact/policy", csrf(o.PublicURL, requireSession(o.Auth, redactPolicy(o.Redact, o.RedactSettings, rec))))
 	mux.Handle("/api/redact/test", csrf(o.PublicURL, requireSession(o.Auth, redactTest(o.Redact, o.RedactSettings))))
 	// The model router authenticates with launch tokens of its own,
 	// like /link: no session, no CSRF (agents are not browsers).
@@ -113,8 +121,14 @@ func Handler(o Options) http.Handler {
 	if o.Router != nil {
 		providers = o.Router.Providers
 	}
-	mux.Handle("/api/launch-tokens", requireSession(o.Auth, launchesRoot(o.Launches, providers, o.PublicURL)))
-	mux.Handle("/api/launch-tokens/", requireSession(o.Auth, launchOne(o.Launches, o.PublicURL)))
+	mux.Handle("/api/launch-tokens", requireSession(o.Auth, launchesRoot(o.Launches, providers, o.PublicURL, rec)))
+	mux.Handle("/api/launch-tokens/", requireSession(o.Auth, launchOne(o.Launches, o.PublicURL, rec)))
+	// Audit and traces: reads need a session, and reading a trace or
+	// exporting the log is itself audited.
+	mux.Handle("/api/audit", requireSession(o.Auth, auditRoot(o.AuditLog)))
+	mux.Handle("/api/audit/export", requireSession(o.Auth, auditExport(o.AuditLog, rec)))
+	mux.Handle("/api/traces", requireSession(o.Auth, tracesRoot(o.TraceStore, o.Launches)))
+	mux.Handle("/api/traces/", requireSession(o.Auth, traceOne(o.TraceStore, o.Launches, rec)))
 	mux.Handle("/", root(o.Web, o.Auth))
 	return secureHeaders(mux)
 }
@@ -215,7 +229,7 @@ func readyz(s store.Store, link *hub.Hub) http.HandlerFunc {
 // is no redirect to follow. Failures are JSON the app renders as
 // plain words. A wrong password and an unknown user share one 401 so
 // logins cannot be enumerated.
-func signIn(svc *auth.Service) http.HandlerFunc {
+func signIn(svc *auth.Service, rec auditor) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !requireMethod(w, r, http.MethodPost) {
 			return
@@ -223,19 +237,22 @@ func signIn(svc *auth.Service) http.HandlerFunc {
 		// PostFormValue parses on first use and treats parse
 		// failures as empty: missing or broken fields fail closed
 		// as invalid credentials below.
-		value, err := svc.SignIn(r.Context(),
-			r.PostFormValue("username"), r.PostFormValue("password"), clientIP(r))
+		username := r.PostFormValue("username")
+		value, err := svc.SignIn(r.Context(), username, r.PostFormValue("password"), clientIP(r))
 		switch {
 		case errors.Is(err, auth.ErrTooManyAttempts):
+			rec.signInFailed(r, "password", "throttled")
 			w.Header().Set("Retry-After", "60")
 			writeAuthError(w, http.StatusTooManyRequests, "too many sign-in attempts, try again later")
 		case errors.Is(err, auth.ErrInvalidCredentials):
+			rec.signInFailed(r, "password", "invalid")
 			writeAuthError(w, http.StatusUnauthorized, "invalid username or password")
 		case err != nil:
 			// Storage failures stay server-side: the message must
 			// never name files or drivers.
 			writeAuthError(w, http.StatusInternalServerError, "internal error")
 		default:
+			rec.as(r, username, audit.SignIn, "", map[string]string{"method": "password"})
 			setSessionCookie(w, value)
 			w.WriteHeader(http.StatusNoContent)
 		}
@@ -262,7 +279,7 @@ func setSessionCookie(w http.ResponseWriter, value string) {
 
 // signOut closes the session and clears the cookie. It runs behind
 // requireSession, so the cookie it reads is known good.
-func signOut(svc *auth.Service) http.HandlerFunc {
+func signOut(svc *auth.Service, rec auditor) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !requireMethod(w, r, http.MethodPost) {
 			return
@@ -278,6 +295,7 @@ func signOut(svc *auth.Service) http.HandlerFunc {
 			writeAuthError(w, http.StatusInternalServerError, "internal error")
 			return
 		}
+		rec.record(r, audit.SignOut, "", nil)
 		http.SetCookie(w, &http.Cookie{
 			Name:     auth.CookieName,
 			Value:    "",

@@ -1,7 +1,8 @@
 # e2e
 
 Playwright flows against a running stack (compose in CI, or a local
-`devcules serve`): sign-in, terminals, and passkeys, at 390 px and
+`devcules serve`): sign-in, terminals, passkeys and the Activity
+tab's audit log, at 390 px and
 desktop on Chromium. The visual suite (`test:visual`, Linux only)
 compares screenshot baselines, which the `e2e-baselines` workflow
 refreshes — never generate them on a Mac.
@@ -27,7 +28,7 @@ passkey UI.
 ## Layout
 
 - `playwright.config.js`: the flow suite (`signin`, `terminals`,
-  `passkeys`), Chromium desktop and mobile projects.
+  `passkeys`, `activity`), Chromium desktop and mobile projects.
 - `playwright.visual.config.js`: the screenshot suite (dark and
   light, both sizes).
 - `tests/`: one spec per area, plus the committed Linux baselines

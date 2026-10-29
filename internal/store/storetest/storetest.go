@@ -55,6 +55,13 @@ func mustCancel(t *testing.T, err error, msg string) {
 	}
 }
 
+func mustConflict(t *testing.T, err error, msg string) {
+	t.Helper()
+	if !errors.Is(err, store.ErrConflict) {
+		t.Fatalf("%s = %v, want an error wrapping ErrConflict", msg, err)
+	}
+}
+
 func mustExists(t *testing.T, err error, msg string) {
 	t.Helper()
 	if !errors.Is(err, store.ErrExists) {
@@ -404,6 +411,118 @@ func Run(t *testing.T, newStore func(t *testing.T) store.Store) {
 		mustNotFound(t, err, "ByHash after DeleteExpired")
 		_, err = r.ByHash(ctx, newer.TokenHash)
 		mustf(t, err, "ByHash of an unexpired token after DeleteExpired")
+	})
+
+	t.Run("Audit", func(t *testing.T) {
+		s := newStore(t)
+		defer s.Close()
+		r := s.Audit()
+		// The log may hold earlier runs' entries on a shared backend:
+		// continue from wherever it is.
+		var base int64
+		last, err := r.Last(ctx)
+		if err == nil {
+			base = last.Seq
+		} else {
+			mustNotFound(t, err, "Last on an empty log")
+		}
+		at := time.Date(2026, 10, 29, 4, 0, 0, 123456789, time.UTC)
+		mk := func(seq int64, action string) store.AuditEntry {
+			return store.AuditEntry{Seq: seq, At: at.Add(time.Duration(seq) * time.Second), Actor: "admin",
+				Action: action, Target: key(t, "t"), IP: "192.0.2.1",
+				Detail: map[string]string{"provider": "meta"}, PrevHash: []byte{byte(seq)}, Hash: []byte{byte(seq + 1)}}
+		}
+		mustFail(t, r.Append(ctx, store.AuditEntry{Seq: 0}), "Append seq 0")
+		mustConflict(t, r.Append(ctx, mk(base+2, "skip")), "Append skipping a seq")
+		first := mk(base+1, "auth.sign_in")
+		mustf(t, r.Append(ctx, first), "Append")
+		mustConflict(t, r.Append(ctx, mk(base+1, "again")), "Append a taken seq")
+		second := mk(base+2, "launch.mint")
+		second.Detail = nil
+		mustf(t, r.Append(ctx, second), "Append with nil detail")
+
+		got, err := r.Last(ctx)
+		mustf(t, err, "Last")
+		check(t, got.Seq == base+2 && got.Action == "launch.mint" && got.Detail != nil && len(got.Detail) == 0,
+			fmt.Sprintf("Last = %+v", got))
+		after, err := r.After(ctx, base, 10)
+		mustf(t, err, "After")
+		check(t, len(after) == 2 && after[0].Seq == base+1 && after[1].Seq == base+2, fmt.Sprintf("After = %d entries", len(after)))
+		a := after[0]
+		check(t, a.At.Equal(first.At) && a.Actor == "admin" && a.Action == first.Action && a.Target == first.Target &&
+			a.IP == first.IP && a.Detail["provider"] == "meta" && bytes.Equal(a.PrevHash, first.PrevHash) &&
+			bytes.Equal(a.Hash, first.Hash), fmt.Sprintf("After[0] = %+v, want %+v (times to the nanosecond)", a, first))
+		limited, err := r.After(ctx, base, 1)
+		mustf(t, err, "After with a limit")
+		check(t, len(limited) == 1, "After to honour its limit")
+		newest, err := r.Before(ctx, 0, 2)
+		mustf(t, err, "Before from the newest")
+		check(t, len(newest) == 2 && newest[0].Seq == base+2 && newest[1].Seq == base+1, "Before(0) newest first")
+		older, err := r.Before(ctx, base+2, 1)
+		mustf(t, err, "Before")
+		check(t, len(older) == 1 && older[0].Seq == base+1, "Before to start under its bound")
+	})
+
+	t.Run("Traces", func(t *testing.T) {
+		s := newStore(t)
+		defer s.Close()
+		r := s.Traces()
+		at := time.Date(2026, 10, 29, 5, 0, 0, 500, time.UTC)
+		la, lb := key(t, "la"), key(t, "lb")
+		_, err := r.Add(ctx, store.TraceCall{})
+		mustFail(t, err, "Add with no launch id")
+		c1 := store.TraceCall{LaunchID: la, At: at, Provider: "meta", Path: "v1/chat/completions", Model: "muse-spark-1.3",
+			Status: 200, Stream: true, DurationMS: 812, InputTokens: 10, OutputTokens: 4,
+			Redacted: map[string]int{"SECRET": 2, "EMAIL": 1}, Question: "fix REDACTED_SECRET_0123456789",
+			Reply: "done", ToolCalls: []store.TraceToolCall{{Name: "read_file", Args: `{"path":"a.go"}`}}}
+		id1, err := r.Add(ctx, c1)
+		mustf(t, err, "Add")
+		id2, err := r.Add(ctx, store.TraceCall{LaunchID: lb, At: at.Add(time.Second), Provider: "meta", Path: "v1/models", Status: 200})
+		mustf(t, err, "Add to another launch")
+		id3, err := r.Add(ctx, store.TraceCall{LaunchID: la, At: at.Add(2 * time.Second), Provider: "meta", Path: "v1/messages", Status: 400, InputTokens: 5})
+		mustf(t, err, "Add a second call")
+		check(t, id1 < id2 && id2 < id3, fmt.Sprintf("ids %d %d %d to increase", id1, id2, id3))
+
+		calls, err := r.Calls(ctx, la)
+		mustf(t, err, "Calls")
+		check(t, len(calls) == 2 && calls[0].ID == id1 && calls[1].ID == id3, fmt.Sprintf("Calls = %d, want two oldest first", len(calls)))
+		g := calls[0]
+		check(t, g.LaunchID == la && g.At.Equal(at) && g.Provider == "meta" && g.Path == c1.Path && g.Model == c1.Model &&
+			g.Status == 200 && g.Stream && g.DurationMS == 812 && g.InputTokens == 10 && g.OutputTokens == 4 &&
+			g.Redacted["SECRET"] == 2 && g.Redacted["EMAIL"] == 1 && g.Question == c1.Question && g.Reply == "done" &&
+			len(g.ToolCalls) == 1 && g.ToolCalls[0] == c1.ToolCalls[0], fmt.Sprintf("Calls[0] = %+v", g))
+		check(t, calls[1].Redacted != nil && len(calls[1].ToolCalls) == 0, "an empty call to read back empty")
+		none, err := r.Calls(ctx, key(t, "nobody"))
+		mustf(t, err, "Calls for an unknown launch")
+		check(t, len(none) == 0, "no calls for an unknown launch")
+
+		sessions, err := r.Summaries(ctx, 100)
+		mustf(t, err, "Summaries")
+		var sa, sb *store.TraceSession
+		order := []string{}
+		for i := range sessions {
+			switch sessions[i].LaunchID {
+			case la:
+				sa = &sessions[i]
+				order = append(order, la)
+			case lb:
+				sb = &sessions[i]
+				order = append(order, lb)
+			}
+		}
+		check(t, sa != nil && sb != nil && slices.Equal(order, []string{la, lb}), fmt.Sprintf("Summaries order = %v, want latest call first", order))
+		check(t, sa.Calls == 2 && sa.InputTokens == 15 && sa.OutputTokens == 4 && sa.Redacted == 3 &&
+			sa.First.Equal(at) && sa.Last.Equal(at.Add(2*time.Second)), fmt.Sprintf("session = %+v", *sa))
+		one, err := r.Summaries(ctx, 1)
+		mustf(t, err, "Summaries with a limit")
+		check(t, len(one) == 1, "Summaries to honour its limit")
+
+		n, err := r.DeleteBefore(ctx, at.Add(1500*time.Millisecond))
+		mustf(t, err, "DeleteBefore")
+		check(t, n >= 2, fmt.Sprintf("DeleteBefore removed %d, want at least 2", n))
+		calls, err = r.Calls(ctx, la)
+		mustf(t, err, "Calls after DeleteBefore")
+		check(t, len(calls) == 1 && calls[0].ID == id3, "only the later call to survive")
 	})
 
 	t.Run("Ping", func(t *testing.T) {

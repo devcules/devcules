@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/devcules/devcules/internal/audit"
 	"github.com/devcules/devcules/internal/redact"
 )
 
@@ -55,7 +56,7 @@ func redactRoot(r *redact.Redactor, settings *redact.Settings) http.Handler {
 // redactPolicy answers PUT /api/redact/policy: the body is the whole
 // policy, a mode for every type. 204 on success; 400 names what is
 // wrong.
-func redactPolicy(r *redact.Redactor, settings *redact.Settings) http.Handler {
+func redactPolicy(r *redact.Redactor, settings *redact.Settings, rec auditor) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if r == nil || settings == nil {
 			writeAuthError(w, http.StatusServiceUnavailable, "redaction not configured")
@@ -73,9 +74,20 @@ func redactPolicy(r *redact.Redactor, settings *redact.Settings) http.Handler {
 			writeAuthError(w, http.StatusBadRequest, err.Error())
 			return
 		}
+		before := settings.Policy()
 		if err := settings.SetPolicy(req.Context(), p); err != nil {
 			writeAuthError(w, http.StatusInternalServerError, "could not save the policy")
 			return
+		}
+		// Detail holds only the types whose mode changed, old → new.
+		changed := map[string]string{}
+		for t, m := range p {
+			if before[t] != m {
+				changed[string(t)] = string(before[t]) + " → " + string(m)
+			}
+		}
+		if len(changed) > 0 {
+			rec.record(req, audit.RedactPolicy, "", changed)
 		}
 		w.WriteHeader(http.StatusNoContent)
 	})

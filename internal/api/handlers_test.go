@@ -458,7 +458,7 @@ func TestSignOutWithoutMiddleware(t *testing.T) {
 				t.Fatal("bare signOut panicked on a missing cookie")
 			}
 		}()
-		signOut(auth.New(s))(w, r)
+		signOut(auth.New(s), auditor{})(w, r)
 	}()
 	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("bare sign-out status = %d, want 401", w.Code)

@@ -477,3 +477,82 @@ export async function testRedaction(
   }
   return 'unreachable';
 }
+
+// Activity (M2.4): model call traces per agent launch, and the audit
+// log. Reads only; the server audits trace reads and exports itself.
+export type TraceSummary = {
+  launchId: string;
+  label: string;
+  provider: string;
+  calls: number;
+  inputTokens: number;
+  outputTokens: number;
+  redacted: number;
+  first: string;
+  last: string;
+};
+export type TraceToolCall = { name: string; args: string };
+export type TraceCall = {
+  id: number;
+  at: string;
+  provider: string;
+  path: string;
+  model: string;
+  status: number;
+  stream: boolean;
+  durationMs: number;
+  inputTokens: number;
+  outputTokens: number;
+  redacted: Record<string, number>;
+  question: string;
+  reply: string;
+  toolCalls: TraceToolCall[];
+};
+export type AuditEntry = {
+  seq: number;
+  at: string;
+  actor: string;
+  action: string;
+  target?: string;
+  ip?: string;
+  detail?: Record<string, string>;
+};
+export type AuditCheck = { ok: boolean; checked: number; brokenAt?: number; reason?: string };
+
+type Read<T> = Promise<T | 'unauthorized' | 'unreachable'>;
+
+async function readJSON<T>(path: string, valid: (v: Record<string, unknown>) => boolean): Read<T> {
+  const res = await redactFetch(path);
+  if (typeof res === 'string') {
+    return res;
+  }
+  if (!res.ok) {
+    return 'unreachable';
+  }
+  let data: unknown;
+  try {
+    data = await res.json();
+  } catch {
+    return 'unreachable';
+  }
+  return isObject(data) && valid(data) ? (data as T) : 'unreachable';
+}
+
+export function listTraces(): Read<{ sessions: TraceSummary[] }> {
+  return readJSON('/api/traces', (d) => Array.isArray(d.sessions));
+}
+
+export function getTrace(launchId: string): Read<{ calls: TraceCall[] }> {
+  return readJSON(`/api/traces/${encodeURIComponent(launchId)}`, (d) => Array.isArray(d.calls));
+}
+
+export function listAudit(before = 0): Read<{ entries: AuditEntry[] }> {
+  const q = before > 0 ? `?limit=50&before=${before}` : '?limit=50';
+  return readJSON(`/api/audit${q}`, (d) => Array.isArray(d.entries));
+}
+
+export function checkAudit(): Read<AuditCheck> {
+  return readJSON('/api/audit/export?verify=1', (d) => typeof d.ok === 'boolean' && typeof d.checked === 'number');
+}
+
+export const auditExportURL = '/api/audit/export';

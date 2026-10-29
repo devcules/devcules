@@ -29,6 +29,7 @@ var configEnv = []string{
 	"META_API_KEY",
 	"META_API_KEY_FILE",
 	"DEVCULES_META_BASE_URL",
+	"DEVCULES_TRACE_DAYS",
 	"HOME",
 }
 
@@ -71,6 +72,7 @@ func baseConfig() Config {
 		RunnerTokenFile: filepath.Join(dataDir, "runner.token"),
 		Workspace:       "/workspace",
 		MetaBaseURL:     "https://api.meta.ai",
+		TraceDays:       30,
 	}
 }
 
@@ -265,6 +267,16 @@ func TestLoad(t *testing.T) {
 			name:    "meta base url bad",
 			env:     merge(key, map[string]string{"DEVCULES_META_BASE_URL": "api.meta.ai"}),
 			wantErr: "invalid config:\n  - DEVCULES_META_BASE_URL invalid: \"api.meta.ai\" (want empty or an http(s) URL with a host)",
+		},
+		{
+			name: "trace days",
+			env:  merge(key, map[string]string{"DEVCULES_TRACE_DAYS": "0"}),
+			want: with(baseConfig(), func(c *Config) { c.TraceDays = 0 }),
+		},
+		{
+			name:    "trace days bad",
+			env:     merge(key, map[string]string{"DEVCULES_TRACE_DAYS": "-1"}),
+			wantErr: "invalid config:\n  - DEVCULES_TRACE_DAYS invalid: \"-1\" (want a whole number of days, 0 to 3650; 0 keeps traces forever)",
 		},
 		{
 			name:    "meta api key whitespace",

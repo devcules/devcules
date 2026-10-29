@@ -7,6 +7,7 @@ import (
 
 	"github.com/coder/websocket"
 
+	"github.com/devcules/devcules/internal/audit"
 	"github.com/devcules/devcules/internal/terminals"
 	"github.com/devcules/devcules/internal/terminals/relay"
 )
@@ -14,7 +15,7 @@ import (
 // terminalsRoot serves the /api/terminals collection: GET lists the
 // runner's terminals, POST opens one. Reads need a session; writes
 // need a session plus the CSRF origin check.
-func terminalsRoot(relay *relay.Relay, publicURL string) http.Handler {
+func terminalsRoot(relay *relay.Relay, publicURL string, rec auditor) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if relay == nil {
 			writeAuthError(w, http.StatusServiceUnavailable, "no runner linked")
@@ -41,6 +42,7 @@ func terminalsRoot(relay *relay.Relay, publicURL string) http.Handler {
 					writeAuthError(w, rerr.Status, rerr.Msg)
 					return
 				}
+				rec.record(r, audit.TerminalOpen, id, nil)
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusCreated)
 				_, _ = w.Write([]byte(`{"id":` + strconv.Quote(id) + "}\n"))
@@ -56,7 +58,7 @@ func terminalsRoot(relay *relay.Relay, publicURL string) http.Handler {
 // closes it (session plus CSRF), and GET on the /stream suffix
 // upgrades to the terminal WebSocket (session plus the relay's Origin
 // check against cross-site hijacking).
-func terminalOne(relay *relay.Relay, publicURL string) http.Handler {
+func terminalOne(relay *relay.Relay, publicURL string, rec auditor) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if relay == nil {
 			writeAuthError(w, http.StatusServiceUnavailable, "no runner linked")
@@ -84,6 +86,7 @@ func terminalOne(relay *relay.Relay, publicURL string) http.Handler {
 				writeAuthError(w, rerr.Status, rerr.Msg)
 				return
 			}
+			rec.record(r, audit.TerminalClose, id, nil)
 			w.WriteHeader(http.StatusNoContent)
 		})).ServeHTTP(w, r)
 	})

@@ -27,6 +27,8 @@ services:
       # a regional endpoint or the smoke test's mock provider.
       META_API_KEY: ${META_API_KEY:-}
       DEVCULES_META_BASE_URL: ${DEVCULES_META_BASE_URL:-}
+      # M2.4: days of model call traces to keep (empty = 30).
+      DEVCULES_TRACE_DAYS: ${DEVCULES_TRACE_DAYS:-}
     volumes:
       - devcules-data:/data
       - link:/link

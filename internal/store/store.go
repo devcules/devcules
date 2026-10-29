@@ -52,6 +52,101 @@ type Store interface {
 	// LaunchTokens returns the per-launch token repo. It is launch's
 	// repo: only internal/launch and the store backends may use it.
 	LaunchTokens() LaunchTokensRepo
+	// Audit returns the append-only audit repo. It is audit's repo:
+	// only internal/audit and the store backends may use it.
+	Audit() AuditRepo
+	// Traces returns the model call trace repo. It is trace's repo:
+	// only internal/trace and the store backends may use it.
+	Traces() TracesRepo
+}
+
+// ErrConflict reports a write that lost a race: an audit append whose
+// sequence number is not the next one. Implementations wrap it.
+var ErrConflict = errors.New("store: conflicting write")
+
+// AuditEntry is one audit record. Seq counts from 1 with no gaps.
+// Hash is SHA-256 over PrevHash and the entry's other fields (see
+// internal/audit); the store keeps both and never computes them.
+// Detail holds short, non-secret context. Times are UTC.
+type AuditEntry struct {
+	Seq      int64
+	At       time.Time
+	Actor    string
+	Action   string
+	Target   string
+	IP       string
+	Detail   map[string]string
+	PrevHash []byte
+	Hash     []byte
+}
+
+// AuditRepo is append-only: it has no update or delete, and the
+// backends refuse both at the database level too.
+type AuditRepo interface {
+	// Append stores e. Its Seq must be exactly one past the last
+	// entry's (1 when empty), or the error wraps ErrConflict.
+	Append(ctx context.Context, e AuditEntry) error
+	// Last returns the newest entry, or an error wrapping ErrNotFound
+	// when the log is empty.
+	Last(ctx context.Context) (AuditEntry, error)
+	// After returns up to limit entries with Seq > after, oldest first.
+	After(ctx context.Context, after int64, limit int) ([]AuditEntry, error)
+	// Before returns up to limit entries with Seq < before, newest
+	// first. before <= 0 means from the newest.
+	Before(ctx context.Context, before int64, limit int) ([]AuditEntry, error)
+}
+
+// TraceCall is one model call through the router, as the provider saw
+// it: Question, Reply and tool call arguments carry placeholders, never
+// redacted values. Redacted counts findings per redaction type.
+type TraceCall struct {
+	ID           int64
+	LaunchID     string
+	At           time.Time
+	Provider     string
+	Path         string
+	Model        string
+	Status       int
+	Stream       bool
+	DurationMS   int64
+	InputTokens  int64
+	OutputTokens int64
+	Redacted     map[string]int
+	Question     string
+	Reply        string
+	ToolCalls    []TraceToolCall
+}
+
+// TraceToolCall is one tool call a model asked for.
+type TraceToolCall struct {
+	Name string
+	Args string
+}
+
+// TraceSession sums one launch's calls.
+type TraceSession struct {
+	LaunchID     string
+	Calls        int
+	InputTokens  int64
+	OutputTokens int64
+	Redacted     int
+	First, Last  time.Time
+}
+
+// TracesRepo stores model call traces by launch.
+type TracesRepo interface {
+	// Add stores c and returns its new ID. An empty LaunchID is an
+	// error.
+	Add(ctx context.Context, c TraceCall) (int64, error)
+	// Summaries returns up to limit launches with calls, latest call
+	// first.
+	Summaries(ctx context.Context, limit int) ([]TraceSession, error)
+	// Calls returns a launch's calls, oldest first (none is not an
+	// error).
+	Calls(ctx context.Context, launchID string) ([]TraceCall, error)
+	// DeleteBefore removes calls made before the given time and
+	// returns how many went.
+	DeleteBefore(ctx context.Context, before time.Time) (int, error)
 }
 
 // LaunchToken is one per-launch credential: what an agent presents to

@@ -14,6 +14,7 @@ import (
 
 	"github.com/devcules/devcules/internal/launch"
 	"github.com/devcules/devcules/internal/redact"
+	"github.com/devcules/devcules/internal/store"
 )
 
 const (
@@ -44,6 +45,9 @@ type Options struct {
 	// response headers.
 	Client *http.Client
 	Log    *slog.Logger
+	// Tracer, when set, receives a record of every call that passed
+	// the token check.
+	Tracer Tracer
 }
 
 // Router serves /llm/{provider}/... .
@@ -129,6 +133,7 @@ type call struct {
 	status                 int
 	stream                 bool
 	findings               []redact.Finding
+	obs                    *observer
 }
 
 func (rt *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -136,8 +141,9 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rest, _ := strings.CutPrefix(r.URL.Path, "/llm/")
 	id, path, _ := strings.Cut(rest, "/")
 	anthropic := strings.HasPrefix(path, "v1/messages")
-	c := call{provider: id, path: path}
+	c := call{provider: id, path: path, obs: newObserver()}
 	defer func() {
+		rt.trace(r.Context(), c, start)
 		counts := map[redact.Type]int{}
 		for _, f := range c.findings {
 			counts[f.Type]++
@@ -237,6 +243,7 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			fail(http.StatusBadRequest, "invalid_request_error", blocked.Error()+": change the mode in Settings → Redaction to send it")
 			return
 		}
+		c.obs.request(v)
 		if body, err = encodeJSON(v); err != nil {
 			fail(http.StatusInternalServerError, "api_error", "internal error")
 			return
@@ -287,17 +294,19 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case strings.HasPrefix(ctype, "text/event-stream"):
 		c.stream = true
 		w.WriteHeader(res.StatusCode)
+		tee := io.TeeReader(res.Body, streamWriter{c.obs})
 		if session.Issued() == 0 {
-			copyFlushing(w, res.Body)
+			copyFlushing(w, tee)
 			return
 		}
-		_ = pipeSSE(w, res.Body, session)
+		_ = pipeSSE(w, tee, session)
 	case session.Issued() > 0 && strings.Contains(ctype, "json"):
 		raw, err := io.ReadAll(io.LimitReader(res.Body, maxReplyBody+1))
 		if err != nil || len(raw) > maxReplyBody {
 			fail(http.StatusBadGateway, "api_error", fmt.Sprintf("provider %q sent an unreadable or oversized reply", id))
 			return
 		}
+		_, _ = c.obs.Write(raw)
 		if v, err := decodeJSON(raw); err == nil {
 			if out, err := encodeJSON(restoreValue(v, session)); err == nil {
 				raw = out
@@ -305,10 +314,39 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		w.WriteHeader(res.StatusCode)
 		_, _ = w.Write(raw)
+	case strings.Contains(ctype, "json"):
+		w.WriteHeader(res.StatusCode)
+		copyFlushing(w, io.TeeReader(res.Body, c.obs))
 	default:
 		w.WriteHeader(res.StatusCode)
 		copyFlushing(w, res.Body)
 	}
+}
+
+// trace hands a finished call to the Tracer. Calls that never passed
+// the token check have no launch and are not traced: the log line
+// covers them.
+func (rt *Router) trace(ctx context.Context, c call, start time.Time) {
+	if rt.o.Tracer == nil || c.launch == "" {
+		return
+	}
+	c.obs.finishPlain()
+	tc := store.TraceCall{
+		LaunchID:   c.launch,
+		At:         start.UTC(),
+		Provider:   c.provider,
+		Path:       c.path,
+		Status:     c.status,
+		Stream:     c.stream,
+		DurationMS: time.Since(start).Milliseconds(),
+		Redacted:   map[string]int{},
+	}
+	for _, f := range c.findings {
+		tc.Redacted[string(f.Type)]++
+	}
+	c.obs.record(&tc)
+	// The client may be gone; the record is still owed.
+	rt.o.Tracer.Trace(context.WithoutCancel(ctx), tc)
 }
 
 // copyFlushing copies a reply that needs no restore, flushing as it

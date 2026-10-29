@@ -75,6 +75,16 @@ the whole policy on change and reverting if the save fails), the
 counters since serve started, and a test box that shows the masked
 text, or why it was blocked. Values never come back from the server.
 
+The Activity tab (M2.4, `web/src/screens/Activity.tsx`) has two
+sections. Model calls lists one row per agent launch (label, calls,
+tokens, redactions); opening a row loads that launch's calls with the
+question, the reply and each tool call as the provider saw them, so
+masked values show as placeholders. The audit log lists entries
+newest first, 50 at a time, with "Check the log" (the server walks the
+hash chain) and an export link for the JSON-lines file. The flow is
+covered by `e2e/tests/activity.spec.js`; it has no visual baseline,
+because its rows are timestamps and addresses.
+
 ## Building
 
 ```sh

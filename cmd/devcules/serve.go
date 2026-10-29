@@ -81,7 +81,13 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 	if n, err := launches.Prune(context.Background()); err == nil && n > 0 {
 		log.Info("expired launch tokens pruned", "count", n)
 	}
+	auditLog, traces := setupAudit(context.Background(), cfg, s, log)
+	pruneTraces(context.Background(), traces, cfg.TraceDays, log)
+	pruneCtx, stopPrune := context.WithCancel(context.Background())
+	defer stopPrune()
+	go pruneTracesDaily(pruneCtx, 24*time.Hour, traces, cfg.TraceDays, log)
 	llm, err := router.New(router.Options{
+		Tracer:    traces,
 		Providers: []router.Provider{meta.New(cfg.MetaBaseURL)},
 		Keys:      v,
 		Tokens:    launches,
@@ -129,7 +135,7 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 		fmt.Fprintln(stderr, "Admin password (shown once): "+password)
 	}
 	srv := &http.Server{
-		Handler:           api.Handler(api.Options{Store: s, Auth: authSvc, Web: web.Embedded(), PublicURL: cfg.PublicURL, Link: h, Terminals: terms, Redact: redactor, RedactSettings: redactSettings, Router: llm, Launches: launches}),
+		Handler:           api.Handler(api.Options{Store: s, Auth: authSvc, Web: web.Embedded(), PublicURL: cfg.PublicURL, Link: h, Terminals: terms, Redact: redactor, RedactSettings: redactSettings, Router: llm, Launches: launches, AuditLog: auditLog, TraceStore: traces}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,

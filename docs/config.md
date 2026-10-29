@@ -22,11 +22,12 @@ forms are set, the direct value wins and the file is ignored entirely.
 | `DEVCULES_WORKSPACE` | `/workspace` | The code folder the runner may touch. Must be an absolute path. |
 | `DEVCULES_PUBLIC_URL` | empty | External URL for push and links, e.g. the Tailscale HTTPS name. Must be an `http(s)` URL with a host when set. Also the WebAuthn relying party (M1.5): passkeys work on `http://localhost:7659` and https names, and stay off without it or on an IP host (see `docs/auth.md`). |
 | `META_API_KEY` / `_FILE` | empty | Moved into the vault (`provider/meta/api_key`) on start; once logged as stored, it can leave the environment. A single whitespace-free string. Serve-only, like the vault keys. |
+| `DEVCULES_TRACE_DAYS` | `30` | How many days model call traces are kept (0 to 3650; `0` keeps them forever). Serve prunes at start and once a day. The audit log is never pruned. See `docs/audit.md`. |
 | `DEVCULES_META_BASE_URL` | `https://api.meta.ai` | Meta Model API origin the router forwards to, without `/v1`. Must be an `http(s)` URL with a host; a trailing slash is dropped. Point it at a compatible endpoint or a test fake. See `docs/router.md`. |
 
 ## Subcommands
 
-`devcules [serve|runner|machine|hook|version|health|vault rotate|help]`. Exit codes: 0
+`devcules [serve|runner|machine|hook|version|health|vault rotate|audit export|audit verify|help]`. Exit codes: 0
 done, 1 configuration or run failure, 2 wrong invocation.
 
 - `version`, `help` (also `-h`, `--help`) and usage errors never read the
@@ -45,3 +46,8 @@ done, 1 configuration or run failure, 2 wrong invocation.
 - `vault rotate` rewraps the vault's data key under a new vault key
   and prints both key ids (see `docs/vault.md`). It runs beside serve,
   with serve's configuration.
+- `audit export [-after N]` writes the audit log as JSON lines to
+  stdout (and records the export first); `audit verify` checks the
+  database's hash chain, and `audit verify FILE` (or `-` for stdin)
+  checks an exported file on its own. Both read serve's database and
+  hold no secrets (see `docs/audit.md`).

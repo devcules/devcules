@@ -140,6 +140,16 @@ func (s *sqliteStore) LaunchTokens() store.LaunchTokensRepo {
 	return launchTokensRepo{db: s.db}
 }
 
+// Audit returns audit's append-only repo.
+func (s *sqliteStore) Audit() store.AuditRepo {
+	return auditRepo{db: s.db}
+}
+
+// Traces returns trace's model call repo.
+func (s *sqliteStore) Traces() store.TracesRepo {
+	return tracesRepo{db: s.db}
+}
+
 // usersRepo implements store.UsersRepo on the users table.
 type usersRepo struct {
 	db *sql.DB

@@ -26,8 +26,10 @@ import (
 //     terminals only through link frames.
 //  4. Auth's repos (store Users, Sessions, Passkeys) are used only
 //     by internal/auth and the store backends, the vault's repo
-//     (store Secrets) only by internal/vault, and launch's repo (store
-//     LaunchTokens) only by internal/launch, plus the store backends.
+//     (store Secrets) only by internal/vault, launch's repo (store
+//     LaunchTokens) only by internal/launch, and the audit and trace
+//     repos (store Audit, Traces) only by internal/audit and
+//     internal/trace, plus the store backends.
 //     Test files may wire anything, so only non-test call sites count.
 //
 // The runner role is any package on the agent side of the trust split:
@@ -133,6 +135,9 @@ func TestReposStayWithOwners(t *testing.T) {
 		"Secrets":  "internal/vault/",
 		// LaunchTokens is launch's repo (M2.3).
 		"LaunchTokens": "internal/launch/",
+		// Audit and Traces are M2.4's.
+		"Audit":  "internal/audit/",
+		"Traces": "internal/trace/",
 	}
 	var bad []string
 	fset := token.NewFileSet()

@@ -2651,15 +2651,170 @@
             </root>
         </mxGraphModel>
     </diagram>
-    <diagram id="archcombined" name="Arch_Combined">
-        <mxGraphModel dx="1750" dy="34" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="2400" math="0" shadow="0">
+    <diagram id="arch14" name="Arch_14">
+        <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1750" pageHeight="1420" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
-                <mxCell id="t2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=18;fontStyle=1;fontColor=#333333" value="&lt;b&gt;ARCH_COMBINED&lt;/b&gt; — Devcules today and where it grows — one modular monolith, one trust split; blue = shipped (M0.1 → M2.3: CI/CD · config · store · bus · image + compose · auth · web shell · link · terminals · passkeys · vault · redact · router), ghosts = planned (PLAN.md §9). This page gains a solid block every build." vertex="1">
+                <mxCell id="t15" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=17;fontStyle=1;fontColor=#333333" value="&lt;b&gt;ARCH_14&lt;/b&gt; — Build 14 (M2.4): audit and traces. Who did what lands in an append-only, hash-chained audit log; what each agent launch asked its model lands in a trace, with placeholders instead of secrets. Both show in the new Activity tab." vertex="1">
+                    <mxGeometry height="60" width="1090" x="40" y="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend15" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3B3B3;fontSize=11;align=left;verticalAlign=top;spacing=8" value="&lt;b&gt;How to read&lt;/b&gt;&lt;br&gt;• blue = shipped in this build (M2.4)&lt;br&gt;• grey dashed = planned module (milestone tag)&lt;br&gt;• dashed + animated = a record on its way into the store (plays in the draw.io app)&lt;br&gt;• red = a refusal, or a known limit" vertex="1">
+                    <mxGeometry height="94" width="570" x="1140" y="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-z1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;1 · WHAT GETS AUDITED&lt;/b&gt; — internal/api calls internal/audit after each action" vertex="1">
+                    <mxGeometry height="330" width="820" x="40" y="118" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-1.1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;sign-in&lt;/b&gt;&lt;br&gt;password or passkey · failures&lt;br&gt;as anonymous (no typed name)" vertex="1">
+                    <mxGeometry height="86" width="260" x="70" y="186" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-1.2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;passkeys · terminals&lt;/b&gt;&lt;br&gt;add · rename · remove&lt;br&gt;open · close" vertex="1">
+                    <mxGeometry height="86" width="240" x="350" y="186" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-1.3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;redaction policy&lt;/b&gt;&lt;br&gt;only the types that changed&lt;br&gt;old → new" vertex="1">
+                    <mxGeometry height="86" width="220" x="610" y="186" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-1.4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;launch tokens&lt;/b&gt;&lt;br&gt;mint (label, provider, expiry)&lt;br&gt;revoke" vertex="1">
+                    <mxGeometry height="86" width="260" x="70" y="312" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-1.5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;reads&lt;/b&gt;&lt;br&gt;trace.read · audit.export&lt;br&gt;the log records its own export" vertex="1">
+                    <mxGeometry height="86" width="240" x="350" y="312" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-1.6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;vault rotate (CLI)&lt;/b&gt;&lt;br&gt;actor cli · key ids only&lt;br&gt;never a key" vertex="1">
+                    <mxGeometry height="86" width="220" x="610" y="312" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-z2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;2 · TRACES&lt;/b&gt; — router observer → internal/trace, store Traces repo" vertex="1">
+                    <mxGeometry height="330" width="820" x="890" y="118" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-2.1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;observer&lt;/b&gt;&lt;br&gt;reads the provider&#x27;s own bytes&lt;br&gt;never the restored reply" vertex="1">
+                    <mxGeometry height="86" width="250" x="920" y="186" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-2.2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;what is kept&lt;/b&gt;&lt;br&gt;model · question · reply&lt;br&gt;tool calls · tokens · status" vertex="1">
+                    <mxGeometry height="86" width="250" x="1190" y="186" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-2.3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;redaction counts&lt;/b&gt;&lt;br&gt;per type · a blocked request&lt;br&gt;keeps counts, no text" vertex="1">
+                    <mxGeometry height="86" width="220" x="1460" y="186" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-2.4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;caps&lt;/b&gt;&lt;br&gt;32 KiB text · 8 KiB per tool&lt;br&gt;64 tool calls" vertex="1">
+                    <mxGeometry height="86" width="250" x="920" y="312" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-2.5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;retention&lt;/b&gt;&lt;br&gt;DEVCULES_TRACE_DAYS (30)&lt;br&gt;pruned at start + daily" vertex="1">
+                    <mxGeometry height="86" width="250" x="1190" y="312" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-2.6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;all API styles&lt;/b&gt;&lt;br&gt;chat · responses · messages&lt;br&gt;JSON and SSE" vertex="1">
+                    <mxGeometry height="86" width="220" x="1460" y="312" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-z3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;3 · APPEND-ONLY, THREE WAYS&lt;/b&gt; — store Audit repo, migration 0006" vertex="1">
+                    <mxGeometry height="470" width="1090" x="40" y="484" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-3.1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;repo&lt;/b&gt;&lt;br&gt;Append + reads only&lt;br&gt;no update, no delete" vertex="1">
+                    <mxGeometry height="86" width="240" x="70" y="552" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-3.2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;next seq or ErrConflict&lt;/b&gt;&lt;br&gt;serve and CLI cannot fork&lt;br&gt;the loser retries" vertex="1">
+                    <mxGeometry height="86" width="250" x="340" y="552" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-3.3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#B85450;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;SQLite triggers&lt;/b&gt;&lt;br&gt;UPDATE / DELETE on audit_log&lt;br&gt;→ ABORT append-only" vertex="1">
+                    <mxGeometry height="86" width="240" x="620" y="552" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-3.4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;hash chain&lt;/b&gt;&lt;br&gt;SHA-256(prev ‖ fields)&lt;br&gt;entry 1 links to zeros" vertex="1">
+                    <mxGeometry height="86" width="220" x="890" y="552" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-3.b1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;serve start&lt;/b&gt; — walks the chain: “audit chain verified” or “broken at entry N” (logged; serve still starts so the owner can look)" vertex="1">
+                    <mxGeometry height="66" width="1040" x="70" y="780" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-3.b2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;tamper tests&lt;/b&gt; — edited field, deleted row and relinked entry each caught, in the DB and in an export file" vertex="1">
+                    <mxGeometry height="66" width="1040" x="70" y="864" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-z4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;4 · READING IT&lt;/b&gt; — session required" vertex="1">
+                    <mxGeometry height="470" width="560" x="1150" y="484" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-4.1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;GET /api/traces&lt;/b&gt;&lt;br&gt;one row per launch&lt;br&gt;with its label" vertex="1">
+                    <mxGeometry height="86" width="250" x="1180" y="552" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-4.2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;GET /api/traces/{id}&lt;/b&gt;&lt;br&gt;calls oldest first&lt;br&gt;audited as trace.read" vertex="1">
+                    <mxGeometry height="86" width="230" x="1450" y="552" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-4.3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;GET /api/audit&lt;/b&gt;&lt;br&gt;newest first&lt;br&gt;50 a page in the UI" vertex="1">
+                    <mxGeometry height="86" width="250" x="1180" y="664" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-4.4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;/api/audit/export&lt;/b&gt;&lt;br&gt;JSON lines · ?verify=1&lt;br&gt;devcules audit export/verify" vertex="1">
+                    <mxGeometry height="86" width="230" x="1450" y="664" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-4.b1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;Activity tab&lt;/b&gt; — Model calls (expand a launch to see questions, replies and tool calls as placeholders) and the Audit log (check, export, show older)" vertex="1">
+                    <mxGeometry height="66" width="500" x="1180" y="780" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-z5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;5 · PROOF&lt;/b&gt; — tests, e2e and the compose smoke" vertex="1">
+                    <mxGeometry height="400" width="820" x="40" y="974" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-5.1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;storetest&lt;/b&gt;&lt;br&gt;Audit + Traces contracts&lt;br&gt;in the fake and SQLite" vertex="1">
+                    <mxGeometry height="86" width="360" x="70" y="1042" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-5.2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;router&lt;/b&gt;&lt;br&gt;every stream shape byte by byte&lt;br&gt;no trace holds the key" vertex="1">
+                    <mxGeometry height="86" width="370" x="460" y="1042" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-5.3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;e2e activity&lt;/b&gt;&lt;br&gt;sign in, open Activity&lt;br&gt;check the log, export" vertex="1">
+                    <mxGeometry height="86" width="360" x="70" y="1164" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-5.4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;smoke&lt;/b&gt;&lt;br&gt;trace masked · audit has mint,&lt;br&gt;read, revoke, export · verify OK" vertex="1">
+                    <mxGeometry height="86" width="370" x="460" y="1164" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-z6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#F5F5F5;strokeColor=#B3B3B3;dashed=1;fontSize=13;fontColor=#666666" value="&lt;b&gt;6 · NOT IN THIS BUILD, AND NEXT&lt;/b&gt;" vertex="1">
+                    <mxGeometry height="400" width="820" x="890" y="974" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-6.1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;M3.2 approvals&lt;/b&gt;&lt;br&gt;every Allow / Deny&lt;br&gt;lands in audit" vertex="1">
+                    <mxGeometry height="86" width="360" x="920" y="1042" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-6.2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;M3.3 launches&lt;/b&gt;&lt;br&gt;musecode gets its token;&lt;br&gt;its trace fills itself" vertex="1">
+                    <mxGeometry height="86" width="370" x="1310" y="1042" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-6.3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;ship the log&lt;/b&gt;&lt;br&gt;syslog / SIEM forwarding&lt;br&gt;(not planned yet)" vertex="1">
+                    <mxGeometry height="86" width="360" x="920" y="1164" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-6.4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#B85450;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;token counts&lt;/b&gt;&lt;br&gt;providers without usage&lt;br&gt;show 0 tokens" vertex="1">
+                    <mxGeometry height="86" width="370" x="1310" y="1164" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-e1" edge="1" parent="1" source="a14-1.1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a14-1.2" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-e2" edge="1" parent="1" source="a14-1.3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a14-1.4" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-e3" edge="1" parent="1" source="a14-2.1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a14-2.2" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-e4" edge="1" parent="1" source="a14-2.4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a14-2.5" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-e5" edge="1" parent="1" source="a14-3.1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a14-3.2" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-e6" edge="1" parent="1" source="a14-3.3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a14-3.4" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-e7" edge="1" parent="1" source="a14-4.1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a14-4.2" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-e8" edge="1" parent="1" source="a14-4.3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a14-4.4" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-e9" edge="1" parent="1" source="a14-5.1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a14-5.2" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="a14-e10" edge="1" parent="1" source="a14-6.1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a14-6.2" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="archcombined" name="Arch_Combined">
+        <mxGraphModel dx="1750" dy="34" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="2490" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="t2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=18;fontStyle=1;fontColor=#333333" value="&lt;b&gt;ARCH_COMBINED&lt;/b&gt; — Devcules today and where it grows — one modular monolith, one trust split; blue = shipped (M0.1 → M2.4: CI/CD · config · store · bus · image + compose · auth · web shell · link · terminals · passkeys · vault · redact · router · audit + traces), ghosts = planned (PLAN.md §9). This page gains a solid block every build." vertex="1">
                     <mxGeometry height="76" width="1150" x="40" y="22" as="geometry"/>
                 </mxCell>
-                <mxCell id="legend2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3B3B3;fontSize=11;align=left;verticalAlign=top;spacing=8" value="&lt;b&gt;How to read&lt;/b&gt;&lt;br&gt;• blue = shipped in this build (M0.1 CI/CD · M0.2 config + subcommands · M0.3 store · M0.4 bus · M0.5 image + compose · M1.1 auth · M1.2 web shell · M1.3 link · M1.4 terminals · M1.5 passkeys · M2.1 vault · M2.2 redact · M2.3 router)&lt;br&gt;• grey dashed ghost = planned module (milestone tag)&lt;br&gt;• dashed + animated = live traffic (plays in the draw.io app)&lt;br&gt;• red vertical bar = trust split — real keys never cross it; enforced today by arch_test.go (M0.1)" vertex="1">
+                <mxCell id="legend2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B3B3B3;fontSize=11;align=left;verticalAlign=top;spacing=8" value="&lt;b&gt;How to read&lt;/b&gt;&lt;br&gt;• blue = shipped in this build (M0.1 CI/CD · M0.2 config + subcommands · M0.3 store · M0.4 bus · M0.5 image + compose · M1.1 auth · M1.2 web shell · M1.3 link · M1.4 terminals · M1.5 passkeys · M2.1 vault · M2.2 redact · M2.3 router · M2.4 audit + traces)&lt;br&gt;• grey dashed ghost = planned module (milestone tag)&lt;br&gt;• dashed + animated = live traffic (plays in the draw.io app)&lt;br&gt;• red vertical bar = trust split — real keys never cross it; enforced today by arch_test.go (M0.1)" vertex="1">
                     <mxGeometry height="130" width="470" x="1250" y="30" as="geometry"/>
                 </mxCell>
                 <mxCell id="phone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;phone / browser&lt;/b&gt; — PWA (M1.2 ✓)&lt;br&gt;approve risky steps from anywhere" vertex="1">
@@ -2674,7 +2829,7 @@
                 <mxCell id="m-config" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;config&lt;/b&gt; (M0.2 ✓)&lt;br&gt;env + file, validated at start" vertex="1">
                     <mxGeometry height="60" width="300" x="360" y="260" as="geometry"/>
                 </mxCell>
-                <mxCell id="m-store" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;store&lt;/b&gt; (M0.3 ✓)&lt;br&gt;Store interface · SQLite · storetest&lt;br&gt;+ Passkeys (M1.5 ✓) · Secrets (M2.1 ✓) · LaunchTokens (M2.3 ✓)" vertex="1">
+                <mxCell id="m-store" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;store&lt;/b&gt; (M0.3 ✓)&lt;br&gt;Store interface · SQLite · storetest&lt;br&gt;+ Passkeys (M1.5 ✓) · Secrets (M2.1 ✓) · LaunchTokens (M2.3 ✓) · Audit, Traces (M2.4 ✓)" vertex="1">
                     <mxGeometry height="60" width="300" x="360" y="340" as="geometry"/>
                 </mxCell>
                 <mxCell id="m-bus" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;bus&lt;/b&gt; (M0.4 ✓)&lt;br&gt;Bus interface · memory · bustest" vertex="1">
@@ -2701,7 +2856,7 @@
                 <mxCell id="m-auth" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;auth&lt;/b&gt; (M1.1 ✓)&lt;br&gt;bootstrap · argon2id · cookie sessions&lt;br&gt;CSRF · passkeys (M1.5 ✓)" vertex="1">
                     <mxGeometry height="60" width="300" x="680" y="340" as="geometry"/>
                 </mxCell>
-                <mxCell id="m-web" parent="1" style="rounded=1;whiteSpace=wrap;html=1;rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;web&lt;/b&gt; (M1.2 ✓)&lt;br&gt;React 18 PWA · theme tokens · app shell&lt;br&gt;embedded via go:embed · Redaction settings (M2.2 ✓)" vertex="1">
+                <mxCell id="m-web" parent="1" style="rounded=1;whiteSpace=wrap;html=1;rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;web&lt;/b&gt; (M1.2 ✓)&lt;br&gt;React 18 PWA · theme tokens · app shell&lt;br&gt;embedded via go:embed · Redaction settings (M2.2 ✓) · Activity tab (M2.4 ✓)" vertex="1">
                     <mxGeometry height="60" width="300" x="680" y="420" as="geometry"/>
                 </mxCell>
                 <mxCell id="m-link" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;link&lt;/b&gt; (M1.3 ✓)&lt;br&gt;hub at GET /link · strict frames · Runners + OnChange (M1.4 ✓)" vertex="1">
@@ -2710,10 +2865,10 @@
                 <mxCell id="m-terminals" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;terminals&lt;/b&gt; (M1.4 ✓)&lt;br&gt;relay · /api/terminals + WS stream · 1012 / 1013" vertex="1">
                     <mxGeometry height="60" width="300" x="680" y="580" as="geometry"/>
                 </mxCell>
-                <mxCell id="m-router" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;router&lt;/b&gt; (M2.3 ✓)&lt;br&gt;/llm/{provider} · OpenAI + Anthropic style&lt;br&gt;launch tokens · redact in, restore out" vertex="1">
+                <mxCell id="m-router" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;router&lt;/b&gt; (M2.3 ✓)&lt;br&gt;/llm/{provider} · OpenAI + Anthropic style&lt;br&gt;launch tokens · redact in, restore out · traced (M2.4 ✓)" vertex="1">
                     <mxGeometry height="60" width="300" x="680" y="660" as="geometry"/>
                 </mxCell>
-                <mxCell id="m-audit" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;audit&lt;/b&gt; (M2)&lt;br&gt;append-only log · JSON-lines export" vertex="1">
+                <mxCell id="m-audit" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;audit&lt;/b&gt; (M2.4 ✓)&lt;br&gt;append-only log · hash chain · triggers&lt;br&gt;JSON-lines export · traces per launch" vertex="1">
                     <mxGeometry height="60" width="300" x="680" y="740" as="geometry"/>
                 </mxCell>
                 <mxCell id="m-health" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;health&lt;/b&gt; (M0.5 ✓)&lt;br&gt;/healthz · /readyz + runners_linked (M1.3)" vertex="1">
@@ -2752,8 +2907,8 @@
                 <mxCell id="mach-note" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFCFC;strokeColor=#BBBBBB;dashed=1;fontColor=#555555;fontSize=11" value="&lt;b&gt;install&lt;/b&gt;: curl …/install/machine.sh · machine.ps1 — SHA-256 checked, served by serve (M4)" vertex="1">
                     <mxGeometry height="100" width="520" x="1160" y="840" as="geometry"/>
                 </mxCell>
-                <mxCell id="strip-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=13;fontColor=#333333" value="&lt;b&gt;SHIPPED — M0.1: CI/CD pipeline (Arch_1) · M0.2: config + subcommands (Arch_2) · M0.3: the store (Arch_3) · M0.4: the event bus (Arch_4) · M0.5: image + compose + health (Arch_5) · M1.1: auth (Arch_6) · M1.2: web shell (Arch_7) · M1.3: the link (Arch_8) · M1.4: terminals (Arch_9) · M1.5: passkeys (Arch_10) · M2.1: vault (Arch_11) · M2.2: redact (Arch_12) · M2.3: router (Arch_13)&lt;/b&gt; — these builds ship every future module above" vertex="1">
-                    <mxGeometry height="1340" width="1710" x="40" y="1000" as="geometry"/>
+                <mxCell id="strip-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=13;fontColor=#333333" value="&lt;b&gt;SHIPPED — M0.1: CI/CD pipeline (Arch_1) · M0.2: config + subcommands (Arch_2) · M0.3: the store (Arch_3) · M0.4: the event bus (Arch_4) · M0.5: image + compose + health (Arch_5) · M1.1: auth (Arch_6) · M1.2: web shell (Arch_7) · M1.3: the link (Arch_8) · M1.4: terminals (Arch_9) · M1.5: passkeys (Arch_10) · M2.1: vault (Arch_11) · M2.2: redact (Arch_12) · M2.3: router (Arch_13) · M2.4: audit + traces (Arch_14)&lt;/b&gt; — these builds ship every future module above" vertex="1">
+                    <mxGeometry height="1430" width="1710" x="40" y="1000" as="geometry"/>
                 </mxCell>
                 <mxCell id="s-repo" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;GitHub repo&lt;/b&gt;&lt;br&gt;PR · main · tag v*" vertex="1">
                     <mxGeometry height="70" width="160" x="70" y="1070" as="geometry"/>
@@ -3154,6 +3309,30 @@
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="s63" edge="1" parent="1" source="s13-4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="s13-5" value="reply">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s14-1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;API actions&lt;/b&gt;&lt;br&gt;— sign-in · tokens&lt;br&gt;policy · reads" vertex="1">
+                    <mxGeometry height="70" width="280" x="70" y="2340" as="geometry"/>
+                </mxCell>
+                <mxCell id="s14-2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;internal/audit&lt;/b&gt;&lt;br&gt;— — hash-chained&lt;br&gt;append-only entries" vertex="1">
+                    <mxGeometry height="70" width="330" x="370" y="2340" as="geometry"/>
+                </mxCell>
+                <mxCell id="s14-3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;router calls&lt;/b&gt;&lt;br&gt;— — observer reads&lt;br&gt;provider bytes" vertex="1">
+                    <mxGeometry height="70" width="300" x="720" y="2340" as="geometry"/>
+                </mxCell>
+                <mxCell id="s14-4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;internal/trace&lt;/b&gt;&lt;br&gt;— — capped text&lt;br&gt;placeholders only" vertex="1">
+                    <mxGeometry height="70" width="320" x="1040" y="2340" as="geometry"/>
+                </mxCell>
+                <mxCell id="s14-5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;Activity tab&lt;/b&gt;&lt;br&gt;— — traces · audit log&lt;br&gt;check · export" vertex="1">
+                    <mxGeometry height="70" width="360" x="1380" y="2340" as="geometry"/>
+                </mxCell>
+                <mxCell id="s64" edge="1" parent="1" source="s14-1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="s14-2" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s65" edge="1" parent="1" source="s14-3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0066CC;strokeWidth=2;fontSize=11;labelBackgroundColor=#FFFFFF;dashed=1;dashPattern=8 6;flowAnimation=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="s14-4" value="">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="s66" edge="1" parent="1" source="s14-4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#999999;strokeWidth=1.5;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="s14-5" value="">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
             </root>

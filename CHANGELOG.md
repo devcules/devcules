@@ -4,6 +4,28 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-29, M2.4)
+
+- `internal/audit`: an append-only audit log of sign-ins (and failed
+  ones), sign-outs, passkey and terminal changes, redaction policy
+  changes, launch token mints and revokes, trace reads, exports and
+  vault key rotations. Append-only three ways: the repo has no update
+  or delete, SQLite triggers refuse both, and every entry is
+  hash-chained to the one before. Serve checks the chain at start.
+- `GET /api/audit`, `GET /api/audit/export` (JSON lines, or
+  `?verify=1` for the chain check), and `devcules audit export` /
+  `devcules audit verify [FILE]`.
+- `internal/trace`: a trace per agent launch. The router records every
+  call's model, question, reply, tool calls, token counts, status and
+  redaction counts, from the provider's own bytes, so traces hold
+  placeholders, never values. `GET /api/traces`,
+  `GET /api/traces/{launchID}` (audited), and
+  `DEVCULES_TRACE_DAYS` retention (default 30).
+- The Activity tab: model calls per launch, and the audit log with a
+  chain check and the export.
+- Store: the `Audit` and `Traces` repos, migration `0006`.
+- See `docs/audit.md`.
+
 ### Added (2026-10-29, M2.3)
 
 - `internal/router`: the model router at `/llm/{provider}/...`. Agents

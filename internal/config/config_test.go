@@ -30,6 +30,9 @@ var configEnv = []string{
 	"META_API_KEY_FILE",
 	"DEVCULES_META_BASE_URL",
 	"DEVCULES_TRACE_DAYS",
+	"DEVCULES_PUSH_CONTACT",
+	"DEVCULES_LAUNCH_TOKEN",
+	"DEVCULES_LAUNCH_TOKEN_FILE",
 	"HOME",
 }
 
@@ -279,6 +282,21 @@ func TestLoad(t *testing.T) {
 			wantErr: "invalid config:\n  - DEVCULES_TRACE_DAYS invalid: \"-1\" (want a whole number of days, 0 to 3650; 0 keeps traces forever)",
 		},
 		{
+			name: "push contact",
+			env:  merge(key, map[string]string{"DEVCULES_PUSH_CONTACT": "mailto:owner@example.test"}),
+			want: with(baseConfig(), func(c *Config) { c.PushContact = "mailto:owner@example.test" }),
+		},
+		{
+			name:    "push contact bad",
+			env:     merge(key, map[string]string{"DEVCULES_PUSH_CONTACT": "owner@example.test"}),
+			wantErr: "invalid config:\n  - DEVCULES_PUSH_CONTACT invalid: \"owner@example.test\" (want a mailto: or https: URL)",
+		},
+		{
+			name: "launch token",
+			env:  merge(key, map[string]string{"DEVCULES_LAUNCH_TOKEN": "dvl_abc"}),
+			want: with(baseConfig(), func(c *Config) { c.LaunchToken = "dvl_abc" }),
+		},
+		{
 			name:    "meta api key whitespace",
 			env:     merge(key, map[string]string{"META_API_KEY": "a b"}),
 			wantErr: "invalid config:\n  - META_API_KEY invalid: must be a single token without whitespace",
@@ -324,4 +342,20 @@ func merge(base, overrides map[string]string) map[string]string {
 func with(c Config, mutate func(*Config)) Config {
 	mutate(&c)
 	return c
+}
+
+func TestPushSubject(t *testing.T) {
+	for _, c := range []struct {
+		cfg  Config
+		want string
+	}{
+		{Config{PushContact: "mailto:a@example.test", PublicURL: "https://x.test"}, "mailto:a@example.test"},
+		{Config{PublicURL: "https://devcules.tail.test/"}, "https://devcules.tail.test"},
+		{Config{PublicURL: "http://localhost:7659"}, "https://github.com/devcules/devcules"},
+		{Config{}, "https://github.com/devcules/devcules"},
+	} {
+		if got := c.cfg.PushSubject(); got != c.want {
+			t.Errorf("PushSubject(%+v) = %q, want %q", c.cfg, got, c.want)
+		}
+	}
 }

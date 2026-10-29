@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/devcules/devcules/internal/store"
 )
@@ -24,6 +25,8 @@ const (
 	MaxTTL = 7 * 24 * time.Hour
 	// maxLabel caps the free-text label.
 	maxLabel = 100
+	// maxRunner matches the link's runner name limit.
+	maxRunner = 64
 	// touchEvery limits last-used writes to one per token per minute.
 	touchEvery = time.Minute
 )
@@ -45,6 +48,7 @@ type Launch struct {
 	ID       string    `json:"id"`
 	Label    string    `json:"label"`
 	Provider string    `json:"provider"`
+	Runner   string    `json:"runner"`
 	Created  time.Time `json:"created"`
 	Expires  time.Time `json:"expires"`
 	Revoked  time.Time `json:"revoked,omitzero"`
@@ -81,8 +85,16 @@ func Hash(token string) []byte {
 // empty, living ttl (DefaultTTL when zero). The token is returned once
 // and never stored.
 func (t *Tokens) Mint(ctx context.Context, label, provider string, ttl time.Duration) (string, Launch, error) {
+	return t.MintOn(ctx, "", label, provider, ttl)
+}
+
+// MintOn is Mint for a launch on runner, whose approval access mode
+// then applies to the launch's tool calls. An empty runner is Mint.
+func (t *Tokens) MintOn(ctx context.Context, runner, label, provider string, ttl time.Duration) (string, Launch, error) {
 	label = strings.TrimSpace(label)
 	switch {
+	case len(runner) > maxRunner || strings.ContainsFunc(runner, unicode.IsControl):
+		return "", Launch{}, fmt.Errorf("launch: runner must be a runner's name, up to %d bytes", maxRunner)
 	case label == "":
 		return "", Launch{}, fmt.Errorf("launch: a label is required (say what the token is for)")
 	case len(label) > maxLabel:
@@ -105,6 +117,7 @@ func (t *Tokens) Mint(ctx context.Context, label, provider string, ttl time.Dura
 		TokenHash: Hash(token),
 		Label:     label,
 		Provider:  provider,
+		Runner:    runner,
 		CreatedAt: now,
 		ExpiresAt: now.Add(ttl),
 	}
@@ -187,6 +200,7 @@ func (t *Tokens) describe(r store.LaunchToken) Launch {
 		ID:       r.ID,
 		Label:    r.Label,
 		Provider: r.Provider,
+		Runner:   r.Runner,
 		Created:  r.CreatedAt,
 		Expires:  r.ExpiresAt,
 		Revoked:  r.RevokedAt,

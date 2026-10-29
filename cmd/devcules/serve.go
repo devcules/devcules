@@ -122,6 +122,14 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 	// streams retire with 1012 when their runner unlinks.
 	terms := relay.New(h, cfg.PublicURL)
 	terms.Run()
+	approvalSvc, pushSvc, err := setupApprovals(pruneCtx, cfg, s, v, auditLog, redactor, log)
+	if err != nil {
+		fmt.Fprintln(stderr, err.Error())
+		h.Close()
+		b.Close()
+		s.Close()
+		return exitError
+	}
 	mcpServer, err := setupMCP(cfg, h, terms, llm, launches, traces, auditLog, redactor, redactSettings, log)
 	if err != nil {
 		fmt.Fprintln(stderr, err.Error())
@@ -143,7 +151,7 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 		fmt.Fprintln(stderr, "Admin password (shown once): "+password)
 	}
 	srv := &http.Server{
-		Handler:           api.Handler(api.Options{Store: s, Auth: authSvc, Web: web.Embedded(), PublicURL: cfg.PublicURL, Link: h, Terminals: terms, Redact: redactor, RedactSettings: redactSettings, Router: llm, Launches: launches, AuditLog: auditLog, TraceStore: traces, MCP: mcpServer}),
+		Handler:           api.Handler(api.Options{Store: s, Auth: authSvc, Web: web.Embedded(), PublicURL: cfg.PublicURL, Link: h, Terminals: terms, Redact: redactor, RedactSettings: redactSettings, Router: llm, Launches: launches, AuditLog: auditLog, TraceStore: traces, MCP: mcpServer, ApprovalQueue: approvalSvc, Push: pushSvc}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,

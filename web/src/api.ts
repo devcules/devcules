@@ -556,3 +556,146 @@ export function checkAudit(): Read<AuditCheck> {
 }
 
 export const auditExportURL = '/api/audit/export';
+
+// Approvals (M3.2): agents ask before critical tool calls, and the
+// owner answers here or from a push notice. Commands arrive with
+// secrets already masked by the server.
+export type ApprovalStatus = 'pending' | 'allowed' | 'denied' | 'expired';
+export type Approval = {
+  id: string;
+  launchId: string;
+  runner: string;
+  agent: string;
+  tool: string;
+  command: string;
+  rule?: string;
+  ruleName?: string;
+  irreversible: boolean;
+  status: ApprovalStatus;
+  created: string;
+  expires: string;
+  answered?: string;
+  answeredBy?: string;
+};
+export type AccessMode = 'off' | 'critical' | 'all' | 'full';
+export type AccessTarget = { target: string; runner: string; linked: boolean; mode: AccessMode | '' };
+export type CriticalRule = { id: string; name: string; pattern: string; enabled: boolean; builtin: boolean };
+export type ApprovalSettings = {
+  targets: AccessTarget[];
+  modes: AccessMode[];
+  rules: CriticalRule[];
+  timeoutSeconds: number;
+};
+// A write either lands (the fresh value), or the server refused it
+// with a reason written for people ('invalid'), or something broke.
+export type Write<T> = Promise<T | { invalid: string } | 'unauthorized' | 'unreachable'>;
+
+async function sendJSON<T>(
+  path: string,
+  method: string,
+  body: unknown,
+  valid: (v: Record<string, unknown>) => boolean,
+): Write<T> {
+  const res = await redactFetch(path, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (typeof res === 'string') {
+    return res;
+  }
+  let data: unknown = null;
+  try {
+    data = await res.json();
+  } catch {
+    // 204 and broken bodies both land here; status decides below.
+  }
+  if (res.status === 400 && isObject(data) && typeof data.error === 'string') {
+    return { invalid: data.error };
+  }
+  if (!res.ok) {
+    return 'unreachable';
+  }
+  return isObject(data) && valid(data) ? (data as T) : 'unreachable';
+}
+
+export function listApprovals(status: ApprovalStatus | '' = '', limit = 50): Read<{ approvals: Approval[]; pending: number }> {
+  const q = new URLSearchParams({ limit: String(limit) });
+  if (status) {
+    q.set('status', status);
+  }
+  return readJSON(`/api/approvals?${q.toString()}`, (d) => Array.isArray(d.approvals) && typeof d.pending === 'number');
+}
+
+// answerApproval resolves 'gone' when the approval is unknown or was
+// answered already (it expired, or another device got there first).
+export async function answerApproval(
+  id: string,
+  allow: boolean,
+): Promise<Approval | 'gone' | 'unauthorized' | 'unreachable'> {
+  const res = await redactFetch(`/api/approvals/${encodeURIComponent(id)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ decision: allow ? 'allow' : 'deny' }),
+  });
+  if (typeof res === 'string') {
+    return res;
+  }
+  if (res.status === 404 || res.status === 409) {
+    return 'gone';
+  }
+  if (!res.ok) {
+    return 'unreachable';
+  }
+  try {
+    const data: unknown = await res.json();
+    return isObject(data) && typeof data.id === 'string' ? (data as Approval) : 'unreachable';
+  } catch {
+    return 'unreachable';
+  }
+}
+
+const validSettings = (d: Record<string, unknown>) =>
+  Array.isArray(d.targets) && Array.isArray(d.modes) && Array.isArray(d.rules) && typeof d.timeoutSeconds === 'number';
+
+export function getApprovalSettings(): Read<ApprovalSettings> {
+  return readJSON('/api/approvals/settings', validSettings);
+}
+
+export function setAccessMode(target: string, mode: AccessMode): Write<ApprovalSettings> {
+  return sendJSON('/api/approvals/modes', 'PUT', { target, mode }, validSettings);
+}
+
+export function setCriticalRules(rules: CriticalRule[]): Write<ApprovalSettings> {
+  return sendJSON('/api/approvals/rules', 'PUT', { rules }, validSettings);
+}
+
+export function checkCommand(command: string): Write<{ critical: boolean; rule?: CriticalRule }> {
+  return sendJSON('/api/approvals/check', 'POST', { command }, (d) => typeof d.critical === 'boolean');
+}
+
+// Web Push (M3.2). The server keeps endpoints to itself: a device
+// shows its id, label and push service host only.
+export type PushDevice = { id: string; label: string; service: string; created: string; lastOk?: string };
+export type PushResult = { sent: number; failed: number; removed: number };
+
+export function getPush(): Read<{ publicKey: string; devices: PushDevice[] }> {
+  return readJSON('/api/push', (d) => typeof d.publicKey === 'string' && Array.isArray(d.devices));
+}
+
+export function addPushDevice(subscription: PushSubscriptionJSON, label: string): Write<{ id: string }> {
+  return sendJSON('/api/push/devices', 'POST', { ...subscription, label }, (d) => typeof d.id === 'string');
+}
+
+export async function removePushDevice(id: string): Promise<true | 'unauthorized' | 'unreachable'> {
+  const res = await redactFetch(`/api/push/devices/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (typeof res === 'string') {
+    return res;
+  }
+  // Already gone counts as removed.
+  return res.status === 204 || res.status === 404 ? true : 'unreachable';
+}
+
+export function testPush(): Write<PushResult> {
+  return sendJSON('/api/push/test', 'POST', undefined, (d) => typeof d.sent === 'number');
+}

@@ -364,7 +364,7 @@ func Run(t *testing.T, newStore func(t *testing.T) store.Store) {
 		at := time.Date(2026, 10, 29, 2, 0, 0, 0, time.UTC)
 		id := key(t, "lt")
 		hash := []byte(key(t, "hash-") + "0123456789abcdef")
-		tok := store.LaunchToken{ID: id, TokenHash: hash, Label: "musecode in t1", Provider: "meta", CreatedAt: at, ExpiresAt: at.Add(time.Hour)}
+		tok := store.LaunchToken{ID: id, TokenHash: hash, Label: "musecode in t1", Provider: "meta", Runner: "laptop", CreatedAt: at, ExpiresAt: at.Add(time.Hour)}
 
 		_, err := r.ByHash(ctx, hash)
 		mustNotFound(t, err, "ByHash missing token")
@@ -378,7 +378,7 @@ func Run(t *testing.T, newStore func(t *testing.T) store.Store) {
 
 		got, err := r.ByHash(ctx, hash)
 		mustf(t, err, "ByHash")
-		check(t, got.ID == id && got.Label == tok.Label && got.Provider == "meta" &&
+		check(t, got.ID == id && got.Label == tok.Label && got.Provider == "meta" && got.Runner == "laptop" &&
 			got.CreatedAt.Equal(at) && got.ExpiresAt.Equal(at.Add(time.Hour)) &&
 			got.RevokedAt.IsZero() && got.LastUsedAt.IsZero(), fmt.Sprintf("ByHash = %+v", got))
 
@@ -523,6 +523,99 @@ func Run(t *testing.T, newStore func(t *testing.T) store.Store) {
 		calls, err = r.Calls(ctx, la)
 		mustf(t, err, "Calls after DeleteBefore")
 		check(t, len(calls) == 1 && calls[0].ID == id3, "only the later call to survive")
+	})
+
+	t.Run("Approvals", func(t *testing.T) {
+		s := newStore(t)
+		defer s.Close()
+		r := s.Approvals()
+		at := time.Date(2026, 10, 29, 6, 0, 0, 250, time.UTC)
+		mk := func(name string, created time.Time) store.Approval {
+			return store.Approval{ID: key(t, name), LaunchID: key(t, "l"), Runner: "laptop", Agent: "musecode", Tool: "Bash",
+				Command: "git push --force", Rule: "force-push", Irreversible: true, Status: store.ApprovalPending, CreatedAt: created}
+		}
+		a, b, c := mk("a", at), mk("b", at.Add(time.Second)), mk("c", at.Add(2*time.Second))
+		mustFail(t, r.Create(ctx, store.Approval{}), "Create with an empty id")
+		for _, x := range []store.Approval{a, b, c} {
+			mustf(t, r.Create(ctx, x), "Create")
+		}
+		mustExists(t, r.Create(ctx, a), "Create duplicate")
+		_, err := r.Get(ctx, key(t, "nope"))
+		mustNotFound(t, err, "Get missing")
+		got, err := r.Get(ctx, a.ID)
+		mustf(t, err, "Get")
+		check(t, got.LaunchID == a.LaunchID && got.Runner == "laptop" && got.Agent == "musecode" && got.Tool == "Bash" &&
+			got.Command == a.Command && got.Rule == "force-push" && got.Irreversible && got.Status == store.ApprovalPending &&
+			got.CreatedAt.Equal(at) && got.AnsweredAt.IsZero() && got.AnsweredBy == "", fmt.Sprintf("Get = %+v", got))
+
+		mustf(t, r.Answer(ctx, b.ID, store.ApprovalAllowed, "admin", at.Add(time.Minute)), "Answer")
+		mustConflict(t, r.Answer(ctx, b.ID, store.ApprovalDenied, "admin", at.Add(2*time.Minute)), "Answer twice")
+		mustNotFound(t, r.Answer(ctx, key(t, "nope"), store.ApprovalDenied, "admin", at), "Answer missing")
+		got, err = r.Get(ctx, b.ID)
+		mustf(t, err, "Get answered")
+		check(t, got.Status == store.ApprovalAllowed && got.AnsweredBy == "admin" && got.AnsweredAt.Equal(at.Add(time.Minute)),
+			fmt.Sprintf("answered = %+v, want the first answer", got))
+
+		mine := func(list []store.Approval) []string {
+			var ids []string
+			for _, x := range list {
+				if x.ID == a.ID || x.ID == b.ID || x.ID == c.ID {
+					ids = append(ids, x.ID)
+				}
+			}
+			return ids
+		}
+		all, err := r.List(ctx, "", 1000)
+		mustf(t, err, "List")
+		check(t, slices.Equal(mine(all), []string{c.ID, b.ID, a.ID}), fmt.Sprintf("List = %v, want newest first", mine(all)))
+		pending, err := r.List(ctx, store.ApprovalPending, 1000)
+		mustf(t, err, "List pending")
+		check(t, slices.Equal(mine(pending), []string{c.ID, a.ID}), fmt.Sprintf("List pending = %v", mine(pending)))
+		one, err := r.List(ctx, "", 1)
+		mustf(t, err, "List with a limit")
+		check(t, len(one) == 1, "List to honour its limit")
+
+		ids, err := r.ExpirePending(ctx, at.Add(1500*time.Millisecond), at.Add(time.Hour))
+		mustf(t, err, "ExpirePending")
+		check(t, slices.Contains(ids, a.ID) && !slices.Contains(ids, b.ID) && !slices.Contains(ids, c.ID), fmt.Sprintf("expired %v, want only the old pending one", ids))
+		got, err = r.Get(ctx, a.ID)
+		mustf(t, err, "Get expired")
+		check(t, got.Status == store.ApprovalExpired && got.AnsweredAt.Equal(at.Add(time.Hour)), fmt.Sprintf("expired = %+v", got))
+		mustConflict(t, r.Answer(ctx, a.ID, store.ApprovalAllowed, "admin", at), "Answer an expired approval")
+	})
+
+	t.Run("PushSubscriptions", func(t *testing.T) {
+		s := newStore(t)
+		defer s.Close()
+		r := s.PushSubscriptions()
+		at := time.Date(2026, 10, 29, 7, 0, 0, 0, time.UTC)
+		ep1, ep2 := "https://push.example.test/"+key(t, "1"), "https://push.example.test/"+key(t, "2")
+		mustFail(t, r.Put(ctx, store.PushSubscription{P256dh: []byte{4}, Auth: []byte{1}}), "Put with no endpoint")
+		mustFail(t, r.Put(ctx, store.PushSubscription{Endpoint: ep1}), "Put with no keys")
+		mustf(t, r.Put(ctx, store.PushSubscription{Endpoint: ep1, P256dh: []byte{4, 1}, Auth: []byte{9}, Label: "phone", CreatedAt: at}), "Put")
+		mustf(t, r.Put(ctx, store.PushSubscription{Endpoint: ep2, P256dh: []byte{4, 2}, Auth: []byte{8}, Label: "laptop", CreatedAt: at.Add(time.Second)}), "Put second")
+		mustf(t, r.Put(ctx, store.PushSubscription{Endpoint: ep1, P256dh: []byte{4, 3}, Auth: []byte{7}, Label: "phone again", CreatedAt: at}), "Put replaces")
+		mustf(t, r.Delivered(ctx, ep2, at.Add(time.Minute)), "Delivered")
+		mustNotFound(t, r.Delivered(ctx, "https://push.example.test/nope", at), "Delivered missing")
+		list, err := r.List(ctx)
+		mustf(t, err, "List")
+		var got []store.PushSubscription
+		for _, x := range list {
+			if x.Endpoint == ep1 || x.Endpoint == ep2 {
+				got = append(got, x)
+			}
+		}
+		check(t, len(got) == 2 && got[0].Endpoint == ep1 && got[1].Endpoint == ep2, "List oldest first, one row per endpoint")
+		check(t, bytes.Equal(got[0].P256dh, []byte{4, 3}) && bytes.Equal(got[0].Auth, []byte{7}) && got[0].Label == "phone again" &&
+			got[0].CreatedAt.Equal(at) && got[0].LastOKAt.IsZero(), fmt.Sprintf("replaced = %+v", got[0]))
+		check(t, got[1].LastOKAt.Equal(at.Add(time.Minute)), fmt.Sprintf("delivered = %+v", got[1]))
+		mustf(t, r.Delete(ctx, ep1), "Delete")
+		mustf(t, r.Delete(ctx, ep1), "Delete missing (must be a no-op)")
+		list, err = r.List(ctx)
+		mustf(t, err, "List after Delete")
+		for _, x := range list {
+			check(t, x.Endpoint != ep1, "the deleted subscription to be gone")
+		}
 	})
 
 	t.Run("Ping", func(t *testing.T) {

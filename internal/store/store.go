@@ -58,6 +58,13 @@ type Store interface {
 	// Traces returns the model call trace repo. It is trace's repo:
 	// only internal/trace and the store backends may use it.
 	Traces() TracesRepo
+	// Approvals returns the approval repo. It is approvals' repo: only
+	// internal/approvals and the store backends may use it.
+	Approvals() ApprovalsRepo
+	// PushSubscriptions returns the Web Push subscription repo. It is
+	// push's repo: only internal/push and the store backends may use
+	// it.
+	PushSubscriptions() PushSubscriptionsRepo
 }
 
 // ErrConflict reports a write that lost a race: an audit append whose
@@ -152,13 +159,16 @@ type TracesRepo interface {
 // LaunchToken is one per-launch credential: what an agent presents to
 // the model router instead of a real provider key. TokenHash is the
 // SHA-256 of the token; the token itself is never stored. Provider
-// limits the token to one provider id ("" allows any). RevokedAt and
-// LastUsedAt are zero until set. Times are UTC.
+// limits the token to one provider id ("" allows any). Runner is the
+// runner the launch runs on ("" when it is not tied to one), which
+// decides its approval access mode. RevokedAt and LastUsedAt are zero
+// until set. Times are UTC.
 type LaunchToken struct {
 	ID         string
 	TokenHash  []byte
 	Label      string
 	Provider   string
+	Runner     string
 	CreatedAt  time.Time
 	ExpiresAt  time.Time
 	RevokedAt  time.Time
@@ -283,4 +293,78 @@ type PasskeysRepo interface {
 	Rename(ctx context.Context, id []byte, name string) error
 	// Delete removes the passkey. A missing passkey is not an error.
 	Delete(ctx context.Context, id []byte) error
+}
+
+// Approval statuses. An approval starts pending and is answered once.
+const (
+	ApprovalPending = "pending"
+	ApprovalAllowed = "allowed"
+	ApprovalDenied  = "denied"
+	ApprovalExpired = "expired"
+)
+
+// Approval is one decision an agent's tool call waits on. Command is
+// the call as shown to the person answering, already redacted. Rule
+// names the critical rule that matched ("" when none did, e.g. under
+// "ask for everything"). AnsweredAt and AnsweredBy stay empty while
+// pending. Times are UTC.
+type Approval struct {
+	ID           string
+	LaunchID     string
+	Runner       string
+	Agent        string
+	Tool         string
+	Command      string
+	Rule         string
+	Irreversible bool
+	Status       string
+	CreatedAt    time.Time
+	AnsweredAt   time.Time
+	AnsweredBy   string
+}
+
+// ApprovalsRepo stores approvals by id.
+type ApprovalsRepo interface {
+	// Create stores a new approval. An empty id is an error; a
+	// duplicate id wraps ErrExists.
+	Create(ctx context.Context, a Approval) error
+	// Get returns one approval, or an error wrapping ErrNotFound.
+	Get(ctx context.Context, id string) (Approval, error)
+	// Answer moves a pending approval to status (allowed, denied or
+	// expired). A missing id wraps ErrNotFound; one already answered
+	// wraps ErrConflict, so the first answer always wins.
+	Answer(ctx context.Context, id, status, by string, at time.Time) error
+	// List returns up to limit approvals, newest first; status ""
+	// means any status.
+	List(ctx context.Context, status string, limit int) ([]Approval, error)
+	// ExpirePending expires every approval still pending that was
+	// created before before, answered at at, and returns their ids.
+	ExpirePending(ctx context.Context, before, at time.Time) ([]string, error)
+}
+
+// PushSubscription is one browser's Web Push subscription: where to
+// send (Endpoint) and the keys to encrypt for (P256dh, the browser's
+// public key, and Auth, its 16-byte secret). Label names the device
+// for the settings list. LastOKAt is zero until a push is accepted.
+type PushSubscription struct {
+	Endpoint  string
+	P256dh    []byte
+	Auth      []byte
+	Label     string
+	CreatedAt time.Time
+	LastOKAt  time.Time
+}
+
+// PushSubscriptionsRepo stores subscriptions by endpoint.
+type PushSubscriptionsRepo interface {
+	// Put creates or replaces the subscription for its endpoint. An
+	// empty endpoint or empty keys are an error.
+	Put(ctx context.Context, s PushSubscription) error
+	// List returns every subscription, oldest first.
+	List(ctx context.Context) ([]PushSubscription, error)
+	// Delete removes one. A missing endpoint is not an error.
+	Delete(ctx context.Context, endpoint string) error
+	// Delivered records an accepted push at at. A missing endpoint
+	// wraps ErrNotFound.
+	Delivered(ctx context.Context, endpoint string, at time.Time) error
 }

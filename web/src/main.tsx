@@ -12,3 +12,9 @@ createRoot(root).render(
     <App />
   </StrictMode>,
 );
+
+// The service worker only shows push notices and routes taps (see
+// public/sw.js); it caches nothing. Browsers without one skip it.
+if ('serviceWorker' in navigator && window.isSecureContext) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}

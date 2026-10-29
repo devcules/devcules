@@ -10,6 +10,8 @@ import {
   type PasskeySummary,
 } from '../api';
 import { credentialToJSON, passkeysUsableHere, toCreationOptions } from '../webauthn';
+import AccessModes from './AccessModes';
+import Notifications from './Notifications';
 import Redaction from './Redaction';
 
 // 'elsewhere': the server has passkeys on, but this page is open at
@@ -292,6 +294,8 @@ export default function Settings({
         )}
       </section>
       <Redaction onSessionExpired={onSessionExpired} />
+      <Notifications onSessionExpired={onSessionExpired} />
+      <AccessModes onSessionExpired={onSessionExpired} />
       <button
         type="button"
         onClick={leave}

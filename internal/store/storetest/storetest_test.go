@@ -21,17 +21,19 @@ import (
 // needs: data outlives any single handle (close is a disconnect, not a
 // delete), while closed handles stay closed.
 type memDB struct {
-	mu       sync.Mutex
-	data     map[string]string
-	users    map[string]string
-	handles  map[string][]byte
-	sessions map[string]store.Session
-	passkeys map[string]store.Passkey
-	secrets  map[string][]byte
-	launches map[string]store.LaunchToken
-	audit    []store.AuditEntry
-	traces   []store.TraceCall
-	closed   map[*memStore]bool
+	mu        sync.Mutex
+	data      map[string]string
+	users     map[string]string
+	handles   map[string][]byte
+	sessions  map[string]store.Session
+	passkeys  map[string]store.Passkey
+	secrets   map[string][]byte
+	launches  map[string]store.LaunchToken
+	audit     []store.AuditEntry
+	traces    []store.TraceCall
+	approvals []store.Approval
+	push      []store.PushSubscription
+	closed    map[*memStore]bool
 }
 
 type memStore struct {
@@ -82,6 +84,155 @@ func (s *memStore) Audit() store.AuditRepo {
 
 func (s *memStore) Traces() store.TracesRepo {
 	return memTraces{memLaunches{db: s.db, s: s}}
+}
+
+func (s *memStore) Approvals() store.ApprovalsRepo {
+	return memApprovals{memLaunches{db: s.db, s: s}}
+}
+
+func (s *memStore) PushSubscriptions() store.PushSubscriptionsRepo {
+	return memPush{memLaunches{db: s.db, s: s}}
+}
+
+// memApprovals and memPush reuse memLaunches' lock too.
+type memApprovals struct{ memLaunches }
+
+func (m memApprovals) Create(ctx context.Context, a store.Approval) error {
+	if a.ID == "" {
+		return fmt.Errorf("store: approval id must not be empty")
+	}
+	if err := m.lock(ctx); err != nil {
+		return err
+	}
+	defer m.db.mu.Unlock()
+	for _, o := range m.db.approvals {
+		if o.ID == a.ID {
+			return fmt.Errorf("store: approval exists: %w", store.ErrExists)
+		}
+	}
+	m.db.approvals = append(m.db.approvals, a)
+	return nil
+}
+
+func (m memApprovals) Get(ctx context.Context, id string) (store.Approval, error) {
+	if err := m.lock(ctx); err != nil {
+		return store.Approval{}, err
+	}
+	defer m.db.mu.Unlock()
+	for _, a := range m.db.approvals {
+		if a.ID == id {
+			return a, nil
+		}
+	}
+	return store.Approval{}, fmt.Errorf("store: approval not found: %w", store.ErrNotFound)
+}
+
+func (m memApprovals) Answer(ctx context.Context, id, status, by string, at time.Time) error {
+	if err := m.lock(ctx); err != nil {
+		return err
+	}
+	defer m.db.mu.Unlock()
+	for i, a := range m.db.approvals {
+		if a.ID != id {
+			continue
+		}
+		if a.Status != store.ApprovalPending {
+			return fmt.Errorf("store: approval answered: %w", store.ErrConflict)
+		}
+		m.db.approvals[i].Status, m.db.approvals[i].AnsweredBy, m.db.approvals[i].AnsweredAt = status, by, at
+		return nil
+	}
+	return fmt.Errorf("store: approval not found: %w", store.ErrNotFound)
+}
+
+func (m memApprovals) List(ctx context.Context, status string, limit int) ([]store.Approval, error) {
+	if err := m.lock(ctx); err != nil {
+		return nil, err
+	}
+	defer m.db.mu.Unlock()
+	out := []store.Approval{}
+	// Insertion order breaks ties, newest first.
+	for i := len(m.db.approvals) - 1; i >= 0; i-- {
+		if a := m.db.approvals[i]; status == "" || a.Status == status {
+			out = append(out, a)
+		}
+	}
+	slices.SortStableFunc(out, func(a, b store.Approval) int { return b.CreatedAt.Compare(a.CreatedAt) })
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
+func (m memApprovals) ExpirePending(ctx context.Context, before, at time.Time) ([]string, error) {
+	if err := m.lock(ctx); err != nil {
+		return nil, err
+	}
+	defer m.db.mu.Unlock()
+	ids := []string{}
+	for i, a := range m.db.approvals {
+		if a.Status == store.ApprovalPending && a.CreatedAt.Before(before) {
+			m.db.approvals[i].Status, m.db.approvals[i].AnsweredAt, m.db.approvals[i].AnsweredBy = store.ApprovalExpired, at, ""
+			ids = append(ids, a.ID)
+		}
+	}
+	return ids, nil
+}
+
+type memPush struct{ memLaunches }
+
+func (m memPush) Put(ctx context.Context, s store.PushSubscription) error {
+	if s.Endpoint == "" || len(s.P256dh) == 0 || len(s.Auth) == 0 {
+		return fmt.Errorf("store: a push subscription needs an endpoint and both keys")
+	}
+	if err := m.lock(ctx); err != nil {
+		return err
+	}
+	defer m.db.mu.Unlock()
+	for i, o := range m.db.push {
+		if o.Endpoint == s.Endpoint {
+			m.db.push[i] = s
+			return nil
+		}
+	}
+	m.db.push = append(m.db.push, s)
+	return nil
+}
+
+func (m memPush) List(ctx context.Context) ([]store.PushSubscription, error) {
+	if err := m.lock(ctx); err != nil {
+		return nil, err
+	}
+	defer m.db.mu.Unlock()
+	out := slices.Clone(m.db.push)
+	slices.SortStableFunc(out, func(a, b store.PushSubscription) int { return a.CreatedAt.Compare(b.CreatedAt) })
+	if out == nil {
+		out = []store.PushSubscription{}
+	}
+	return out, nil
+}
+
+func (m memPush) Delete(ctx context.Context, endpoint string) error {
+	if err := m.lock(ctx); err != nil {
+		return err
+	}
+	defer m.db.mu.Unlock()
+	m.db.push = slices.DeleteFunc(m.db.push, func(s store.PushSubscription) bool { return s.Endpoint == endpoint })
+	return nil
+}
+
+func (m memPush) Delivered(ctx context.Context, endpoint string, at time.Time) error {
+	if err := m.lock(ctx); err != nil {
+		return err
+	}
+	defer m.db.mu.Unlock()
+	for i, s := range m.db.push {
+		if s.Endpoint == endpoint {
+			m.db.push[i].LastOKAt = at
+			return nil
+		}
+	}
+	return fmt.Errorf("store: push subscription not found: %w", store.ErrNotFound)
 }
 
 // memAudit and memTraces reuse memLaunches' lock.

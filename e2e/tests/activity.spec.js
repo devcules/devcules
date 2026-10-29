@@ -14,7 +14,7 @@ test('activity shows the audit log and checks it', async ({ page }) => {
   });
   expect(signedIn.status()).toBe(204);
   await page.goto('/');
-  await expect(page.getByText('Nothing needs you.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Settings', exact: true }).first()).toBeVisible();
   await page.getByRole('button', { name: 'Activity', exact: true }).first().click();
 
   const log = page.getByRole('region', { name: 'Audit log' });

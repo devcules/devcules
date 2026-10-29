@@ -219,6 +219,58 @@ if $COMPOSE logs --no-color serve | grep -qF -e "$fake_key" -e "$mcp_token"; the
   fail "serve logs leak the key or the MCP launch token"
 fi
 
+# M3.2 approvals: a launch on runner "smoke" in critical mode runs a
+# plain command at once, waits on a force push until the owner allows
+# it through the API, and gets a deny exit for a recursive delete. The
+# hook runs in the runner container, as agents will. The audit has
+# every step; neither it nor the logs hold the commands or the token.
+curl -fsS -b "$jar2" -X PUT -H 'Content-Type: application/json' \
+  -d '{"target":"runner:smoke","mode":"critical"}' "$URL/api/approvals/modes" >/dev/null || fail "set the smoke runner's access mode"
+hook_body=$(curl -fsS -b "$jar2" -H 'Content-Type: application/json' \
+  -d '{"label":"smoke hook","runner":"smoke","ttlMinutes":10}' "$URL/api/launch-tokens") || fail "mint the hook launch token"
+hook_token=$(printf '%s' "$hook_body" | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')
+hook() { # command; prints the hook's stdout, returns its exit code
+  printf '{"agent":"smoke","tool":"Bash","command":"%s"}' "$1" |
+    $COMPOSE exec -T -e DEVCULES_LAUNCH_TOKEN="$hook_token" runner devcules hook 2>/dev/null
+}
+hook "ls -la" | grep -q '"decision":"allow"' || fail "a plain command was not allowed at once"
+answer_next() { # decision: wait for the one pending approval and answer it
+  local start=$SECONDS id=""
+  while [ $((SECONDS - start)) -lt 30 ]; do
+    id=$(curl -fsS -b "$jar2" "$URL/api/approvals?status=pending" |
+      python3 -c 'import json,sys; a=json.load(sys.stdin)["approvals"]; print(a[0]["id"] if a else "")')
+    [ -n "$id" ] && break
+    sleep 0.5
+  done
+  [ -n "$id" ] || return 1
+  curl -fsS -b "$jar2" -H 'Content-Type: application/json' -d '{"decision":"'"$1"'"}' "$URL/api/approvals/$id" >/dev/null
+}
+for case in "git push --force origin smoke-branch:allow:0" "rm -rf /workspace/smoke-dir:deny:2"; do
+  cmd=${case%%:*}; rest=${case#*:}; want=${rest%%:*}; code=${rest#*:}
+  out=$(mktemp)
+  hook "$cmd" >"$out" & hook_pid=$!
+  answer_next "$want" || fail "no pending approval for: $cmd"
+  set +e; wait "$hook_pid"; got=$?; set -e
+  [ "$got" = "$code" ] || fail "hook exit $got for '$cmd', want $code"
+  grep -q "\"decision\":\"$want\"" "$out" || fail "hook printed $(cat "$out") for '$cmd'"
+  rm -f "$out"
+done
+audit_log=$(curl -fsS -b "$jar2" "$URL/api/audit/export") || fail "GET /api/audit/export"
+for action in approval.mode approval.ask approval.allow approval.deny; do
+  case "$audit_log" in
+    *"\"action\":\"$action\""*) ;;
+    *) fail "the audit log has no $action" ;;
+  esac
+done
+case "$audit_log" in
+  *smoke-branch*|*smoke-dir*|*"$hook_token"*) fail "the audit log holds a command or the hook token" ;;
+esac
+if $COMPOSE logs --no-color serve runner | grep -qF -e smoke-branch -e smoke-dir -e "$hook_token"; then
+  fail "the logs hold a command or the hook token"
+fi
+curl -fsS -b "$jar2" "$URL/api/push" | python3 -c 'import json,sys; k=json.load(sys.stdin)["publicKey"]; sys.exit(0 if len(k)==87 else 1)' || fail "GET /api/push has no 65-byte VAPID key"
+$COMPOSE logs --no-color serve | grep -q '"msg":"push key created"' || fail "serve did not create its push key"
+
 serve_id=$($COMPOSE ps -q serve)
 start=$SECONDS
 $COMPOSE stop -t 20 serve >/dev/null

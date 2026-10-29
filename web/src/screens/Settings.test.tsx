@@ -12,6 +12,8 @@ vi.mock('../webauthn', async (importOriginal) => ({
 
 // Redaction has its own tests and its own fetches; here it is inert.
 vi.mock('./Redaction', () => ({ default: () => null }));
+vi.mock('./Notifications', () => ({ default: () => null }));
+vi.mock('./AccessModes', () => ({ default: () => null }));
 
 type Planned = { status: number; body?: unknown } | Array<{ status: number; body?: unknown }>;
 

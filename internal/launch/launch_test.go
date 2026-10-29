@@ -124,3 +124,20 @@ func TestPrune(t *testing.T) {
 		t.Fatalf("after prune: %+v", list)
 	}
 }
+
+func TestMintOnRunner(t *testing.T) {
+	ctx := context.Background()
+	tk, _ := newTokens(t)
+	token, l, err := tk.MintOn(ctx, "laptop", "musecode", "meta", time.Hour)
+	if err != nil || l.Runner != "laptop" {
+		t.Fatalf("MintOn = %+v %v", l, err)
+	}
+	if got, err := tk.Check(ctx, token); err != nil || got.Runner != "laptop" {
+		t.Fatalf("Check = %+v %v", got, err)
+	}
+	for _, bad := range []string{strings.Repeat("r", 65), "a\nb"} {
+		if _, _, err := tk.MintOn(ctx, bad, "x", "", 0); err == nil || !strings.Contains(err.Error(), "runner") {
+			t.Fatalf("MintOn(%q) = %v", bad, err)
+		}
+	}
+}

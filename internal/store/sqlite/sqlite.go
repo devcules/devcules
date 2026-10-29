@@ -135,6 +135,16 @@ func (s *sqliteStore) Secrets() store.SecretsRepo {
 	return secretsRepo{db: s.db}
 }
 
+// Approvals returns approvals' repo.
+func (s *sqliteStore) Approvals() store.ApprovalsRepo {
+	return approvalsRepo{db: s.db}
+}
+
+// PushSubscriptions returns push's subscription repo.
+func (s *sqliteStore) PushSubscriptions() store.PushSubscriptionsRepo {
+	return pushRepo{db: s.db}
+}
+
 // LaunchTokens returns launch's per-launch token repo.
 func (s *sqliteStore) LaunchTokens() store.LaunchTokensRepo {
 	return launchTokensRepo{db: s.db}
@@ -758,7 +768,7 @@ type launchTokensRepo struct {
 	db *sql.DB
 }
 
-const launchTokenColumns = `id, token_hash, label, provider, created_at, expires_at, revoked_at, last_used_at`
+const launchTokenColumns = `id, token_hash, label, provider, runner, created_at, expires_at, revoked_at, last_used_at`
 
 // optionalTime stores a zero time as the empty string.
 func optionalTime(t time.Time) string {
@@ -784,8 +794,8 @@ func (r launchTokensRepo) Create(ctx context.Context, t store.LaunchToken) error
 		return fmt.Errorf("store: launch token %q hash must not be empty", t.ID)
 	}
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO launch_tokens (`+launchTokenColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		t.ID, t.TokenHash, t.Label, t.Provider, formatTime(t.CreatedAt), formatTime(t.ExpiresAt),
+		`INSERT INTO launch_tokens (`+launchTokenColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		t.ID, t.TokenHash, t.Label, t.Provider, t.Runner, formatTime(t.CreatedAt), formatTime(t.ExpiresAt),
 		optionalTime(t.RevokedAt), optionalTime(t.LastUsedAt))
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
@@ -801,7 +811,7 @@ type rowScanner interface{ Scan(dest ...any) error }
 func scanLaunchToken(row rowScanner) (store.LaunchToken, error) {
 	var t store.LaunchToken
 	var created, expires, revoked, used string
-	if err := row.Scan(&t.ID, &t.TokenHash, &t.Label, &t.Provider, &created, &expires, &revoked, &used); err != nil {
+	if err := row.Scan(&t.ID, &t.TokenHash, &t.Label, &t.Provider, &t.Runner, &created, &expires, &revoked, &used); err != nil {
 		return t, err
 	}
 	var err error

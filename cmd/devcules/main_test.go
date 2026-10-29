@@ -26,6 +26,9 @@ var cmdEnv = []string{
 	"META_API_KEY",
 	"META_API_KEY_FILE",
 	"HOME",
+	"DEVCULES_LAUNCH_TOKEN",
+	"DEVCULES_LAUNCH_TOKEN_FILE",
+	"DEVCULES_PUSH_CONTACT",
 }
 
 func setCmdEnv(t *testing.T, vars map[string]string) {
@@ -124,10 +127,10 @@ func TestRun(t *testing.T) {
 		}
 	})
 
-	// machine and hook stay stubs and exit; serve binds and runner idles,
-	// so both block and are driven directly in serve_test.go and
-	// runner_test.go with fakes. Calling them here would hang CI.
-	for _, role := range []string{"machine", "hook"} {
+	// machine stays a stub and exits; serve binds and runner idles, so
+	// both block and are driven directly in serve_test.go and
+	// runner_test.go with fakes, and hook is driven in hook_test.go.
+	for _, role := range []string{"machine"} {
 		t.Run("role "+role, func(t *testing.T) {
 			code, stdout, stderr := invoke(t, map[string]string{}, role)
 			if code != exitOK {
@@ -188,9 +191,16 @@ func TestRun(t *testing.T) {
 		}
 	})
 
+	t.Run("hook needs a launch token", func(t *testing.T) {
+		code, _, stderr := invoke(t, map[string]string{}, "hook")
+		if code != exitError || !strings.Contains(stderr, "DEVCULES_LAUNCH_TOKEN") {
+			t.Fatalf("exit = %d, stderr = %q, want the missing token named", code, stderr)
+		}
+	})
+
 	// The vault key is optional everywhere and forbidden outside serve.
-	// serve needs a key and runner blocks, so only the stubs qualify here.
-	for _, role := range []string{"machine", "hook"} {
+	// serve needs a key and runner blocks, so only the stub qualifies here.
+	for _, role := range []string{"machine"} {
 		t.Run(role+" runs without a vault key", func(t *testing.T) {
 			code, _, stderr := invoke(t, map[string]string{"DEVCULES_LISTEN": "127.0.0.1:1"}, role)
 			if code != exitOK {

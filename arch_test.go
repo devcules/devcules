@@ -29,7 +29,9 @@ import (
 //     (store Secrets) only by internal/vault, launch's repo (store
 //     LaunchTokens) only by internal/launch, and the audit and trace
 //     repos (store Audit, Traces) only by internal/audit and
-//     internal/trace, plus the store backends.
+//     internal/trace, the approval repo (store Approvals) only by
+//     internal/approvals and the push repo (store PushSubscriptions)
+//     only by internal/push, plus the store backends.
 //     Test files may wire anything, so only non-test call sites count.
 //
 // The runner role is any package on the agent side of the trust split:
@@ -138,6 +140,9 @@ func TestReposStayWithOwners(t *testing.T) {
 		// Audit and Traces are M2.4's.
 		"Audit":  "internal/audit/",
 		"Traces": "internal/trace/",
+		// Approvals and PushSubscriptions are M3.2's.
+		"Approvals":         "internal/approvals/",
+		"PushSubscriptions": "internal/push/",
 	}
 	var bad []string
 	fset := token.NewFileSet()

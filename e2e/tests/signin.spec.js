@@ -22,7 +22,7 @@ test('sign-in success opens the shell', async ({ page }) => {
   const response = await signIn(page, 'admin', password);
   // 204: no redirect anymore, the React app takes over in place.
   expect(response.status()).toBe(204);
-  await expect(page.getByText('Nothing needs you.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Settings', exact: true }).first()).toBeVisible();
 
   // The browser kept the Secure cookie on plain-http loopback.
   const cookies = await page.context().cookies();
@@ -75,7 +75,7 @@ test('keyboard-only sign-in (Tab and Enter, no mouse)', async ({ page }) => {
   await expect(page.getByLabel('Password')).toBeFocused();
   await page.keyboard.type(password);
   await page.keyboard.press('Enter');
-  await expect(page.getByText('Nothing needs you.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Settings', exact: true }).first()).toBeVisible();
 
   const me = await page.request.get('/auth/me');
   expect(me.status()).toBe(200);

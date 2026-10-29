@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Home } from '../screens/Empty';
+import { useCallback, useEffect, useState } from 'react';
+import { listApprovals } from '../api';
+import { Inbox, type PendingState } from '../screens/Approvals';
 import Terminals from '../screens/Terminals';
 import Settings from '../screens/Settings';
 import Activity from '../screens/Activity';
@@ -23,6 +24,56 @@ export default function Shell({
   onSessionExpired: () => void;
 }) {
   const [tab, setTab] = useState<Tab>('home');
+  const [pending, setPending] = useState<PendingState>('loading');
+  const [focus, setFocus] = useState<string | null>(takeApprovalLink);
+
+  // One poll feeds both the Home inbox and the tab badge. It runs
+  // while the page is visible; coming back polls at once.
+  const poll = useCallback(() => {
+    void listApprovals('pending', 50).then(
+      (res) => {
+        if (res === 'unauthorized') {
+          onSessionExpired();
+          return;
+        }
+        setPending(res === 'unreachable' ? res : res.approvals);
+      },
+      () => setPending('unreachable'),
+    );
+  }, [onSessionExpired]);
+
+  useEffect(() => {
+    poll();
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        poll();
+      }
+    }, pollEvery);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        poll();
+      }
+    };
+    // A tapped notice with the app already open arrives from the
+    // service worker instead of as a page load.
+    const onMessage = (e: MessageEvent) => {
+      const data: unknown = e.data;
+      if (typeof data === 'object' && data !== null && 'approval' in data && typeof data.approval === 'string') {
+        setFocus(data.approval);
+        setTab('home');
+        poll();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    navigator.serviceWorker?.addEventListener('message', onMessage);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+      navigator.serviceWorker?.removeEventListener('message', onMessage);
+    };
+  }, [poll]);
+
+  const waiting = Array.isArray(pending) ? pending.length : 0;
 
   return (
     <div className="flex min-h-dvh bg-base text-text md:flex-row">
@@ -31,13 +82,16 @@ export default function Shell({
         {tabs.map((t) => (
           <NavButton key={t.id} active={tab === t.id} onClick={() => setTab(t.id)}>
             {t.label}
+            {t.id === 'home' && <Badge count={waiting} />}
           </NavButton>
         ))}
       </nav>
       {/* The standalone PWA draws under the iPhone status bar
           (black-translucent), so content starts below the inset. */}
       <main className="flex flex-1 flex-col pt-[env(safe-area-inset-top)] pb-20 md:pb-0">
-        {tab === 'home' && <Home />}
+        {tab === 'home' && (
+          <Inbox pending={pending} focus={focus} onAnswered={poll} onSessionExpired={onSessionExpired} />
+        )}
         {tab === 'terminals' && <Terminals onSessionExpired={onSessionExpired} />}
         {tab === 'activity' && <Activity onSessionExpired={onSessionExpired} />}
         {tab === 'settings' && (
@@ -58,7 +112,10 @@ export default function Shell({
               tab === t.id ? 'text-text' : 'text-muted'
             }`}
           >
-            {t.label}
+            <span>
+              {t.label}
+              {t.id === 'home' && <Badge count={waiting} />}
+            </span>
             {/* The active tab reads as text with an indicator, never
                 the accent: the accent means primary actions and
                 "needs you" only. */}
@@ -71,6 +128,41 @@ export default function Shell({
       </nav>
     </div>
   );
+}
+
+// Badge counts waiting approvals: the one place the nav uses the
+// accent, because it means "needs you".
+function Badge({ count }: { count: number }) {
+  if (count === 0) {
+    return null;
+  }
+  return (
+    <>
+      <span
+        aria-hidden="true"
+        className="ml-1.5 inline-flex min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-body font-semibold text-on-accent"
+      >
+        {count}
+      </span>
+      <span className="sr-only">{count === 1 ? ', 1 approval waiting' : `, ${count} approvals waiting`}</span>
+    </>
+  );
+}
+
+const pollEvery = 5000;
+
+// takeApprovalLink reads ?approval=<id> (a tapped push notice opens
+// the app there) and drops it from the address bar.
+function takeApprovalLink(): string | null {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('approval');
+  if (id === null) {
+    return null;
+  }
+  params.delete('approval');
+  const rest = params.toString();
+  window.history.replaceState(null, '', window.location.pathname + (rest ? `?${rest}` : '') + window.location.hash);
+  return id;
 }
 
 function NavButton({

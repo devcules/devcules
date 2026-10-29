@@ -85,6 +85,25 @@ hash chain) and an export link for the JSON-lines file. The flow is
 covered by `e2e/tests/activity.spec.js`; it has no visual baseline,
 because its rows are timestamps and addresses.
 
+Approvals (M3.2) live on Home (`web/src/screens/Approvals.tsx`): the
+shell polls `/api/approvals?status=pending` every 5 seconds while the
+page is visible, and one poll feeds both the inbox and the count on
+the Home tab, the one place the nav uses the accent. Each card shows
+the rule, the agent and runner, the masked command and when it will
+be denied, with **Deny** and **Allow once**; the calm "Nothing needs
+you." stays when nothing waits, so the visual baselines hold.
+Activity lists answered approvals. Settings gains Notifications
+(`Notifications.tsx`: subscribe this device, list, remove, send a
+test) and Access modes (`AccessModes.tsx`: a mode per runner, the
+critical rules, and a box to check a command). `web/public/sw.js` is
+the service worker: it shows push notices and routes a tap to
+`/?approval=<id>` (or posts the id to an open window), and caches
+nothing. `main.tsx` registers it in secure contexts. CSP is unchanged:
+`default-src 'self'` covers the worker. Covered by
+`e2e/tests/approvals.spec.js` (hook asks, Home allows, the hook gets
+the answer); the flow specs wait for the nav, not Home's text, so a
+waiting approval from a parallel spec can't break them.
+
 ## Building
 
 ```sh

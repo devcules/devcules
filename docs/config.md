@@ -24,6 +24,8 @@ forms are set, the direct value wins and the file is ignored entirely.
 | `META_API_KEY` / `_FILE` | empty | Moved into the vault (`provider/meta/api_key`) on start; once logged as stored, it can leave the environment. A single whitespace-free string. Serve-only, like the vault keys. |
 | `DEVCULES_TRACE_DAYS` | `30` | How many days model call traces are kept (0 to 3650; `0` keeps them forever). Serve prunes at start and once a day. The audit log is never pruned. See `docs/audit.md`. |
 | `DEVCULES_META_BASE_URL` | `https://api.meta.ai` | Meta Model API origin the router forwards to, without `/v1`. Must be an `http(s)` URL with a host; a trailing slash is dropped. Point it at a compatible endpoint or a test fake. See `docs/router.md`. |
+| `DEVCULES_PUSH_CONTACT` | the public URL when it is https, else the project page | The contact push services see in the VAPID token (RFC 8292 `sub`): a `mailto:` or `https:` URL. See `docs/approvals.md`. |
+| `DEVCULES_LAUNCH_TOKEN` / `_FILE` | empty | The launch token `devcules hook` sends with each tool call. Devcules sets it when it launches an agent; only the hook reads it. See `docs/approvals.md`. |
 
 ## Subcommands
 

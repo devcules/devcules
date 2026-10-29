@@ -6,6 +6,9 @@ import { checkAudit, getTrace, listAudit, listTraces } from '../api';
 
 type Reply = { status: number; body?: unknown; text?: string } | 'reject';
 
+// Recent approvals have their own tests and fetches; here inert.
+vi.mock('./Approvals', () => ({ RecentApprovals: () => null }));
+
 // serve answers fetches by method and path, one reply per call; the
 // last reply repeats.
 function serve(replies: Record<string, Reply[]>): Mock {

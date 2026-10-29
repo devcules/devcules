@@ -10,6 +10,7 @@ import {
   type TraceCall,
   type TraceSummary,
 } from '../api';
+import { RecentApprovals } from './Approvals';
 
 const actionLabels: Record<string, string> = {
   'auth.sign_in': 'Signed in',
@@ -26,6 +27,16 @@ const actionLabels: Record<string, string> = {
   'trace.read': 'Read a trace',
   'audit.export': 'Exported the audit log',
   'vault.rotate': 'Rotated the vault key',
+  'mcp.call': 'An agent called a Devcules tool',
+  'approval.ask': 'An agent asked for approval',
+  'approval.allow': 'Allowed a tool call',
+  'approval.deny': 'Denied a tool call',
+  'approval.expire': 'An approval expired',
+  'approval.blocked': 'Blocked a tool call',
+  'approval.mode': 'Changed an access mode',
+  'approval.rules': 'Changed critical rules',
+  'push.subscribe': 'Turned on notifications',
+  'push.remove': 'Removed a notification device',
 };
 
 function when(iso: string): string {
@@ -41,6 +52,7 @@ export default function Activity({ onSessionExpired }: { onSessionExpired: () =>
     <div className="flex flex-1 flex-col gap-6 px-6 pt-8 pb-6">
       <h2 className="text-lead font-semibold text-text">Activity</h2>
       <Traces onSessionExpired={onSessionExpired} />
+      <RecentApprovals onSessionExpired={onSessionExpired} />
       <Audit onSessionExpired={onSessionExpired} />
     </div>
   );

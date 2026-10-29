@@ -22,23 +22,32 @@ import (
 // Actions recorded by Devcules. Callers may add their own; these are
 // the ones the UI knows how to describe.
 const (
-	SignIn         = "auth.sign_in"
-	SignInFailed   = "auth.sign_in_failed"
-	SignOut        = "auth.sign_out"
-	PasskeyAdd     = "passkey.add"
-	PasskeyRename  = "passkey.rename"
-	PasskeyRemove  = "passkey.remove"
-	TerminalOpen   = "terminal.open"
-	TerminalClose  = "terminal.close"
-	RedactPolicy   = "redact.policy"
-	LaunchMint     = "launch.mint"
-	LaunchRevoke   = "launch.revoke"
-	TraceRead      = "trace.read"
-	AuditExport    = "audit.export"
-	VaultRotate    = "vault.rotate"
-	MCPCall        = "mcp.call"
-	maxField       = 200
-	maxDetailItems = 16
+	SignIn          = "auth.sign_in"
+	SignInFailed    = "auth.sign_in_failed"
+	SignOut         = "auth.sign_out"
+	PasskeyAdd      = "passkey.add"
+	PasskeyRename   = "passkey.rename"
+	PasskeyRemove   = "passkey.remove"
+	TerminalOpen    = "terminal.open"
+	TerminalClose   = "terminal.close"
+	RedactPolicy    = "redact.policy"
+	LaunchMint      = "launch.mint"
+	LaunchRevoke    = "launch.revoke"
+	TraceRead       = "trace.read"
+	AuditExport     = "audit.export"
+	VaultRotate     = "vault.rotate"
+	MCPCall         = "mcp.call"
+	ApprovalAsk     = "approval.ask"
+	ApprovalAllow   = "approval.allow"
+	ApprovalDeny    = "approval.deny"
+	ApprovalExpire  = "approval.expire"
+	ApprovalBlocked = "approval.blocked"
+	ApprovalMode    = "approval.mode"
+	ApprovalRules   = "approval.rules"
+	PushSubscribe   = "push.subscribe"
+	PushRemove      = "push.remove"
+	maxField        = 200
+	maxDetailItems  = 16
 )
 
 // Event is what a caller records. Actor is a username, or "system" or

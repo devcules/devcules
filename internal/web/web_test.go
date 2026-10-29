@@ -14,6 +14,7 @@ func built() fstest.MapFS {
 		"index.html":                 {Data: []byte("<div id=\"root\"></div>")},
 		"assets/app-abc123.js":       {Data: []byte("console.log(1)")},
 		"manifest.webmanifest":       {Data: []byte("{}")},
+		"sw.js":                      {Data: []byte("self")},
 		"icons/apple-touch-icon.png": {Data: []byte("png")},
 	}
 }
@@ -38,6 +39,7 @@ func TestStaticFiles(t *testing.T) {
 		{"spa fallback", htmlGet("/settings"), http.StatusOK, "no-cache", `<div id="root"></div>`, "text/html; charset=utf-8"},
 		{"hashed asset immutable", httptest.NewRequest(http.MethodGet, "/assets/app-abc123.js", nil), http.StatusOK, "public, max-age=31536000, immutable", "console.log(1)", "text/javascript; charset=utf-8"},
 		{"manifest revalidates", httptest.NewRequest(http.MethodGet, "/manifest.webmanifest", nil), http.StatusOK, "no-cache", "{}", ""},
+		{"service worker revalidates", httptest.NewRequest(http.MethodGet, "/sw.js", nil), http.StatusOK, "no-cache", "self", "text/javascript; charset=utf-8"},
 		{"icon revalidates", httptest.NewRequest(http.MethodGet, "/icons/apple-touch-icon.png", nil), http.StatusOK, "no-cache", "png", ""},
 		{"data miss 404s", httptest.NewRequest(http.MethodGet, "/missing.json", nil), http.StatusNotFound, "", "", ""},
 		{"curl root 404s", httptest.NewRequest(http.MethodGet, "/", nil), http.StatusNotFound, "", "", ""},

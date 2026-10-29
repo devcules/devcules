@@ -29,6 +29,13 @@ migration `0005`. M2.4 adds two repos with migration `0006`:
 `Audit()` (append-only: `Append` takes only the next sequence number,
 there is no update or delete, and SQLite triggers refuse both) and
 `Traces()` (one row per model call; text carries placeholders only).
+M3.2 adds two repos and a column with migration `0007`:
+`Approvals()` (one row per approval, the command already masked;
+`Answer` only moves a pending row, and `ExpirePending` returns the
+ids it expired) and `PushSubscriptions()` (one row per device:
+endpoint, `p256dh`, `auth`, label, created and last delivered), plus
+the `runner` column on launch tokens. Access modes and custom rules are
+`Meta()` rows, `approvals.modes` and `approvals.rules`.
 
 ## How a later module adds a repo
 

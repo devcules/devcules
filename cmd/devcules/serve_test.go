@@ -138,8 +138,8 @@ func TestRunServeShutdown(t *testing.T) {
 		t.Fatal("bus subscriber channel never closed by shutdown")
 	}
 	lines := jsonLines(t, stdout)
-	if len(lines) != 10 {
-		t.Fatalf("got %d log lines, want vault/meta-key/redact-key/redact-ready/audit/token-created/passkeys/listening/shutdown/stopped", len(lines))
+	if len(lines) != 11 {
+		t.Fatalf("got %d log lines, want vault/meta-key/redact-key/redact-ready/audit/token-created/push-key/passkeys/listening/shutdown/stopped", len(lines))
 	}
 	if lines[0]["msg"] != "vault open" || lines[0]["key_id"] == "" {
 		t.Fatalf("first line = %v, want the vault key id", lines[0])
@@ -166,6 +166,10 @@ func TestRunServeShutdown(t *testing.T) {
 	if lines[0]["path"] != dir+string(filepath.Separator)+"runner.token" {
 		t.Fatalf("token path = %v, want the default file in the data dir", lines[0])
 	}
+	if lines[1]["msg"] != "push key created" || lines[1]["secret"] != "push/vapid_key" {
+		t.Fatalf("line = %v, want the VAPID key minted into the vault", lines[1])
+	}
+	lines = lines[1:]
 	// The fixture sets no public URL, so passkeys stay off with the
 	// reason in plain words.
 	if lines[1]["msg"] != "passkeys disabled" {

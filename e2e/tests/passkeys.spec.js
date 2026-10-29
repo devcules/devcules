@@ -30,7 +30,7 @@ async function signInWithPassword(page) {
   await page.getByLabel('Username').fill('admin');
   await page.getByLabel('Password').fill(password);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.getByText('Nothing needs you.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Settings', exact: true }).first()).toBeVisible();
 }
 
 test('passkey status is enabled on localhost', async ({ page }) => {
@@ -76,7 +76,7 @@ test('register, sign in, and remove a passkey', async ({ page }, testInfo) => {
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
   await page.getByRole('button', { name: 'Sign in with a passkey' }).click();
-  await expect(page.getByText('Nothing needs you.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Settings', exact: true }).first()).toBeVisible();
 
   // Remove it: passkey sign-in now fails, the password still works.
   await page.getByRole('button', { name: 'Settings', exact: true }).first().click();

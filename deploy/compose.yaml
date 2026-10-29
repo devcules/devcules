@@ -29,6 +29,9 @@ services:
       DEVCULES_META_BASE_URL: ${DEVCULES_META_BASE_URL:-}
       # M2.4: days of model call traces to keep (empty = 30).
       DEVCULES_TRACE_DAYS: ${DEVCULES_TRACE_DAYS:-}
+      # M3.2: the contact push services see for approval notices
+      # (empty = the public URL when it is https).
+      DEVCULES_PUSH_CONTACT: ${DEVCULES_PUSH_CONTACT:-}
     volumes:
       - devcules-data:/data
       - link:/link

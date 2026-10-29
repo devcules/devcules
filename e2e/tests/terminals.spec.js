@@ -23,7 +23,7 @@ async function signIn(page) {
   const res = await page.request.post('/auth/sign-in', { form: { username: 'admin', password } });
   expect(res.status()).toBe(204);
   await page.goto('/');
-  await expect(page.getByText('Nothing needs you.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Settings', exact: true }).first()).toBeVisible();
 }
 
 async function openTerminals(page) {
@@ -120,7 +120,7 @@ test('reload the page and the output is still there', async ({ page }) => {
   // is a replay buffer, the session is the buffer.
   await page.evaluate(() => window.__ws.close());
   await page.reload();
-  await expect(page.getByText('Nothing needs you.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Settings', exact: true }).first()).toBeVisible();
   await openTerminals(page);
   await page.getByRole('button', { name: `Open terminal ${id.slice(0, 8)}` }).click();
   await expect(page.getByLabel('Terminal', { exact: true })).toBeVisible();

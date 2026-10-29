@@ -43,3 +43,21 @@ Checked 2026-10-29 at
 | Security | Servers must validate `Origin` (DNS rebinding) and answer `403` to a bad one |
 | Tools | Names 1 to 128 of `A-Z a-z 0-9 _ - .`; tool failures are results with `isError: true`; an unknown tool is `-32602` |
 | Pagination | Opaque `cursor` / `nextCursor`; a bad cursor is `-32602` |
+
+## Web Push
+
+Checked 2026-10-29 at <https://www.rfc-editor.org/rfc/rfc8030>,
+<https://www.rfc-editor.org/rfc/rfc8291> and
+<https://www.rfc-editor.org/rfc/rfc8292>. Used by `internal/push`
+(`docs/approvals.md`). Tested against the RFC 8291 Appendix A vector
+byte for byte, and against a test subscriber that decrypts the notice
+and checks the VAPID signature.
+
+| Fact | Value |
+|---|---|
+| Send (RFC 8030) | `POST` the encrypted body to the subscription endpoint with a `TTL` header (seconds) and, for approvals, `Urgency: high`. `201 Created` is success |
+| Gone (RFC 8030) | `404` or `410` from the push service: the subscription has ended; forget it |
+| Encryption (RFC 8291) | `Content-Encoding: aes128gcm`: ECDH on P-256 between a fresh key and the browser's `p256dh`, HKDF-SHA-256 with the 16-byte `auth` secret (`WebPush: info\0` + both public keys), then the CEK (`Content-Encoding: aes128gcm\0`, 16 bytes) and nonce (`Content-Encoding: nonce\0`, 12 bytes). One record; the header holds the salt, `rs` = 4096 and the sender's public key; the plaintext ends with the `0x02` padding delimiter |
+| VAPID (RFC 8292) | `Authorization: vapid t=<JWT>, k=<base64url public key>`. The JWT is ES256 (raw `r\|\|s` signature) with `aud` = the endpoint's origin, `exp` at most 24 hours ahead (Devcules uses 12), and `sub` a `mailto:` or `https:` contact |
+| Keys | The VAPID signing key is never the ECDH key: each message gets a fresh ECDH key |
+| Browser side | `PushManager.subscribe({userVisibleOnly: true, applicationServerKey})` with the server's uncompressed 65-byte public key; iPhone offers it only to a web app added to the Home Screen |

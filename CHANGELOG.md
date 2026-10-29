@@ -4,6 +4,29 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-29, M3.2)
+
+- `internal/approvals`: access modes per runner (`off`, `critical`,
+  `all`, `full`; unset blocks), critical command rules (11 built-ins
+  the owner can turn off, plus up to 50 of their own), and pending
+  approvals that expire as denied after 10 minutes. Commands are
+  stored masked. Every ask, answer, expiry, block and settings change
+  is audited.
+- `internal/push`: Web Push with no third-party account: a VAPID key
+  in the vault, RFC 8291 encryption, and devices removed when their
+  push service says they are gone. Notices never carry the command.
+- `devcules hook`: an agent adapter pipes a tool call in and gets
+  allow (exit 0) or deny (exit 2), waiting for the owner when asked,
+  and riding out serve restarts.
+- Routes: `/api/approvals` (list, answer, settings, modes, rules,
+  check), `/api/push` (key, devices, test) and `/hook/approvals` (launch
+  token). Launch tokens can name their runner.
+- The PWA: waiting approvals on Home with a count on the tab,
+  answered ones in Activity, Notifications and Access modes in
+  Settings, and a service worker for notices.
+- `DEVCULES_PUSH_CONTACT` and `DEVCULES_LAUNCH_TOKEN`; migration
+  `0007`. See `docs/approvals.md`.
+
 ### Added (2026-10-29, M3.1)
 
 - `internal/mcp`: the Devcules MCP server at `POST /mcp`. It serves the

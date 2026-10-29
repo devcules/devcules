@@ -7,10 +7,6 @@ export function Empty({ title, body }: { title: string; body: string }) {
   );
 }
 
-export function Home() {
-  return <Empty title="Nothing needs you." body="Approvals and agent updates will land here." />;
-}
-
 export function Terminals() {
   return <Empty title="No terminals yet." body="Link a runner to open your first terminal." />;
 }

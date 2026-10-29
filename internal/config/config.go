@@ -48,6 +48,25 @@ type Config struct {
 	// TraceDays is how long model call traces are kept
 	// (DEVCULES_TRACE_DAYS, default 30; 0 keeps them forever).
 	TraceDays int
+	// PushContact is the VAPID subject push services may use to reach
+	// the operator (DEVCULES_PUSH_CONTACT, a mailto: or https: URL).
+	// Empty means serve picks one (see PushSubject).
+	PushContact string
+	// LaunchToken is the agent's launch token, read by `devcules hook`
+	// (DEVCULES_LAUNCH_TOKEN or _FILE).
+	LaunchToken string
+}
+
+// PushSubject is the VAPID subject: PushContact, else the public URL
+// when it is https, else the project's home page.
+func (c Config) PushSubject() string {
+	switch {
+	case c.PushContact != "":
+		return c.PushContact
+	case strings.HasPrefix(c.PublicURL, "https://"):
+		return strings.TrimRight(c.PublicURL, "/")
+	}
+	return "https://github.com/devcules/devcules"
 }
 
 // ForRole returns c for the named role. Vault keys and provider keys live
@@ -232,6 +251,20 @@ func Load() (Config, error) {
 		} else {
 			fail(`DEVCULES_TRACE_DAYS invalid: %q (want a whole number of days, 0 to 3650; 0 keeps traces forever)`, v)
 		}
+	}
+
+	if v, set := os.LookupEnv("DEVCULES_PUSH_CONTACT"); set && v != "" {
+		if u, err := url.Parse(v); err == nil && ((u.Scheme == "mailto" && u.Opaque != "") || (u.Scheme == "https" && u.Host != "")) {
+			cfg.PushContact = v
+		} else {
+			fail(`DEVCULES_PUSH_CONTACT invalid: %s (want a mailto: or https: URL)`, describeURL(v))
+		}
+	}
+
+	if v, problem := readSecret("DEVCULES_LAUNCH_TOKEN", checkToken); problem != "" {
+		fail(`%s`, problem)
+	} else {
+		cfg.LaunchToken = v
 	}
 
 	if len(problems) > 0 {

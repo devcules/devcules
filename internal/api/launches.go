@@ -41,6 +41,7 @@ func launchesRoot(tokens *launch.Tokens, providers func() []string, publicURL st
 				var body struct {
 					Label      string `json:"label"`
 					Provider   string `json:"provider"`
+					Runner     string `json:"runner"`
 					TTLMinutes int    `json:"ttlMinutes"`
 				}
 				if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&body); err != nil {
@@ -51,7 +52,7 @@ func launchesRoot(tokens *launch.Tokens, providers func() []string, publicURL st
 					writeAuthError(w, http.StatusBadRequest, "unknown provider "+body.Provider+" (known: "+strings.Join(providers(), ", ")+")")
 					return
 				}
-				token, l, err := tokens.Mint(r.Context(), body.Label, body.Provider, time.Duration(body.TTLMinutes)*time.Minute)
+				token, l, err := tokens.MintOn(r.Context(), body.Runner, body.Label, body.Provider, time.Duration(body.TTLMinutes)*time.Minute)
 				if err != nil {
 					if strings.HasPrefix(err.Error(), "launch: ") {
 						writeAuthError(w, http.StatusBadRequest, strings.TrimPrefix(err.Error(), "launch: "))
@@ -60,7 +61,7 @@ func launchesRoot(tokens *launch.Tokens, providers func() []string, publicURL st
 					writeAuthError(w, http.StatusInternalServerError, "internal error")
 					return
 				}
-				rec.record(r, audit.LaunchMint, l.ID, map[string]string{"label": l.Label, "provider": l.Provider, "expires": l.Expires.Format(time.RFC3339)})
+				rec.record(r, audit.LaunchMint, l.ID, map[string]string{"label": l.Label, "provider": l.Provider, "runner": l.Runner, "expires": l.Expires.Format(time.RFC3339)})
 				w.Header().Set("Content-Type", "application/json")
 				w.Header().Set("Cache-Control", "no-store")
 				w.WriteHeader(http.StatusCreated)

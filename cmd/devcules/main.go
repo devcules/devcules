@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/devcules/devcules/internal/bus/memory"
 	"github.com/devcules/devcules/internal/config"
@@ -92,6 +94,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	// serve binds the listener and runner links to serve, so both
 	// block: tests drive runServe/runRunner directly with fakes.
+	if role == "hook" {
+		return runHook(cfg, os.Stdin, stdout, stderr, hookClient{http: &http.Client{Timeout: 45 * time.Second}, sleep: sleepCtx})
+	}
 	if role == "serve" || role == "runner" {
 		return runBlockingRole(cfg, role, stdout, stderr, sigs)
 	}

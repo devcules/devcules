@@ -21,6 +21,13 @@ tab.
 | `trace.read` | Someone opens a trace | launch id |
 | `audit.export` | The log is exported (API or CLI) | |
 | `vault.rotate` | `devcules vault rotate` (actor `cli`) | `from`, `to` key ids |
+| `approval.ask` | An agent's call waits for the owner (actor `launch:<id>`) | approval id, `runner`, `agent`, `tool`, `rule`. Never the command (`docs/approvals.md`) |
+| `approval.allow`, `approval.deny` | The owner answers | approval id, `runner`, `agent`, `tool`, `rule` |
+| `approval.expire` | Nobody answered in time (actor `system`) | approval id |
+| `approval.blocked` | The access mode denied a call outright (actor `launch:<id>`) | tool name, `runner`, `mode`, `rule` |
+| `approval.mode` | An access mode changes | target, `from`, `to` |
+| `approval.rules` | The critical rules change | each changed rule id: `added`, `removed`, `changed`, `on` or `off` |
+| `push.subscribe`, `push.remove` | A device turns notifications on, or is removed | device id, `label` |
 | `mcp.call` | An agent calls a tool on the MCP server (actor `launch:<id>`) | tool name, `label`, `error` when it failed (`docs/mcp.md`). Never the arguments |
 
 Every entry has a sequence number, a UTC time, the actor, the action,

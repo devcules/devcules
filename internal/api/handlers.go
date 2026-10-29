@@ -11,10 +11,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/devcules/devcules/internal/approvals"
 	"github.com/devcules/devcules/internal/audit"
 	"github.com/devcules/devcules/internal/auth"
 	"github.com/devcules/devcules/internal/launch"
 	"github.com/devcules/devcules/internal/link/hub"
+	"github.com/devcules/devcules/internal/push"
 	"github.com/devcules/devcules/internal/redact"
 	"github.com/devcules/devcules/internal/router"
 	"github.com/devcules/devcules/internal/store"
@@ -56,12 +58,17 @@ type Options struct {
 	// MCP serves POST /mcp, the MCP server agents reach with their
 	// launch token (internal/mcp). Nil answers it with 503.
 	MCP http.Handler
+	// ApprovalQueue serves the approval queue and its settings, and the
+	// hook side at /hook/approvals (launch tokens). Push serves Web
+	// Push subscriptions. Nil answers their routes with 503.
+	ApprovalQueue *approvals.Service
+	Push          *push.Service
 }
 
-// Handler returns the M3.1 mux. /healthz, /readyz, GET /link, /llm/
-// and /mcp stay public (/link, the model router and the MCP server
-// authenticate with their own credentials, the runner token and launch
-// tokens, never the session cookie); POST /auth/sign-in is the public password call, the
+// Handler returns the M3.2 mux. /healthz, /readyz, GET /link, /llm/,
+// /mcp and /hook/ stay public (/link, the model router, the MCP server
+// and the approval hooks authenticate with their own credentials, the
+// runner token and launch tokens, never the session cookie); POST /auth/sign-in is the public password call, the
 // passkey login pair and the passkey status read are public too; the
 // static app (Web) is public too, since it holds no data; everything
 // else needs a live session and answers 401 without one. Only GET
@@ -128,6 +135,18 @@ func Handler(o Options) http.Handler {
 			writeAuthError(w, http.StatusServiceUnavailable, "MCP server not configured")
 		})
 	}
+	// Approvals: the queue and settings need a session (writes add
+	// the CSRF check); the hook side takes launch tokens.
+	runners := func() []string { return nil }
+	if o.Link != nil {
+		runners = o.Link.Runners
+	}
+	mux.Handle("/api/approvals", requireSession(o.Auth, approvalsRoot(o.ApprovalQueue)))
+	mux.Handle("/api/approvals/", requireSession(o.Auth, approvalOne(o.ApprovalQueue, runners, o.PublicURL)))
+	mux.Handle("/hook/approvals", hookApprovals(o.ApprovalQueue, o.Launches))
+	mux.Handle("/hook/approvals/", hookApprovals(o.ApprovalQueue, o.Launches))
+	mux.Handle("/api/push", requireSession(o.Auth, pushRoot(o.Push)))
+	mux.Handle("/api/push/", requireSession(o.Auth, pushOne(o.Push, o.PublicURL, rec)))
 	providers := func() []string { return nil }
 	if o.Router != nil {
 		providers = o.Router.Providers

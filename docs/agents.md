@@ -14,7 +14,7 @@ manager behind the small `pty.Launcher` interface.
 |---|---|---|---|
 | Muse Code | `plugins/agents/musecode` | `meta` | M3.3 |
 | Claude Code | `plugins/agents/claudecode` | `anthropic` | M3.4 |
-| Muse | `plugins/agents/codex` | `openai` | M3.4 |
+| Codex | `plugins/agents/codex` | `openai` | M3.4 |
 
 ## A launch
 

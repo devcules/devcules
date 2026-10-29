@@ -46,10 +46,21 @@ if $COMPOSE exec -T runner printenv DEVCULES_VAULT_KEY >/dev/null 2>&1; then
 fi
 [ "$($COMPOSE port serve 7659)" = "127.0.0.1:7659" ] || fail "port not bound to 127.0.0.1 only"
 
+# Log greps poll bounded: serve logs the self-test before it listens,
+# but a one-shot grep races slow log flushes on loaded runners.
+poll_logs() {
+  local pattern=$1
+  for _ in $(seq 1 20); do
+    $COMPOSE logs --no-color serve | grep -q "$pattern" && return 0
+    sleep 0.5
+  done
+  return 1
+}
+
 # M2.1 vault: serve generated its key file 0600 in the data volume,
 # opened the vault, and never logged the key itself.
 [ "$($COMPOSE exec -T serve stat -c '%a %u' /data/vault.key)" = "600 10001" ] || fail "vault key file not 0600/uid 10001"
-$COMPOSE logs --no-color serve | grep -q '"msg":"vault open"' || fail "serve did not open the vault"
+poll_logs '"msg":"vault open"' || fail "serve did not open the vault"
 vault_key=$($COMPOSE exec -T serve cat /data/vault.key | tr -d '\r\n')
 if $COMPOSE logs --no-color serve | grep -qF "$vault_key"; then
   fail "serve logs leak the vault key"
@@ -90,7 +101,7 @@ esac
 # M2.2 redaction: serve ran the self-test before listening, and the
 # test box masks an AWS-shaped key (made up, assembled from parts so
 # the repo scan stays clean) without echoing it.
-$COMPOSE logs --no-color serve | grep -q '"msg":"redaction self-test passed"' || fail "serve did not log the redaction self-test"
+poll_logs '"msg":"redaction self-test passed"' || fail "serve did not log the redaction self-test"
 fake_key="AKIA""Z7QWERTY4UIOP3XZ"
 redacted=$(curl -fsS -b "$jar2" -H 'Content-Type: application/json' -d '{"text":"key '"$fake_key"'"}' "$URL/api/redact/test") || fail "POST /api/redact/test"
 case "$redacted" in

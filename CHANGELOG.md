@@ -6,6 +6,10 @@ All notable changes to Devcules, newest first.
 
 ### Fixed (2026-10-29, M4.5 follow-up)
 
+- helper: the machine helper shipped with no tests (0% coverage); the link tests now drive the real helper as a machine behind the real relay — every machframes round trip, the budget's full 40 spends and 41st refusal, the budget reset with its ceiling, grounding through a stub router, and the refusals (kindless input, grounding without a screen). 71.7%.
+- smoke: the compose log greps (vault open, redaction self-test) were one-shot; on loaded runners a slow log flush raced the grep into a failure while the line sat in the log. Both poll bounded now, like the readyz gate always has.
+- tests: see the relay fixture race fix in this entry's sibling commit — both the relay and API fixtures wait for the hub to see the fake machine's link before the first request.
+
 - tests: the machine relay fixtures returned before the fake machine's dial registered with the hub; on slower runners the first request raced the link into "no machine linked". Both fixtures now wait for the hub's view, like the terminal tests always did.
 
 ### Added (2026-10-29, M4.5)

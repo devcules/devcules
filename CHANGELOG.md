@@ -6,6 +6,12 @@ All notable changes to Devcules, newest first.
 
 ### Fixed (2026-10-29)
 
+- api: the M4.1 enrol endpoints existed but were never wired into the mux; /api/machines/enrol-code and /api/machines/redeem are now registered (session-guarded, nil issuer 503), with tests for the mint → redeem → single-use flow.
+- machines drivers: the per-OS `stub` types were unreferenced on the platforms that compile them (staticcheck U1000); a stub-contract test now pins each one (answers ErrUnavailable, Close is a no-op) on every platform.
+- agents: dropped dead `versionRE` copies left behind in claudecode and codex when Detect switched to the shared helper.
+- storetest: one nil Context in the mem enrol repo list.
+- e2e: the terminals-tab baseline drifted between stack runs because agent rows carry live CLI-detection text; the spec now waits for every row and masks the rows' detected-state text instead of pinning runner-side strings.
+
 - pty: tmux socket paths that overflow the OS Unix-socket limit (104 bytes on macOS — `t.TempDir()` paths under `/var/folders/...` pushed `$TMUX_TMPDIR/tmux-<uid>/devcules` past it, so every tmux call failed with "File name too long") are relocated to a short private dir under the system temp, removed on Shutdown. tmux-backed tests now pass on macOS too, not only CI's Linux.
 - tests: the hook-usage assertion still expected only `musecode` after M3.4 registered claudecode and codex; it now pins the full list.
 

@@ -35,9 +35,22 @@ test('terminals tab', async ({ page }) => {
   await expect(page.getByText('Nothing needs you.')).toBeVisible();
   await page.getByRole('button', { name: 'Terminals', exact: true }).first().click();
   await expect(page.getByRole('button', { name: 'New terminal' })).toBeVisible();
-  // The agent list loads on its own: wait so the shot never races it.
-  await expect(page.getByRole('region', { name: 'Start an agent' })).toBeVisible();
-  await expect(page).toHaveScreenshot({ animations: 'disabled', caret: 'hide' });
+  // The agent list loads on its own: wait for every agent row so the
+  // shot never races it. The rows' version text comes from live CLI
+  // detection on the runner (muse --version and friends), which can
+  // differ between stack runs (PATH timing on first boot), so the
+  // detected-state line is masked rather than pinned to a string the
+  // runner may not reproduce.
+  const panel = page.getByRole('region', { name: 'Start an agent' });
+  await expect(panel).toBeVisible();
+  for (const name of ['Muse Code', 'Claude Code', 'Codex']) {
+    await expect(panel.getByText(name, { exact: true })).toBeVisible();
+  }
+  await expect(page).toHaveScreenshot({
+    animations: 'disabled',
+    caret: 'hide',
+    mask: [panel.locator('li')],
+  });
 });
 
 test('settings', async ({ page }) => {

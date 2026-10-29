@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/devcules/devcules/plugins/agents"
@@ -30,8 +29,6 @@ func (Agent) ID() string          { return "claudecode" }
 func (Agent) Name() string        { return "Claude Code" }
 func (Agent) Provider() string    { return "anthropic" }
 func (Agent) InstallHint() string { return installHint }
-
-var versionRE = regexp.MustCompile(`\b(\d+\.\S+)`)
 
 func (Agent) Detect(ctx context.Context) (string, bool) {
 	return agents.Version(ctx, nil, "claude", "--version")

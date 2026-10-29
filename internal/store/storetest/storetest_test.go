@@ -1121,7 +1121,7 @@ func (r memEnrol) DeleteExpired(ctx context.Context, before time.Time) (int, err
 	return n, nil
 }
 func (r memEnrol) List(_ context.Context) ([]store.EnrolCode, error) {
-	if err := r.lock(nil); err != nil {
+	if err := r.lock(context.TODO()); err != nil { // the list ignores ctx, but lock must see a non-nil one
 		return nil, err
 	}
 	defer r.db.mu.Unlock()

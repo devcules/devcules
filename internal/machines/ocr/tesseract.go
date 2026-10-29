@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"image"
 	"os"
-	"strconv"
-	"strings"
 )
 
 // tesseractDriver reads words with tesseract's TSV output: one word

@@ -81,8 +81,6 @@ authenticates on `GET /link` with `hello{role:"machine", name:"…"}`, plus an e
 nonce challenge: serve issues a server nonce, the machine signs it with its key (verified in
 `machines.Verify`). Nonces are memory-only and single-use. See `internal/machines`.
 
-Machines are a peer of runners on the link — same heartbeat, liveness, and reconnect rules.
-
 ## Token lifecycle
 
 One mechanism for compose and single-binary deploys:

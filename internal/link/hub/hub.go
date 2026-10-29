@@ -268,7 +268,7 @@ func bearer(header string) (string, bool) {
 }
 
 // helloPayload strictly decodes the data of a hello frame. Role must
-// be "runner" or "machine" or "machine" ("machine" arrives in M4.1; anything else is rejected
+// be "runner" or "machine" ("machine" arrives in M4.1; anything else is rejected
 // now rather than half-accepted). Name is 1-64 characters so it fits
 // the link table and logs.
 func helloPayload(data json.RawMessage) (link.Hello, error) {

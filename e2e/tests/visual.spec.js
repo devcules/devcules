@@ -43,7 +43,9 @@ test('terminals tab', async ({ page }) => {
   // runner may not reproduce.
   const panel = page.getByRole('region', { name: 'Start an agent' });
   await expect(panel).toBeVisible();
-  for (const name of ['Muse Code', 'Claude Code', 'Codex']) {
+  // The agent rows show the adapters' display names (Codex's is
+  // "Muse", from its adapter).
+  for (const name of ['Muse Code', 'Claude Code', 'Muse']) {
     await expect(panel.getByText(name, { exact: true })).toBeVisible();
   }
   await expect(page).toHaveScreenshot({

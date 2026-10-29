@@ -55,7 +55,10 @@ test('terminals tab', async ({ page }) => {
   await expect(page).toHaveScreenshot({
     animations: 'disabled',
     caret: 'hide',
-    mask: [panel.locator('li')],
+    // Masked: the rows' detected-state text (live CLI detection) and
+    // the header/note lines, which carry the runner's container
+    // hostname — different every stack run.
+    mask: [panel.locator('li'), panel.getByRole('heading'), panel.getByRole('note')],
   });
 });
 

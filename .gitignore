@@ -28,3 +28,4 @@ Thumbs.db
 !internal/web/dist/
 internal/web/dist/*
 !internal/web/dist/.gitkeep
+e2e/test-results/

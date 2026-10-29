@@ -10,6 +10,7 @@ All notable changes to Devcules, newest first.
 - machines drivers: the per-OS `stub` types were unreferenced on the platforms that compile them (staticcheck U1000); a stub-contract test now pins each one (answers ErrUnavailable, Close is a no-op) on every platform.
 - agents: dropped dead `versionRE` copies left behind in claudecode and codex when Detect switched to the shared helper.
 - storetest: one nil Context in the mem enrol repo list.
+- storetest: the shared contract suite never covered the M4.1 machines and enrol-code repos (sqlite shipped at 0% there and internal/machines sat at 67.4%; the 70% gate only failed once earlier unit errors stopped hiding it). Machines and EnrolCodes sections now pin create/get/list, single-use codes, and the expired prune; the mem fake got its missing map init that made the new sections panic.
 - relay: a browser attach racing the runner's death saw the hub's stale link entry and closed with 1011 "runner did not attach" instead of the runner-offline 1012; the attach failure path now waits (5 s ceiling) for the hub to retire the dead link, so the UI's reattach loop gets the right answer.
 - e2e: the terminals-tab baseline drifted between stack runs because agent rows carry live CLI-detection text; the spec now waits for every row and masks the rows' detected-state text instead of pinning runner-side strings.
 

@@ -618,6 +618,67 @@ func Run(t *testing.T, newStore func(t *testing.T) store.Store) {
 		}
 	})
 
+	t.Run("Machines", func(t *testing.T) {
+		s := newStore(t)
+		defer s.Close()
+		r := s.Machines()
+		at := time.Date(2026, 10, 29, 2, 0, 0, 0, time.UTC)
+		m := store.Machine{ID: key(t, "m1"), Name: "kitchen-mac", PubKey: id(t, "pub"), EnrolledAt: at}
+
+		mustf(t, r.Create(ctx, m), "Create")
+		mustExists(t, r.Create(ctx, m), "Create twice")
+		got, err := r.Get(ctx, m.ID)
+		mustf(t, err, "Get")
+		check(t, got.Name == m.Name && bytes.Equal(got.PubKey, m.PubKey), fmt.Sprintf("got = %+v", got))
+		_, err = r.Get(ctx, key(t, "nope"))
+		mustNotFound(t, err, "Get missing")
+		byName, err := r.GetByName(ctx, m.Name)
+		mustf(t, err, "GetByName")
+		check(t, byName.ID == m.ID, fmt.Sprintf("byName = %+v", byName))
+		_, err = r.GetByName(ctx, "nope")
+		mustNotFound(t, err, "GetByName missing")
+		list, err := r.List(ctx)
+		mustf(t, err, "List")
+		check(t, slices.ContainsFunc(list, func(o store.Machine) bool { return o.ID == m.ID }), fmt.Sprintf("List = %+v", list))
+	})
+
+	t.Run("EnrolCodes", func(t *testing.T) {
+		s := newStore(t)
+		defer s.Close()
+		r := s.EnrolCodes()
+		now := time.Date(2026, 10, 29, 2, 0, 0, 0, time.UTC)
+		h := id(t, "hash-0123456789abcdef")
+		c := store.EnrolCode{ID: key(t, "ec1"), CodeHash: h, Label: "kitchen-mac", CreatedAt: now, ExpiresAt: now.Add(10 * time.Minute)}
+
+		mustf(t, r.Create(ctx, c), "Create")
+		got, err := r.GetByHash(ctx, h)
+		mustf(t, err, "GetByHash")
+		check(t, got.Label == c.Label && got.ExpiresAt.Equal(c.ExpiresAt), fmt.Sprintf("got = %+v", got))
+		_, err = r.GetByHash(ctx, id(t, "other"))
+		mustNotFound(t, err, "GetByHash missing")
+		used := now.Add(time.Minute)
+		mustf(t, r.Use(ctx, c.ID, used), "Use")
+		got, err = r.GetByHash(ctx, h)
+		mustf(t, err, "GetByHash after Use")
+		check(t, got.UsedAt.Equal(used), fmt.Sprintf("UsedAt = %v", got.UsedAt))
+		// The hash is unique: a second code with it must conflict.
+		mustExists(t, r.Create(ctx, c), "Create same hash twice")
+		// Expired, unused codes prune; fresh ones stay. (A used code
+		// keeps its row: the hash proves what was redeemed.)
+		dead := store.EnrolCode{ID: key(t, "ec2"), CodeHash: id(t, "hash2-0123456789ab"), Label: "dead", CreatedAt: now, ExpiresAt: now.Add(10 * time.Minute)}
+		mustf(t, r.Create(ctx, dead), "Create dead")
+		fresh := store.EnrolCode{ID: key(t, "ec3"), CodeHash: id(t, "hash3-0123456789ab"), Label: "x", CreatedAt: now, ExpiresAt: now.Add(time.Hour)}
+		mustf(t, r.Create(ctx, fresh), "Create fresh")
+		// The cutoff sits between the two expiries.
+		n, err := r.DeleteExpired(ctx, now.Add(30*time.Minute))
+		mustf(t, err, "DeleteExpired")
+		check(t, n >= 1, fmt.Sprintf("DeleteExpired removed %d, want at least 1", n))
+		_, err = r.GetByHash(ctx, dead.CodeHash)
+		mustNotFound(t, err, "expired unused code gone after DeleteExpired")
+		_, err = r.GetByHash(ctx, fresh.CodeHash)
+		mustf(t, err, "fresh code survives DeleteExpired")
+	})
+
 	t.Run("Ping", func(t *testing.T) {
 		s := newStore(t)
 		mustf(t, s.Ping(ctx), "Ping")

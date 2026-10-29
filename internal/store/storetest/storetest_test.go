@@ -56,6 +56,8 @@ func newMemDB() *memDB {
 		passkeys: map[string]store.Passkey{},
 		secrets:  map[string][]byte{},
 		launches: map[string]store.LaunchToken{},
+		machines: map[string]store.Machine{},
+		enrol:    map[string]store.EnrolCode{},
 		closed:   map[*memStore]bool{},
 	}
 }

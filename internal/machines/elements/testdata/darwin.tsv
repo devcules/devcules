@@ -1,0 +1,7 @@
+size	2560	1440
+front	Terminal
+window	kiran@devcules: ~/git/devcules
+el	field	100	200	600	32	1	1	Search	kiran@dev
+el	password	100	300	600	32	1	0	Password	
+el	button	900	700	200	60	1	0	Commit	
+el	text	100	900	800	40	1	0		2 files changed

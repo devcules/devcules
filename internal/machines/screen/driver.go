@@ -17,4 +17,5 @@ func (stub) Close() error                  { return nil }
 var ErrUnavailable = unavailableErr("screen driver unavailable on this build")
 
 type unavailableErr string
+
 func (e unavailableErr) Error() string { return string(e) }

@@ -1,0 +1,4 @@
+front	Notepad
+el	field	10	60	400	24	1	1	Type here	
+el	password	10	100	400	24	1	0	Password	
+el	button	10	140	80	28	1	0	Save	

@@ -4,6 +4,11 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-29, M4.3)
+
+- `internal/machines/elements`: the accessibility-tree driver (macOS AX via a compiled Swift walker, Linux AT-SPI, Windows UIA), all three printing one shared flat TSV that a single Go parser decodes into typed elements with pixel boxes — element centres are valid input targets. Password values never leave the walker; empty trees carry a note saying why (permission, missing stack, truncation); reads cap at 400 by default, 2000 max. Fixture tests per OS pin the walker output shapes, and per-OS driver tests drive install → invoke → parse with a scripted runner.
+- `internal/machines/ocr`: the OCR driver (macOS Vision, Linux tesseract with a 60-confidence floor, Windows WinRT) answering words with pixel boxes in the frame's own space — word centres are valid input targets for text-only models. Engines detected at first use, `ErrUnavailable` stubs elsewhere, zero new Go dependencies. Parsers are pinned by tests to the real engine output shapes; the Vision reader was verified live end-to-end on macOS.
+
 ### Added (2026-10-29, M4.2)
 
 - `internal/machines/screen` + `input`: platform driver interfaces (`Capture`, `Inject`) with Linux X11 stubs behind build tags, macOS/Windows stubs elsewhere, and Xvfb-guarded tests that validate the real path when a display exists.

@@ -1,0 +1,5 @@
+front	gnome-text-editor
+window	notes.txt
+el	field	20	40	500	30	1	1		hello world
+el	button	540	40	90	30	1	0	Save	
+el	text	20	80	610	24	1	0	line 2	

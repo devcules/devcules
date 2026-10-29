@@ -10,7 +10,9 @@ func TestInputRequiresDisplay(t *testing.T) {
 		t.Skip("no DISPLAY — run with Xvfb in CI for pointer path")
 	}
 	drv, err := New()
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer drv.Close()
 	if err := drv.Inject(Event{Kind: "move", X: 10, Y: 10}); err != nil {
 		t.Fatal(err)
@@ -19,6 +21,8 @@ func TestInputRequiresDisplay(t *testing.T) {
 
 func TestInputStubBuilds(t *testing.T) {
 	d, _ := New()
-	if d == nil { t.Fatal("New returned nil driver") }
+	if d == nil {
+		t.Fatal("New returned nil driver")
+	}
 	_ = d.Close()
 }

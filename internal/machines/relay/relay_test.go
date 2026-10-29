@@ -45,7 +45,7 @@ type fakeMachine struct {
 // serves the canned machframes table. dial.New takes the role through
 // Options (the hub keeps runner and machine memberships apart), so
 // the fake shows up under hub.Machines() exactly like the helper.
-func runFakeMachine(t *testing.T, s *linktest.Server, ctx context.Context, name string) *fakeMachine {
+func runFakeMachine(t *testing.T, s *linktest.Server, ctx context.Context, name string, h *hub.Hub) *fakeMachine {
 	t.Helper()
 	f := &fakeMachine{t: t, budget: machframes.BudgetMax}
 	child, stop := context.WithCancel(ctx)
@@ -77,6 +77,18 @@ func runFakeMachine(t *testing.T, s *linktest.Server, ctx context.Context, name 
 	if !c.Linked() {
 		t.Fatalf("machine %s never linked", name)
 	}
+	// The hub's view can lag the dialer's: a request racing it
+	// answers "no machine linked" even though the link is up. Wait
+	// for the hub to see this machine by name.
+	for time.Now().Before(deadline) {
+		for _, m := range h.Machines() {
+			if m == name {
+				return f
+			}
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatalf("the hub never saw machine %s", name)
 	return f
 }
 
@@ -184,7 +196,7 @@ func machineRelayFixture(t *testing.T) (*Relay, *fakeMachine) {
 	mux := http.NewServeMux()
 	mux.Handle("/link", h.Handler())
 	pipe := linktest.Serve(t, mux)
-	fake := runFakeMachine(t, pipe, context.Background(), "kitchen-mac")
+	fake := runFakeMachine(t, pipe, context.Background(), "kitchen-mac", h)
 	// The dial registers with the hub asynchronously; a request racing
 	// it answers "no machine linked" even though the fixture is about
 	// to have one. Wait for the hub's view, exactly like the terminal
@@ -334,7 +346,7 @@ func TestPickMachine(t *testing.T) {
 	mux.Handle("/link", h.Handler())
 	pipe := linktest.Serve(t, mux)
 	ctx := context.Background()
-	runFakeMachine(t, pipe, ctx, "alpha")
+	runFakeMachine(t, pipe, ctx, "alpha", h)
 
 	// Only one: empty picks it.
 	if name, aerr := r.PickMachine(""); aerr != nil || name != "alpha" {
@@ -344,7 +356,7 @@ func TestPickMachine(t *testing.T) {
 		t.Fatalf("PickMachine(beta) = %+v, want 404", aerr)
 	}
 
-	runFakeMachine(t, pipe, ctx, "beta")
+	runFakeMachine(t, pipe, ctx, "beta", h)
 	if _, aerr := r.PickMachine(""); aerr == nil || aerr.Status != 400 {
 		t.Fatalf("PickMachine with two and no choice = %+v, want 400", aerr)
 	}
@@ -365,7 +377,7 @@ func TestMachineTimeoutIs504(t *testing.T) {
 	mux.Handle("/link", h.Handler())
 	pipe := linktest.Serve(t, mux)
 	// The fake answers verify after the 5 s round-trip timeout.
-	fake := runFakeMachine(t, pipe, context.Background(), "slow")
+	fake := runFakeMachine(t, pipe, context.Background(), "slow", h)
 	fake.latent = 6 * time.Second
 	_, _, _, aerr := r.Verify(context.Background(), "")
 	if aerr == nil || aerr.Status != 504 {

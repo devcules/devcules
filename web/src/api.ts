@@ -280,7 +280,15 @@ export async function deletePasskey(id: string): Promise<true | 'unauthorized' |
   return 'unreachable';
 }
 
-export type TerminalSummary = { term: string; created: number; agent?: string };
+export type TerminalSummary = { term: string; created: number; agent?: string; project?: string; dir?: string };
+
+// Where names the link a terminal lives on: a machine by name, else
+// the runner (the only one, or the API's choice).
+export type Where = { machine?: string };
+
+function whereQuery(where?: Where, first = '?'): string {
+  return where?.machine ? `${first}machine=${encodeURIComponent(where.machine)}` : '';
+}
 
 // Every terminal call resolves to one of these: data, an expired
 // session (the app returns to sign-in), a missing runner (the UI
@@ -300,8 +308,8 @@ async function terminalFetch(path: string, init?: RequestInit): Promise<Response
   return res;
 }
 
-export async function listTerminals(): Promise<{ terminals: TerminalSummary[] } | TerminalError> {
-  const res = await terminalFetch('/api/terminals');
+export async function listTerminals(where?: Where): Promise<{ terminals: TerminalSummary[] } | TerminalError> {
+  const res = await terminalFetch(`/api/terminals${whereQuery(where)}`);
   if (typeof res === 'string') {
     return res;
   }
@@ -322,15 +330,21 @@ export async function listTerminals(): Promise<{ terminals: TerminalSummary[] } 
           typeof t.term === 'string' &&
           'created' in t &&
           typeof t.created === 'number' &&
-          (!('agent' in t) || typeof t.agent === 'string'),
+          (!('agent' in t) || typeof t.agent === 'string') &&
+          (!('project' in t) || typeof t.project === 'string') &&
+          (!('dir' in t) || typeof t.dir === 'string'),
       ),
     };
   }
   return 'unreachable';
 }
 
-export async function openTerminal(): Promise<{ id: string } | TerminalError | 'busy'> {
-  const res = await terminalFetch('/api/terminals', { method: 'POST' });
+export async function openTerminal(where?: Where): Promise<{ id: string } | TerminalError | 'busy'> {
+  return openedTerminal(await terminalFetch(`/api/terminals${whereQuery(where)}`, { method: 'POST' }));
+}
+
+// openedTerminal reads a 201 {"id"} answer to any terminal open.
+async function openedTerminal(res: Response | TerminalError): Promise<{ id: string } | TerminalError | 'busy'> {
   if (typeof res === 'string') {
     return res;
   }
@@ -353,8 +367,8 @@ export async function openTerminal(): Promise<{ id: string } | TerminalError | '
   return 'unreachable';
 }
 
-export async function closeTerminal(id: string): Promise<true | TerminalError> {
-  const res = await terminalFetch(`/api/terminals/${id}`, { method: 'DELETE' });
+export async function closeTerminal(id: string, where?: Where): Promise<true | TerminalError> {
+  const res = await terminalFetch(`/api/terminals/${id}${whereQuery(where)}`, { method: 'DELETE' });
   if (typeof res === 'string') {
     return res;
   }
@@ -419,11 +433,14 @@ export async function listAgents(): Promise<RunnerAgents | TerminalError> {
 
 // startAgent opens a terminal running agent. A refusal (not
 // installed, no provider) carries the server's reason.
-export async function startAgent(agent: string): Promise<{ id: string } | TerminalError | 'busy' | { refused: string }> {
+export async function startAgent(
+  agent: string,
+  project?: string,
+): Promise<{ id: string } | TerminalError | 'busy' | { refused: string }> {
   const res = await terminalFetch('/api/agents', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ agent }),
+    body: JSON.stringify(project ? { agent, project } : { agent }),
   });
   if (typeof res === 'string') {
     return res;
@@ -447,9 +464,101 @@ export async function startAgent(agent: string): Promise<{ id: string } | Termin
 // streamURL builds the terminal WebSocket address for id at the
 // current size. The session rides the cookie; cols/rows ride the
 // query so the first paint arrives at the right size.
-export function streamURL(id: string, cols: number, rows: number): string {
+export function streamURL(id: string, cols: number, rows: number, where?: Where): string {
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${proto}//${window.location.host}/api/terminals/${id}/stream?cols=${cols}&rows=${rows}`;
+  return `${proto}//${window.location.host}/api/terminals/${id}/stream?cols=${cols}&rows=${rows}${whereQuery(where, '&')}`;
+}
+
+// Projects: a named directory on a runner or machine. Terminals and
+// agents opened from one start in its directory.
+export type ProjectKind = 'runner' | 'machine';
+export type Project = {
+  id: string;
+  name: string;
+  kind: ProjectKind;
+  target: string;
+  dir: string;
+  repo?: string;
+  createdAt: string;
+};
+export type ProjectList = { projects: Project[]; runners: string[]; machines: string[] };
+
+function isProject(p: unknown): p is Project {
+  return (
+    isObject(p) &&
+    typeof p.id === 'string' &&
+    typeof p.name === 'string' &&
+    (p.kind === 'runner' || p.kind === 'machine') &&
+    typeof p.target === 'string' &&
+    typeof p.dir === 'string'
+  );
+}
+
+function strings(v: unknown): string[] {
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+}
+
+export async function listProjects(): Promise<ProjectList | 'unauthorized' | 'unreachable'> {
+  const res = await terminalFetch('/api/projects');
+  if (typeof res === 'string') {
+    return res === 'unauthorized' ? res : 'unreachable';
+  }
+  const data: unknown = await res.json().catch(() => null);
+  if (res.ok && isObject(data) && Array.isArray(data.projects)) {
+    return { projects: data.projects.filter(isProject), runners: strings(data.runners), machines: strings(data.machines) };
+  }
+  return 'unreachable';
+}
+
+export type NewProject = { name?: string; kind: ProjectKind; target: string; dir?: string; repo?: string };
+
+// addProject records a project; with a repo the server starts the
+// clone in a new terminal and returns its id.
+export async function addProject(
+  p: NewProject,
+): Promise<{ project: Project; terminal: string } | 'unauthorized' | 'unreachable' | { refused: string }> {
+  const res = await terminalFetch('/api/projects', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(p),
+  });
+  if (typeof res === 'string') {
+    return res === 'unauthorized' ? res : 'unreachable';
+  }
+  const data: unknown = await res.json().catch(() => null);
+  if (res.status === 201 && isObject(data) && isProject(data.project)) {
+    return { project: data.project, terminal: typeof data.terminal === 'string' ? data.terminal : '' };
+  }
+  if (res.status >= 400 && isObject(data) && typeof data.error === 'string') {
+    return { refused: data.error };
+  }
+  return 'unreachable';
+}
+
+export async function removeProject(id: string): Promise<true | 'unauthorized' | 'unreachable'> {
+  const res = await terminalFetch(`/api/projects/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (typeof res === 'string') {
+    return res === 'unauthorized' ? res : 'unreachable';
+  }
+  return res.status === 204 || res.status === 404 ? true : 'unreachable';
+}
+
+export async function openProjectTerminal(
+  id: string,
+): Promise<{ id: string } | TerminalError | 'busy' | { refused: string }> {
+  const res = await terminalFetch(`/api/projects/${encodeURIComponent(id)}/terminals`, { method: 'POST' });
+  if (typeof res !== 'string' && res.status >= 400 && res.status < 500 && res.status !== 404) {
+    const data: unknown = await res.json().catch(() => null);
+    if (isObject(data) && typeof data.error === 'string') {
+      return { refused: data.error };
+    }
+  }
+  return openedTerminal(res);
+}
+
+// projectWhere is the link a project's terminals live on.
+export function projectWhere(p: Project): Where {
+  return p.kind === 'machine' ? { machine: p.target } : {};
 }
 
 // Redaction (M2.2). Values never come back from the server: findings
@@ -783,7 +892,9 @@ export function testPush(): Write<PushResult> {
 // (budget exhausted, driver missing) carries the machine's reason.
 export type MachineError = 'unauthorized' | 'offline' | 'unreachable';
 
-export type MachineList = { machines: string[]; budget: number };
+// MachineRow is one enrolled machine; online means its link is up.
+export type MachineRow = { name: string; online: boolean; enrolledAt?: string; lastSeen?: string };
+export type MachineList = { machines: MachineRow[]; budget: number };
 export type GroundMatch = {
   id: number;
   x1: number;
@@ -844,10 +955,14 @@ export async function listMachines(): Promise<MachineList | MachineError> {
   const data: unknown = await res.json().catch(() => null);
   if (isObject(data) && Array.isArray(data.machines) && typeof data.budget === 'number') {
     return {
-      // Rows are {name, online, ...}; the task view drives online ones.
       machines: data.machines
-        .filter((m): m is { name: string; online: boolean } => isObject(m) && typeof m.name === 'string' && m.online === true)
-        .map((m) => m.name),
+        .filter((m): m is MachineRow => isObject(m) && typeof m.name === 'string' && typeof m.online === 'boolean')
+        .map((m) => ({
+          name: m.name,
+          online: m.online,
+          enrolledAt: typeof m.enrolledAt === 'string' ? m.enrolledAt : undefined,
+          lastSeen: typeof m.lastSeen === 'string' ? m.lastSeen : undefined,
+        })),
       budget: data.budget,
     };
   }
@@ -872,10 +987,67 @@ export async function machineBudget(machine = ''): Promise<{ remaining: number }
   return 'unreachable';
 }
 
-// machineScreenURL points at the live capture; the <img> re-fetches
-// it on its own, so no JSON wrapper here.
+// machineScreenURL points at the live capture.
 export function machineScreenURL(machine: string): string {
   return `/api/machines-screen${machineQuery(machine)}`;
+}
+
+// MachineFrame is one capture as an object URL plus its scale: the
+// machine may shrink a large screen to fit the link, and the scale
+// (X-Devcules-Screen-Scale) maps frame pixels back to screen pixels.
+// The caller revokes url when it shows the next frame.
+export type MachineFrame = { url: string; scale: number };
+
+export async function machineScreen(machine = ''): Promise<MachineFrame | MachineError | { refused: string }> {
+  const res = await machineFetch(machineScreenURL(machine));
+  if (typeof res === 'string') {
+    return res;
+  }
+  if (res.status === 503) {
+    return 'offline';
+  }
+  if (!res.ok) {
+    const data: unknown = await res.json().catch(() => null);
+    if (isObject(data) && typeof data.error === 'string') {
+      return { refused: data.error };
+    }
+    return 'unreachable';
+  }
+  const scale = Number.parseFloat(res.headers.get('X-Devcules-Screen-Scale') ?? '1');
+  const blob = await res.blob();
+  return { url: URL.createObjectURL(blob), scale: Number.isFinite(scale) && scale > 0 ? scale : 1 };
+}
+
+// mintEnrolCode makes a one-time code for `devcules machine enrol`.
+export async function mintEnrolCode(
+  label: string,
+): Promise<{ code: string; expiresIn: number } | 'unauthorized' | 'unreachable' | { refused: string }> {
+  const res = await machineFetch('/api/machines/enrol-code', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label }),
+  });
+  if (typeof res === 'string') {
+    return res === 'unauthorized' ? res : 'unreachable';
+  }
+  const data: unknown = await res.json().catch(() => null);
+  if (res.status === 201 && isObject(data) && typeof data.code === 'string') {
+    return { code: data.code, expiresIn: typeof data.expiresIn === 'number' ? data.expiresIn : 900 };
+  }
+  if (res.status >= 400 && isObject(data) && typeof data.error === 'string') {
+    return { refused: data.error };
+  }
+  return 'unreachable';
+}
+
+// removeMachine revokes a machine: its key stops working and its link
+// is cut.
+export async function removeMachine(name: string): Promise<true | 'unauthorized' | 'unreachable'> {
+  const res = await machineFetch(`/api/machines/${encodeURIComponent(name)}`, { method: 'DELETE' });
+  if (typeof res === 'string') {
+    return res === 'unauthorized' ? res : 'unreachable';
+  }
+  return res.status === 204 ? true : 'unreachable';
 }
 
 export async function machineTree(machine = ''): Promise<MachineTree | MachineError> {

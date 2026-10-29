@@ -39,6 +39,10 @@ the default; light follows the OS. */
   --text-body--line-height: 1.5rem;
   --text-lead: 1.125rem;
   --text-lead--line-height: 1.75rem;
+  /* The one exception: the phone tab bar holds six labels side by
+     side, which only fit a size below body. */
+  --text-tab: 0.75rem;
+  --text-tab--line-height: 1rem;
 }
 
 /* Motion with meaning, and none without: short transitions only, all

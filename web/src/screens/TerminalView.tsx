@@ -6,7 +6,7 @@ import { FitAddon } from '@xterm/addon-fit';
 // stylesheet, so the CSP needs nothing new for it.
 import '@xterm/xterm/css/xterm.css';
 import KeyStrip, { ctrlLetter, stripBytes, type StripKey } from './KeyStrip';
-import { streamURL } from '../api';
+import { streamURL, type Where } from '../api';
 
 type Status = 'connecting' | 'open' | 'reconnecting' | 'offline' | 'gone';
 
@@ -19,10 +19,14 @@ export function reconnectDelay(attempt: number): number {
 
 export default function TerminalView({
   id,
+  where,
   onBack,
   onSessionExpired,
 }: {
   id: string;
+  // where is the link the terminal lives on: a machine's shell
+  // streams with ?machine=, a runner's with nothing.
+  where?: Where;
   onBack: () => void;
   onSessionExpired?: () => void;
 }) {
@@ -35,6 +39,9 @@ export default function TerminalView({
   const timerRef = useRef<number | null>(null);
   const connectRef = useRef<() => void>(() => undefined);
   const ctrlRef = useRef(false);
+  // The machine name, not the object: a string keeps connect stable
+  // across renders that pass a fresh {machine} literal.
+  const machine = where?.machine;
   const [ctrlArmed, setCtrlArmed] = useState(false);
   const [status, setStatus] = useState<Status>('connecting');
 
@@ -68,7 +75,7 @@ export default function TerminalView({
     } catch {
       // proposeDimensions needs layout; fall back to 80x24.
     }
-    const ws = new WebSocket(streamURL(id, dims.cols, dims.rows));
+    const ws = new WebSocket(streamURL(id, dims.cols, dims.rows, machine ? { machine } : undefined));
     ws.binaryType = 'arraybuffer';
     wsRef.current = ws;
     ws.onopen = () => {
@@ -125,7 +132,7 @@ export default function TerminalView({
         }
       }, wait);
     };
-  }, [id, onSessionExpired]);
+  }, [id, machine, onSessionExpired]);
 
   useEffect(() => {
     connectRef.current = connect;

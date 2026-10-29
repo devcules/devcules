@@ -1,57 +1,61 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
+  closeTerminal,
   listMachines,
-  machineBudget,
-  machineGround,
-  machineInput,
-  machineScreenURL,
-  machineVerify,
-  type GroundMatch,
+  listTerminals,
+  mintEnrolCode,
+  openTerminal,
+  removeMachine,
   type MachineError,
+  type MachineRow,
+  type TerminalSummary,
 } from '../api';
+import MachineScreen from './MachineScreen';
+import TerminalView from './TerminalView';
 import { Empty } from './Empty';
 
-type State =
+type View =
   | { view: 'loading' }
-  | { view: 'list'; machines: string[]; budget: number; notice: string | null; refused: string | null };
+  | { view: 'list' }
+  | { view: 'terminal'; machine: string; id: string }
+  | { view: 'screen'; machine: string };
 
 // errorWords turns API outcomes into plain words. 'unauthorized'
 // never lands here: callers route it to sign-in first.
-function errorWords(err: MachineError): string {
+function errorWords(err: MachineError | 'busy'): string {
   if (err === 'offline') {
-    return 'No machine is linked. Enrol one and it appears here.';
+    return 'That machine is offline. Start devcules machine on it and try again.';
+  }
+  if (err === 'busy') {
+    return 'The machine did not answer. Try again.';
   }
   return 'Something went wrong. Try again.';
 }
 
-// toScreen maps a click inside the rendered image to the machine's
-// screen pixels, proportionally: the driver's boxes live in the
-// capture's own space.
-function toScreen(
-  e: React.MouseEvent<HTMLDivElement>,
-  box: HTMLDivElement,
-  screenW: number,
-  screenH: number,
-): { x: number; y: number } {
-  const r = box.getBoundingClientRect();
-  const px = Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1);
-  const py = Math.min(Math.max((e.clientY - r.top) / r.height, 0), 1);
-  return { x: Math.round(px * screenW), y: Math.round(py * screenH) };
+// seen says when an offline machine was last linked, in plain words.
+function seen(m: MachineRow): string {
+  if (m.online) {
+    return 'Online';
+  }
+  if (!m.lastSeen) {
+    return 'Offline, never linked';
+  }
+  const at = new Date(m.lastSeen);
+  return Number.isNaN(at.getTime()) ? 'Offline' : `Offline, last seen ${at.toLocaleString()}`;
 }
 
 export default function Machines({ onSessionExpired }: { onSessionExpired: () => void }) {
-  const [state, setState] = useState<State>({ view: 'loading' });
-  const [control, setControl] = useState(false);
-  const [screenAt, setScreenAt] = useState(0);
-  const [screenSize, setScreenSize] = useState<{ w: number; h: number } | null>(null);
-  const [matches, setMatches] = useState<GroundMatch[] | null>(null);
-  const [phrase, setPhrase] = useState('');
-  const [note, setNote] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
-  const screenBox = useRef<HTMLDivElement>(null);
+  const [view, setView] = useState<View>({ view: 'loading' });
+  const [machines, setMachines] = useState<MachineRow[]>([]);
+  const [budget, setBudget] = useState(0);
+  const [terms, setTerms] = useState<Record<string, TerminalSummary[]>>({});
+  const [notice, setNotice] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const [opening, setOpening] = useState<string | null>(null);
 
-  // refresh reloads the machine list and the budget mirror. Promise
-  // chains, not await: the session and list states resolve off the
+  // refresh reloads the machines and, for the online ones, their
+  // terminals. Promise chains, not await: the states resolve off the
   // effect's synchronous path, the way Terminals.refresh does.
   const refresh = useCallback((): Promise<void> => {
     return listMachines().then(
@@ -60,235 +64,386 @@ export default function Machines({ onSessionExpired }: { onSessionExpired: () =>
           onSessionExpired();
           return;
         }
+        setView((v) => (v.view === 'loading' ? { view: 'list' } : v));
         if (typeof res !== 'object') {
-          setState({ view: 'list', machines: [], budget: 0, notice: errorWords(res), refused: null });
+          setMachines([]);
+          setNotice(res === 'offline' ? null : errorWords(res));
           return;
         }
-        setState({ view: 'list', machines: res.machines, budget: res.budget, notice: null, refused: null });
+        setNotice(null);
+        setMachines(res.machines);
+        setBudget(res.budget);
+        for (const m of res.machines.filter((x) => x.online)) {
+          void listTerminals({ machine: m.name }).then((t) => {
+            if (typeof t === 'object') {
+              setTerms((all) => ({ ...all, [m.name]: t.terminals }));
+            }
+          });
+        }
       },
-      () => setState({ view: 'list', machines: [], budget: 0, notice: errorWords('unreachable'), refused: null }),
+      () => {
+        setView((v) => (v.view === 'loading' ? { view: 'list' } : v));
+        setNotice(errorWords('unreachable'));
+      },
     );
   }, [onSessionExpired]);
 
+  // The list re-checks every 5 s while visible, so a machine that
+  // just enrolled or dropped shows up without a reload.
   useEffect(() => {
     void refresh();
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void refresh();
+      }
+    }, 5000);
+    return () => window.clearInterval(timer);
   }, [refresh]);
 
-  // The live screen re-fetches every 2 s while a machine is linked
-  // and the tab is visible: the img src carries a counter, so the
-  // browser never serves a stale frame from its cache.
-  const linkedCount = state.view === 'list' ? state.machines.length : 0;
-  useEffect(() => {
-    if (linkedCount === 0) {
-      return;
-    }
-    const tick = () => {
-      if (document.visibilityState === 'visible') {
-        setScreenAt((n) => n + 1);
-      }
-    };
-    tick();
-    const timer = window.setInterval(tick, 2000);
-    return () => window.clearInterval(timer);
-  }, [linkedCount]);
-
-  // machine is the single linked machine's name (the only case the
-  // task view supports today); '' lets the API pick it the same way.
-  const machine = state.view === 'list' && state.machines.length === 1 ? state.machines[0] : '';
-
-  // tap posts one click when take control is on. The machine spends
-  // one budget unit there; a refusal lands as its own words.
-  async function tap(e: React.MouseEvent<HTMLDivElement>): Promise<void> {
-    if (!control || !screenSize || screenBox.current === null) {
-      return;
-    }
-    const { x, y } = toScreen(e, screenBox.current, screenSize.w, screenSize.h);
-    const res = await machineInput({ kind: 'tap', x, y }, machine);
+  async function terminal(machine: string): Promise<void> {
+    setOpening(machine);
+    const res = await openTerminal({ machine });
+    setOpening(null);
     if (res === 'unauthorized') {
       onSessionExpired();
       return;
     }
-    if (typeof res === 'object') {
-      setState((s) => (s.view === 'list' ? { ...s, refused: res.refused } : s));
+    if (typeof res !== 'object') {
+      setNotice(errorWords(res));
+      return;
+    }
+    setView({ view: 'terminal', machine, id: res.id });
+  }
+
+  async function closeTerm(machine: string, id: string): Promise<void> {
+    if ((await closeTerminal(id, { machine })) === 'unauthorized') {
+      onSessionExpired();
+      return;
+    }
+    await refresh();
+  }
+
+  async function remove(name: string): Promise<void> {
+    const res = await removeMachine(name);
+    setConfirmRemove(null);
+    if (res === 'unauthorized') {
+      onSessionExpired();
       return;
     }
     if (res !== true) {
-      setState((s) => (s.view === 'list' ? { ...s, refused: errorWords(res) } : s));
-      return;
+      setNotice(errorWords(res));
     }
-    setState((s) => (s.view === 'list' ? { ...s, refused: null } : s));
-    const b = await machineBudget(machine);
-    if (typeof b === 'object') {
-      setState((s) => (s.view === 'list' ? { ...s, budget: b.remaining } : s));
-    }
-    setScreenAt((n) => n + 1);
+    await refresh();
   }
 
-  async function find(): Promise<void> {
-    if (phrase.trim() === '') {
-      return;
-    }
-    setBusy('find');
-    const res = await machineGround(phrase, machine);
-    setBusy(null);
-    if (res === 'unauthorized') {
-      onSessionExpired();
-      return;
-    }
-    if (typeof res === 'string' || !('matches' in res)) {
-      const words = typeof res === 'string' ? errorWords(res) : res.refused;
-      setState((s) => (s.view === 'list' ? { ...s, refused: words } : s));
-      return;
-    }
-    setMatches(res.matches);
-  }
-
-  async function checkDone(): Promise<void> {
-    setBusy('verify');
-    const res = await machineVerify(machine);
-    setBusy(null);
-    if (res === 'unauthorized') {
-      onSessionExpired();
-      return;
-    }
-    if (typeof res === 'string' || !('png' in res)) {
-      const words = typeof res === 'string' ? errorWords(res) : res.refused;
-      setState((s) => (s.view === 'list' ? { ...s, refused: words } : s));
-      return;
-    }
-    setNote(res.note === '' ? 'The verifier saw a screen.' : res.note);
-  }
-
-  if (state.view === 'loading') {
+  if (view.view === 'loading') {
     return <div className="flex flex-1 items-center justify-center" aria-busy="true" />;
+  }
+  if (view.view === 'terminal') {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <TerminalView
+          id={view.id}
+          where={{ machine: view.machine }}
+          onSessionExpired={onSessionExpired}
+          onBack={() => {
+            setView({ view: 'list' });
+            void refresh();
+          }}
+        />
+      </div>
+    );
+  }
+  if (view.view === 'screen') {
+    return (
+      <MachineScreen
+        machine={view.machine}
+        budget={budget}
+        onSessionExpired={onSessionExpired}
+        onBack={() => {
+          setView({ view: 'list' });
+          void refresh();
+        }}
+      />
+    );
   }
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-lead font-semibold text-text">Machines</h2>
-        <span className="text-body text-muted">{state.budget} actions left</span>
+        {!adding && (
+          <button type="button" onClick={() => setAdding(true)} className="min-h-11 rounded-md bg-accent px-4 text-body text-base">
+            Add a computer
+          </button>
+        )}
       </div>
-      {state.notice !== null && (
+      {notice !== null && (
         <p role="alert" className="text-body text-text">
-          {state.notice}
+          {notice}
         </p>
       )}
-      {state.refused !== null && (
-        <p role="alert" className="text-body text-text">
-          {state.refused}
-        </p>
+      {adding && (
+        <AddComputer
+          known={machines.map((m) => m.name)}
+          onSessionExpired={onSessionExpired}
+          onDone={() => {
+            setAdding(false);
+            void refresh();
+          }}
+        />
       )}
-      {state.machines.length === 0 ? (
-        <>
-          <p role="status" className="text-body text-muted">
-            Machines will appear here when one enrols.
-          </p>
-          {state.notice === null && (
-            <Empty title="No machines yet." body="Enrol a machine to see its screen and take control here." />
-          )}
-        </>
-      ) : (
-        <>
-          <ul className="flex flex-col gap-2">
-            {state.machines.map((m) => (
-              <li
-                key={m}
-                className="flex min-h-11 items-center justify-between gap-2 rounded-md bg-surface px-3 py-2"
-              >
-                <span className="min-w-0 flex-1 truncate font-mono text-body text-text">{m}</span>
-                <span className="text-body text-muted">linked</span>
-              </li>
-            ))}
-          </ul>
-          <div className="flex items-center justify-between gap-2">
-            <button
-              type="button"
-              onClick={() => { setControl((on) => !on); setMatches(null); }}
-              aria-pressed={control}
-              className={`min-h-11 rounded-md px-4 text-body text-base ${control ? 'bg-accent text-on-accent' : 'bg-surface text-text'}`}
-            >
-              {control ? 'Take control: on' : 'Take control'}
-            </button>
-            <button
-              type="button"
-              onClick={() => void checkDone()}
-              disabled={busy !== null}
-              className="min-h-11 rounded-md bg-accent px-4 text-body text-base disabled:opacity-60"
-            >
-              {busy === 'verify' ? 'Checking…' : 'Check done'}
-            </button>
-          </div>
-          {/* The live screen. The ref holds the rendered box, so a
-              control tap maps its own coordinates to screen pixels;
-              ground markers draw in the same space. */}
-          <div
-            ref={screenBox}
-            onClick={(e) => void tap(e)}
-            className={`relative mx-auto w-full max-w-3xl overflow-hidden rounded-md bg-surface ${control ? 'cursor-crosshair' : ''}`}
-            aria-label={control ? 'Machine screen, tap to click' : 'Machine screen'}
-          >
-            <img
-              src={`${machineScreenURL(machine)}&t=${screenAt}`}
-              alt="The machine's live screen"
-              className="block w-full select-none"
-              onLoad={(e) => {
-                const img = e.currentTarget;
-                if (img.naturalWidth > 0) {
-                  setScreenSize({ w: img.naturalWidth, h: img.naturalHeight });
-                }
-              }}
-            />
-            {matches !== null &&
-              matches.map((m) => (
+      {machines.length === 0 && !adding && notice === null && (
+        <Empty
+          title="No computers yet."
+          body="Add one and you can open a terminal on it from here, see its screen and let agents work on it."
+        />
+      )}
+      {machines.length > 0 && (
+        <ul className="flex flex-col gap-3">
+          {machines.map((m) => (
+            <li key={m.name} className="flex flex-col gap-2 rounded-md bg-surface px-3 py-3">
+              <div className="flex min-h-11 flex-wrap items-center gap-2">
                 <span
-                  key={m.id}
-                  aria-label={`Grounded match ${m.id + 1}`}
-                  className="pointer-events-none absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-accent bg-accent/30"
-                  style={{ left: `${(m.clickX / (screenSize?.w ?? 1)) * 100}%`, top: `${(m.clickY / (screenSize?.h ?? 1)) * 100}%` }}
+                  aria-hidden="true"
+                  className={`h-2.5 w-2.5 shrink-0 rounded-full ${m.online ? 'bg-text' : 'border border-muted'}`}
                 />
-              ))}
-          </div>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-mono text-body text-text">{m.name}</span>
+                  <span className="block text-body text-muted">{seen(m)}</span>
+                </span>
+                {m.online && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => void terminal(m.name)}
+                      disabled={opening !== null}
+                      aria-label={`Open a terminal on ${m.name}`}
+                      className="min-h-11 rounded-md bg-accent px-4 text-body text-base disabled:opacity-60"
+                    >
+                      {opening === m.name ? 'Opening…' : 'Terminal'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setView({ view: 'screen', machine: m.name })}
+                      aria-label={`See the screen of ${m.name}`}
+                      className="min-h-11 rounded-md bg-base px-4 text-body text-text"
+                    >
+                      Screen
+                    </button>
+                  </>
+                )}
+                {confirmRemove === m.name ? (
+                  <span className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void remove(m.name)}
+                      aria-label={`Confirm remove ${m.name}`}
+                      className="min-h-11 rounded-md bg-accent px-3 text-body text-base"
+                    >
+                      Remove it
+                    </button>
+                    <button type="button" onClick={() => setConfirmRemove(null)} className="min-h-11 rounded-md px-3 text-body text-text">
+                      Keep
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmRemove(m.name)}
+                    aria-label={`Remove ${m.name}`}
+                    className="min-h-11 min-w-11 rounded-md px-3 text-body text-muted"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              {confirmRemove === m.name && (
+                <p className="text-body text-muted">
+                  Removing revokes its key and cuts its link. To bring it back, add it again with a new code.
+                </p>
+              )}
+              {m.online && (terms[m.name]?.length ?? 0) > 0 && (
+                <ul aria-label={`Terminals on ${m.name}`} className="flex flex-col gap-1">
+                  {terms[m.name].map((t) => (
+                    <li key={t.term} className="flex min-h-11 items-center gap-2 rounded-md bg-base px-3">
+                      <button
+                        type="button"
+                        onClick={() => setView({ view: 'terminal', machine: m.name, id: t.term })}
+                        aria-label={`Open terminal ${t.term.slice(0, 8)} on ${m.name}`}
+                        className="min-h-11 min-w-0 flex-1 truncate text-left font-mono text-body text-text"
+                      >
+                        {t.dir ? `${t.term.slice(0, 8)} · ${t.dir}` : t.term.slice(0, 8)}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void closeTerm(m.name, t.term)}
+                        aria-label={`Close terminal ${t.term.slice(0, 8)} on ${m.name}`}
+                        className="min-h-11 min-w-11 rounded-md px-3 text-body text-muted"
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// AddComputer mints a one-time code and shows the two commands to run
+// on the computer. It watches the list, so the new machine is named
+// the moment it links.
+function AddComputer({
+  known,
+  onSessionExpired,
+  onDone,
+}: {
+  known: string[];
+  onSessionExpired: () => void;
+  onDone: () => void;
+}) {
+  const [label, setLabel] = useState('');
+  const [code, setCode] = useState<{ code: string; until: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  const [before] = useState(() => new Set(known));
+  const [copied, setCopied] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (code === null) {
+      return;
+    }
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [code]);
+
+  const joined = known.find((n) => !before.has(n));
+
+  async function mint(): Promise<void> {
+    setBusy(true);
+    setError(null);
+    const res = await mintEnrolCode(label.trim());
+    setBusy(false);
+    if (res === 'unauthorized') {
+      onSessionExpired();
+      return;
+    }
+    if (res === 'unreachable') {
+      setError('Something went wrong. Try again.');
+      return;
+    }
+    if ('refused' in res) {
+      setError(res.refused);
+      return;
+    }
+    const at = Date.now();
+    setNow(at);
+    setCode({ code: res.code, until: at + res.expiresIn * 1000 });
+  }
+
+  const serve = window.location.origin;
+  const enrol = code ? `DEVCULES_SERVE_URL=${serve} devcules machine enrol ${code.code}` : '';
+  const run = 'devcules machine';
+  const left = code ? Math.max(0, Math.round((code.until - now) / 1000)) : 0;
+
+  function copy(text: string): void {
+    void navigator.clipboard?.writeText(text).then(
+      () => setCopied(text),
+      () => setCopied(null),
+    );
+  }
+
+  return (
+    <section aria-label="Add a computer" className="flex flex-col gap-3 rounded-md bg-surface px-3 py-3">
+      <h3 className="text-body font-semibold text-text">Add a computer</h3>
+      {joined !== undefined ? (
+        <>
+          <p role="status" className="text-body text-text">
+            {joined} is linked. Open a terminal on it from the list.
+          </p>
+          <button type="button" onClick={onDone} className="min-h-11 self-start rounded-md bg-accent px-4 text-body text-base">
+            Done
+          </button>
+        </>
+      ) : code === null ? (
+        <>
+          <p className="text-body text-muted">
+            You get a one-time code to type on that computer. It needs the devcules binary, and tmux for the terminal. Nothing on
+            it listens for connections: it dials this server.
+          </p>
           <form
             className="flex flex-col gap-2 sm:flex-row"
             onSubmit={(e) => {
               e.preventDefault();
-              void find();
+              void mint();
             }}
           >
-            <label className="sr-only" htmlFor="machine-phrase">
-              What to find
+            <label className="sr-only" htmlFor="enrol-label">
+              Which computer is it
             </label>
             <input
-              id="machine-phrase"
+              id="enrol-label"
               type="text"
-              value={phrase}
-              onChange={(e) => setPhrase(e.target.value)}
-              placeholder="Name one thing, like green Pay button"
-              className="min-h-11 flex-1 rounded-md bg-surface px-3 text-body text-text"
+              maxLength={64}
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="Which computer, like studio Mac (optional)"
+              className="min-h-11 flex-1 rounded-md bg-base px-3 text-body text-text"
             />
-            <button
-              type="submit"
-              disabled={busy !== null || phrase.trim() === ''}
-              className="min-h-11 rounded-md bg-accent px-4 text-body text-base disabled:opacity-60"
-            >
-              {busy === 'find' ? 'Finding…' : 'Find it'}
+            <button type="submit" disabled={busy} className="min-h-11 rounded-md bg-accent px-4 text-body text-base disabled:opacity-60">
+              {busy ? 'Getting a code…' : 'Get a code'}
+            </button>
+            <button type="button" onClick={onDone} className="min-h-11 rounded-md px-4 text-body text-text">
+              Cancel
             </button>
           </form>
-          {matches !== null && (
-            <p role="status" className="text-body text-muted">
-              {matches.length === 0
-                ? 'No matches on the screen. Try another phrase.'
-                : `${matches.length} ${matches.length === 1 ? 'match' : 'matches'} marked on the screen.`}
-            </p>
-          )}
-          {note !== null && (
-            <p role="note" className="rounded-md bg-surface px-3 py-2 text-body text-text">
-              {note}
-            </p>
-          )}
+        </>
+      ) : (
+        <>
+          <p className="text-body text-text">
+            Code <span className="font-mono text-lead tracking-wider">{code.code}</span>{' '}
+            <span className="text-muted">
+              {left > 0 ? `· works once, for ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : '· expired, get a new one'}
+            </span>
+          </p>
+          <p className="text-body text-muted">On that computer, run:</p>
+          {[enrol, run].map((cmd) => (
+            <div key={cmd} className="flex items-start gap-2">
+              <code className="min-w-0 flex-1 break-all rounded bg-base px-2 py-2 font-mono text-body text-text">{cmd}</code>
+              <button
+                type="button"
+                onClick={() => copy(cmd)}
+                aria-label={`Copy ${cmd === run ? 'the run command' : 'the enrol command'}`}
+                className="min-h-11 rounded-md px-3 text-body text-text"
+              >
+                {copied === cmd ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+          ))}
+          <p className="text-body text-muted">
+            Use an address that computer can reach in DEVCULES_SERVE_URL (your Tailscale name, for one). Waiting for it to link…
+          </p>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setCode(null)} className="min-h-11 rounded-md px-4 text-body text-text">
+              New code
+            </button>
+            <button type="button" onClick={onDone} className="min-h-11 rounded-md px-4 text-body text-text">
+              Close
+            </button>
+          </div>
         </>
       )}
-    </div>
+      {error !== null && (
+        <p role="alert" className="text-body text-text">
+          {error}
+        </p>
+      )}
+    </section>
   );
 }

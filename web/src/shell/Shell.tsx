@@ -2,14 +2,16 @@ import { useCallback, useEffect, useState } from 'react';
 import { listApprovals } from '../api';
 import { Inbox, type PendingState } from '../screens/Approvals';
 import Machines from '../screens/Machines';
+import Projects from '../screens/Projects';
 import Terminals from '../screens/Terminals';
 import Settings from '../screens/Settings';
 import Activity from '../screens/Activity';
 
-type Tab = 'home' | 'terminals' | 'machines' | 'activity' | 'settings';
+type Tab = 'home' | 'projects' | 'terminals' | 'machines' | 'activity' | 'settings';
 
 const tabs: Array<{ id: Tab; label: string }> = [
   { id: 'home', label: 'Home' },
+  { id: 'projects', label: 'Projects' },
   { id: 'terminals', label: 'Terminals' },
   { id: 'machines', label: 'Machines' },
   { id: 'activity', label: 'Activity' },
@@ -94,6 +96,7 @@ export default function Shell({
         {tab === 'home' && (
           <Inbox pending={pending} focus={focus} onAnswered={poll} onSessionExpired={onSessionExpired} />
         )}
+        {tab === 'projects' && <Projects onSessionExpired={onSessionExpired} />}
         {tab === 'terminals' && <Terminals onSessionExpired={onSessionExpired} />}
         {tab === 'machines' && <Machines onSessionExpired={onSessionExpired} />}
         {tab === 'activity' && <Activity onSessionExpired={onSessionExpired} />}
@@ -111,11 +114,13 @@ export default function Shell({
             type="button"
             aria-current={tab === t.id ? 'page' : undefined}
             onClick={() => setTab(t.id)}
-            className={`flex min-h-11 flex-1 flex-col items-center justify-center text-body transition-colors duration-150 ${
+            className={`flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center px-0.5 text-tab transition-colors duration-150 ${
               tab === t.id ? 'text-text' : 'text-muted'
             }`}
           >
-            <span>
+            {/* Six tabs share a phone's width: the labels sit a size
+                below body text and truncate rather than run together. */}
+            <span className="max-w-full truncate">
               {t.label}
               {t.id === 'home' && <Badge count={waiting} />}
             </span>

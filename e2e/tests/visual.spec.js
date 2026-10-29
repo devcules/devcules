@@ -72,3 +72,31 @@ test('settings', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Add a passkey' })).toBeVisible();
   await expect(page).toHaveScreenshot({ animations: 'disabled', caret: 'hide' });
 });
+
+test('machines tab', async ({ page }) => {
+  const signedIn = await page.request.post('/auth/sign-in', {
+    form: { username: 'admin', password },
+  });
+  expect(signedIn.status()).toBe(204);
+  await page.goto('/');
+  await expect(page.getByText('Nothing needs you.')).toBeVisible();
+  await page.getByRole('button', { name: 'Machines', exact: true }).first().click();
+  // The stack enrols no computer, so the tab shows its empty state
+  // and the Add a computer action.
+  await expect(page.getByText('No computers yet.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add a computer' })).toBeVisible();
+  await expect(page).toHaveScreenshot({ animations: 'disabled', caret: 'hide' });
+});
+
+test('projects tab', async ({ page }) => {
+  const signedIn = await page.request.post('/auth/sign-in', {
+    form: { username: 'admin', password },
+  });
+  expect(signedIn.status()).toBe(204);
+  await page.goto('/');
+  await expect(page.getByText('Nothing needs you.')).toBeVisible();
+  await page.getByRole('button', { name: 'Projects', exact: true }).first().click();
+  await expect(page.getByText('No projects yet.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add a project' })).toBeVisible();
+  await expect(page).toHaveScreenshot({ animations: 'disabled', caret: 'hide' });
+});

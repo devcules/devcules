@@ -4,6 +4,20 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-29, Machines and Projects tabs)
+
+- Machines tab: **Add a computer** mints the one-time code and shows
+  the two commands to run (it names the machine the moment it links);
+  every enrolled machine shows online or offline, with **Terminal**
+  (a shell on that computer over its link), **Screen** (the live view
+  with take control, grounding and the done check, now one machine at
+  a time with a picker instead of only the single linked one) and
+  remove. The screen loads as a blob and maps taps through the
+  `X-Devcules-Screen-Scale` header; the old `<img>` URL was
+  `/api/machines-screen&t=1` with no machine picked.
+- Projects tab: add a repo by git URL (cloned in a terminal you see)
+  or a folder already there, on a runner or a machine; open terminals
+  and start agents inside a project.
 ### Fixed (2026-10-29, OCR)
 
 - Every OCR engine wrote the frame to one fixed `frame.png`, so two

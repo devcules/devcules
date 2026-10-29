@@ -1,0 +1,8 @@
+{
+  "points": {
+    "green button": [170, 320],
+    "gray button": [370, 320],
+    "red button": [570, 320]
+  },
+  "absent": ["blue button"]
+}

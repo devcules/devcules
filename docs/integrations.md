@@ -17,6 +17,9 @@ Checked 2026-10-29 at <https://dev.meta.ai/docs>. Used by
 | Anthropic-style | `POST /v1/messages`, `POST /v1/messages/count_tokens` |
 | Chat models | `muse-spark-1.3` (the docs' default), `muse-spark-1.2`, `muse-spark-1.1`, `muse-spark-1.3-contributor`, `muse-spark-1.2-contributor`, `muse-wonder-1.0` (preview) |
 | Other models | `sam-3.1` (segmentation, M4.4), `muse-image-1.0` |
+| SAM endpoint | `POST /v1/responses` with `model: "sam-3.1"`, one user message holding an `input_text` noun phrase and one `input_image` (URL or data URL). Non-streaming returns the full answer; `metadata.mask_encoding: "one_bit"` requests the smallest masks |
+| SAM prompts | A short noun phrase, one concept per request ("green button", never "segment the bus" or "a or b"); zero matches completes with an empty output lane — a valid result |
+| SAM output | Special-token text in the `output_text` lane: `<0f>` frame marker, then comma-separated records `id<|box;x1;y1;x2;y2;w;h|><|mask;x=0;y=0;data=H,W,payload|>`. Boxes are source pixels; masks are base85 (0x21..0x7e minus `",;<>|\`), length-prefixed, range-coded (`~` lossless coverage values >=129 in-mask, `!` one_bit raster). Verified against the official parser's own encoder output |
 | Streaming | SSE `data:` lines ending in `data: [DONE]`; `chat.completion.chunk` objects on the OpenAI side, Anthropic event names (`message_start`, `content_block_delta`, …) on the Messages side |
 | Errors | OpenAI envelope `{"error":{"message","type","param","code"}}` |
 | Rate limits | `x-ratelimit-*` headers; `Retry-After` on `429` and `503` |

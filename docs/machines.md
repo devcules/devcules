@@ -72,6 +72,38 @@ it the words and their boxes, and word centres are valid input targets
 against that same frame. Where a screenshot model is available,
 elements and OCR are the cheaper, structured fallback.
 
+## Grounding: SAM 3.1
+
+When the tree and the words cannot see a control — canvas apps, remote
+desktops, locked UIs — `internal/machines/ground` finds it by sight:
+the captured frame plus a short noun phrase ("green Pay button") goes
+to Meta's `sam-3.1` over the Responses API, through **serve's model
+router** (`/llm/meta/v1/responses`) with a per-launch token — never a
+provider key, never the public endpoint from the machine.
+
+The model answers in a special-token grammar (one line, frame marker,
+object records of a box and a base85-coded mask). Ground parses it in
+pure Go from the documented wire contract:
+
+- `ground.parse` decodes the line into typed matches; record
+  boundaries never split on the mask payload's own commas.
+- `ground` decodes both mask encodings: `one_bit` (requested — the
+  smallest payload) and the lossless `~` default, through a shared
+  carryless range coder with adaptive contexts, and takes the **largest
+  region's centre** of the mask as the click point — the most
+  defensible single target, away from stray fragments.
+- A concept with zero matches is a valid outcome: `Ground` returns an
+  empty list, never an error.
+
+The decoder is pinned to the real wire format by three fixtures
+generated with the official parser library: a canonical mask payload,
+a per-pixel decision trace, and a per-shift coder-state trace — the Go
+decoder is bit-identical to the reference, not merely self-consistent.
+
+**The click lands where the mask says, not where a box guesses**: box
+centres are wrong for L-shaped or fragmented controls; the mask
+region's centre is the point the model actually segmented.
+
 ## Wiring
 
 Serve never touches these drivers directly. The machine helper reads

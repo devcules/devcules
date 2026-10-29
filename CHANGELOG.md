@@ -4,6 +4,10 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-29, M4.4)
+
+- `internal/machines/ground`: SAM 3.1 grounding (closes #22). A frame plus a noun phrase goes to `sam-3.1` over the model router (`/llm/meta/v1/responses`, per-launch token — never a provider key), and the special-token answer is parsed in pure Go: both mask encodings (`one_bit` and lossless) through a shared adaptive range coder, record splitting that respects the mask payload's own commas, and the largest mask region's centre as the click point. The decoder is pinned bit-identical to the official parser via three generated fixtures (canonical payload, per-pixel decision trace, per-shift coder-state trace); a canvas-drawn fixture screenshot with known click points ships in testdata. Zero matches is a valid outcome, not an error.
+
 ### Fixed (2026-10-29)
 
 - api: the M4.1 enrol endpoints existed but were never wired into the mux; /api/machines/enrol-code and /api/machines/redeem are now registered (session-guarded, nil issuer 503), with tests for the mint → redeem → single-use flow.

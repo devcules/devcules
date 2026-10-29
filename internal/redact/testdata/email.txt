@@ -1,0 +1,10 @@
+# match: plain, plus tag, subdomain, uppercase
+ada@example.org
+contact Ada.Lovelace+notes@mail.example.co.uk today
+BOB_SMITH@EXAMPLE.COM
+two: a@b.io, c.d@e-f.example.net.
+# no match: no domain dot, bare at, version pin, handle
+user@localhost
+@ada
+pip install pkg@1.2.3
+follow @devcules on the web

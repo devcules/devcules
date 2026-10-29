@@ -138,8 +138,8 @@ func TestRunServeShutdown(t *testing.T) {
 		t.Fatal("bus subscriber channel never closed by shutdown")
 	}
 	lines := jsonLines(t, stdout)
-	if len(lines) != 7 {
-		t.Fatalf("got %d log lines, want vault/meta-key/token-created/passkeys/listening/shutdown/stopped", len(lines))
+	if len(lines) != 9 {
+		t.Fatalf("got %d log lines, want vault/meta-key/redact-key/redact-ready/token-created/passkeys/listening/shutdown/stopped", len(lines))
 	}
 	if lines[0]["msg"] != "vault open" || lines[0]["key_id"] == "" {
 		t.Fatalf("first line = %v, want the vault key id", lines[0])
@@ -147,7 +147,16 @@ func TestRunServeShutdown(t *testing.T) {
 	if lines[1]["secret"] != "provider/meta/api_key" {
 		t.Fatalf("second line = %v, want META_API_KEY moved into the vault", lines[1])
 	}
-	lines = lines[2:]
+	if lines[2]["msg"] != "redaction key created" || lines[2]["secret"] != "redact/hmac_key" {
+		t.Fatalf("third line = %v, want the redaction key minted into the vault", lines[2])
+	}
+	if lines[3]["msg"] != "redaction self-test passed" || lines[3]["SECRET"] != "mask" || lines[3]["EMAIL"] != "off" {
+		t.Fatalf("fourth line = %v, want the self-test and the default policy", lines[3])
+	}
+	if rules, _ := lines[3]["rules"].(float64); rules < 200 {
+		t.Fatalf("fourth line = %v, want the Gitleaks rule count", lines[3])
+	}
+	lines = lines[4:]
 	if lines[0]["msg"] != "runner token file created" {
 		t.Fatalf("third line = %v, want the token mint note", lines[0])
 	}

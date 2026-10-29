@@ -69,6 +69,12 @@ stays on the one primary action. Settings lists the keys (rename,
 remove with a confirm), and says why Add is missing when passkeys
 are off or the page is at an IP address. CSP is unchanged.
 
+Redaction (M2.2) is its own section in Settings
+(`web/src/screens/Redaction.tsx`): a native select per type (saving
+the whole policy on change and reverting if the save fails), the
+counters since serve started, and a test box that shows the masked
+text, or why it was blocked. Values never come back from the server.
+
 ## Building
 
 ```sh

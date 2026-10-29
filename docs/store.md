@@ -19,7 +19,9 @@ id, COSE public key, sign count, AAGUID, transports, backup flags,
 name, both timestamps), with migration `0003`. M2.1 adds the vault's
 repo, `Secrets()` (sealed bytes by name; the vault encrypts before the
 store sees anything), with migration `0004`. The vault's wrapped data
-key sits in `Meta()` under `vault.dek`.
+key sits in `Meta()` under `vault.dek`. M2.2 adds no repo: the
+redaction policy is one `Meta()` row, `redact.policy`, and its
+placeholder key is the vault secret `redact/hmac_key`.
 
 ## How a later module adds a repo
 

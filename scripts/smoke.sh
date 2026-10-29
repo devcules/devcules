@@ -87,6 +87,18 @@ esac
 [ "$(curl -fsS -b "$jar2" "$URL/api/terminals")" = '{"terminals":[]}' ] || fail "GET /api/terminals not empty after delete"
 [ "$(curl -sS -o /dev/null -w '%{http_code}' "$URL/api/terminals")" = "401" ] || fail "GET /api/terminals without session is not 401"
 
+# M2.2 redaction: serve ran the self-test before listening, and the
+# test box masks an AWS-shaped key (made up, assembled from parts so
+# the repo scan stays clean) without echoing it.
+$COMPOSE logs --no-color serve | grep -q '"msg":"redaction self-test passed"' || fail "serve did not log the redaction self-test"
+fake_key="AKIA""Z7QWERTY4UIOP3XZ"
+redacted=$(curl -fsS -b "$jar2" -H 'Content-Type: application/json' -d '{"text":"key '"$fake_key"'"}' "$URL/api/redact/test") || fail "POST /api/redact/test"
+case "$redacted" in
+  *"$fake_key"*) fail "redaction test echoed the key: $redacted" ;;
+  *'"text":"key REDACTED_SECRET_'*'"rule":"aws-access-token"'*) ;;
+  *) fail "redaction test did not mask the key: $redacted" ;;
+esac
+
 # M1.5 passkeys: without DEVCULES_PUBLIC_URL the stack reports
 # disabled with a reason (password sign-in above already proved the
 # fallback works).

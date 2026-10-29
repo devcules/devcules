@@ -58,7 +58,15 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 		fmt.Fprintln(stderr, err.Error())
 		return exitError
 	}
-	if _, err := openVault(context.Background(), cfg, s, log); err != nil {
+	v, err := openVault(context.Background(), cfg, s, log)
+	if err != nil {
+		fmt.Fprintln(stderr, err.Error())
+		b.Close()
+		s.Close()
+		return exitError
+	}
+	redactor, redactSettings, err := setupRedact(context.Background(), v, s, log)
+	if err != nil {
 		fmt.Fprintln(stderr, err.Error())
 		b.Close()
 		s.Close()
@@ -98,7 +106,7 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 		fmt.Fprintln(stderr, "Admin password (shown once): "+password)
 	}
 	srv := &http.Server{
-		Handler:           api.Handler(api.Options{Store: s, Auth: authSvc, Web: web.Embedded(), PublicURL: cfg.PublicURL, Link: h, Terminals: terms}),
+		Handler:           api.Handler(api.Options{Store: s, Auth: authSvc, Web: web.Embedded(), PublicURL: cfg.PublicURL, Link: h, Terminals: terms, Redact: redactor, RedactSettings: redactSettings}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,

@@ -103,4 +103,38 @@ archives. Agent CLIs are never baked in.
 - Never add a GPL, AGPL or SSPL dependency.
 - The Gitleaks detection rule data (MIT) is the one exception allowed to
   be converted into `internal/redact/rules/gitleaks.json` (module M2.2);
-  its MIT notice will be recorded here when that happens.
+  its notice is below.
+
+## Converted rule data
+
+M2.2 converts the detection rules of Gitleaks v8.30.1
+(`config/gitleaks.toml`, https://github.com/gitleaks/gitleaks) into
+`internal/redact/rules/gitleaks.json`: ids, descriptions, regexes,
+keywords, entropy thresholds, secret groups and the text allowlists
+(file-path filters are dropped). This is rule data only; no Gitleaks
+code is used, and the matcher in `internal/redact` is written from
+scratch. It is used under the MIT licence:
+
+```
+MIT License
+
+Copyright (c) 2019 Zachary Rice
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```

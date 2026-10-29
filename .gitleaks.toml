@@ -1,6 +1,22 @@
-# Gitleaks allowlist: known false positives, each with its reason.
+# Gitleaks allowlists: known false positives, each with its reason.
 # Gitleaks discovers this file automatically; CI needs no flag change.
+# A config file replaces the built-in rules unless it extends them, so
+# without [extend] the scan would run with no rules at all.
 
-[allowlist]
+[extend]
+useDefault = true
+
+[[allowlists]]
 description = "The bootstrap password alphabet is a public character set, not a credential."
 regexes = ['''abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRTUVWXY346789''']
+
+[[allowlists]]
+description = "Redaction fixtures: made-up values in real key shapes, and the converted Gitleaks rule data itself (its allowlists quote documented example keys)."
+paths = [
+    '''^internal/redact/testdata/''',
+    '''^internal/redact/rules/gitleaks\.json$''',
+]
+
+[[allowlists]]
+description = "Serve test fixture: base64 of TOPSECRET-VAULT-KEY-32-BYTES-!!!, a made-up vault key the tests assert never reaches a log."
+regexes = ['''^VE9QU0VDUkVULVZBVUxULUtFWS0zMi1CWVRFUy0hISE=$''']

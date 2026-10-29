@@ -1,0 +1,10 @@
+# match: plain, plus tag, subdomain, uppercase
+REDACTED_EMAIL_D6263D01ED
+contact REDACTED_EMAIL_11D3D59956 today
+REDACTED_EMAIL_6B1F2BFA14
+two: REDACTED_EMAIL_FF51578A4B, REDACTED_EMAIL_459FE9C593.
+# no match: no domain dot, bare at, version pin, handle
+user@localhost
+@ada
+pip install pkg@1.2.3
+follow @devcules on the web

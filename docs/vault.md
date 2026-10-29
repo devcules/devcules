@@ -26,7 +26,8 @@ With no `DEVCULES_VAULT_KEY`, serve generates `vault.key` beside the
 database and logs a warning to back it up. It mints a data key, wraps
 it, and stores the wrap. A set `META_API_KEY` is then stored as
 `provider/meta/api_key`; after serve logs that, the variable can leave
-the environment.
+the environment. Redaction (M2.2) then mints its 32-byte placeholder
+key as `redact/hmac_key` (see `docs/redact.md`).
 
 ## Wrong key
 

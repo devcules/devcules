@@ -1,0 +1,12 @@
+# match: international, national groupings
+call +44 20 7946 0958 now
++1 (415) 555-0132
++919876543210
+(415) 555-0132
+415-555-0132 or 415.555.0132
+# no match: short codes, bare digit runs, versions, dates, ids
+dial 112
+order 4155550132
+v1.2.3 released 2026-10-29
+build 20261029.1
++12

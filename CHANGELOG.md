@@ -4,6 +4,34 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-29, M2.2)
+
+- `internal/redact`: secrets and personal data out of model calls.
+  SECRET uses the 221 Gitleaks v8.30.1 rules (converted rule data, MIT
+  notice in `THIRD_PARTY_NOTICES.md`, our own matcher with keywords,
+  entropy and allowlists); EMAIL, PHONE, CARD (Luhn) and IPV4 (public
+  only) are opt-in. Modes off, log, mask and block per type.
+- Deterministic placeholders `REDACTED_<TYPE>_<10 hex>` (HMAC under a
+  per-install key minted into the vault), restored per exchange, and a
+  streaming restorer that holds back only a possible partial
+  placeholder.
+- Startup self-test: serve will not listen if a detector, restore,
+  streamed restore or block fails.
+- `GET /api/redact`, `PUT /api/redact/policy` and
+  `POST /api/redact/test`, plus a Redaction section in Settings with a
+  mode per type, counters and a test box. The policy persists in meta
+  (`redact.policy`).
+- Tests: golden files per detector, every Gitleaks rule from a
+  generated sample, and `FuzzStreamRestore`.
+- See `docs/redact.md`.
+
+### Fixed (2026-10-29, M2.2)
+
+- The CI secret scan ran with no rules: `.gitleaks.toml` replaced the
+  built-in config instead of extending it. It now sets
+  `[extend] useDefault = true`, and the made-up vault key in the serve
+  tests is allowlisted by value.
+
 ### Added (2026-10-29, M2.1)
 
 - `internal/vault`: AES-256-GCM secrets at rest. A vault key (from

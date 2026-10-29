@@ -101,3 +101,8 @@ npm --prefix web test
 actionlint
 gitleaks detect --source . --verbose
 ```
+
+`.gitleaks.toml` extends the built-in Gitleaks rules
+(`[extend] useDefault = true`); without that line a repo config
+replaces them and the scan finds nothing. Every allowlist entry says
+why it exists.

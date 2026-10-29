@@ -1,0 +1,9 @@
+# match: Luhn-valid test numbers in common groupings
+visa REDACTED_CARD_C66885E4F6
+REDACTED_CARD_93BB0DBAE5
+mastercard REDACTED_CARD_6F0935DF07
+amex REDACTED_CARD_757FD2322B
+# no match: Luhn fails, too short, too long
+4111 1111 1111 1112
+4111 1111 111
+41111111111111111111111

@@ -10,6 +10,9 @@ vi.mock('../webauthn', async (importOriginal) => ({
   passkeysUsableHere: () => here.usable,
 }));
 
+// Redaction has its own tests and its own fetches; here it is inert.
+vi.mock('./Redaction', () => ({ default: () => null }));
+
 type Planned = { status: number; body?: unknown } | Array<{ status: number; body?: unknown }>;
 
 // route answers each fetch by path suffix; an array replays one

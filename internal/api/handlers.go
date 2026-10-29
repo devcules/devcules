@@ -13,6 +13,7 @@ import (
 
 	"github.com/devcules/devcules/internal/auth"
 	"github.com/devcules/devcules/internal/link/hub"
+	"github.com/devcules/devcules/internal/redact"
 	"github.com/devcules/devcules/internal/store"
 	"github.com/devcules/devcules/internal/terminals/relay"
 )
@@ -33,9 +34,14 @@ type Options struct {
 	// answers the terminal routes with 503; serve always passes a
 	// real one.
 	Terminals *relay.Relay
+	// Redact and RedactSettings serve the redaction settings and test
+	// box. Nil answers those routes with 503; serve always passes
+	// both.
+	Redact         *redact.Redactor
+	RedactSettings *redact.Settings
 }
 
-// Handler returns the M1.5 mux. /healthz, /readyz and GET /link stay
+// Handler returns the M2.2 mux. /healthz, /readyz and GET /link stay
 // public (/link authenticates with its own credential, never the session
 // cookie); POST /auth/sign-in is the public password call, the
 // passkey login pair and the passkey status read are public too; the
@@ -81,6 +87,11 @@ func Handler(o Options) http.Handler {
 	// (DELETE) or its stream (GET upgrade).
 	mux.Handle("/api/terminals", requireSession(o.Auth, terminalsRoot(o.Terminals, o.PublicURL)))
 	mux.Handle("/api/terminals/", requireSession(o.Auth, terminalOne(o.Terminals, o.PublicURL)))
+	// Redaction settings: reads need a session, the policy write and
+	// the test box add the CSRF check.
+	mux.Handle("/api/redact", requireSession(o.Auth, redactRoot(o.Redact, o.RedactSettings)))
+	mux.Handle("/api/redact/policy", csrf(o.PublicURL, requireSession(o.Auth, redactPolicy(o.Redact, o.RedactSettings))))
+	mux.Handle("/api/redact/test", csrf(o.PublicURL, requireSession(o.Auth, redactTest(o.Redact, o.RedactSettings))))
 	mux.Handle("/", root(o.Web, o.Auth))
 	return secureHeaders(mux)
 }

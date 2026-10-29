@@ -374,3 +374,106 @@ export function streamURL(id: string, cols: number, rows: number): string {
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   return `${proto}//${window.location.host}/api/terminals/${id}/stream?cols=${cols}&rows=${rows}`;
 }
+
+// Redaction (M2.2). Values never come back from the server: findings
+// carry the type, the rule and the placeholder only.
+export type RedactType = 'SECRET' | 'EMAIL' | 'PHONE' | 'CARD' | 'IPV4';
+export type RedactMode = 'off' | 'log' | 'mask' | 'block';
+export type RedactPolicy = Record<RedactType, RedactMode>;
+export type RedactCounts = { detected: number; masked: number; blocked: number };
+export type RedactState = {
+  policy: RedactPolicy;
+  types: RedactType[];
+  modes: RedactMode[];
+  stats: Partial<Record<RedactType, RedactCounts>>;
+  rules: number;
+};
+export type RedactFinding = { type: RedactType; rule: string; placeholder?: string };
+export type RedactTestResult = { text: string; findings: RedactFinding[]; blocked: RedactType[] };
+
+function isObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+async function redactFetch(path: string, init?: RequestInit): Promise<Response | 'unauthorized' | 'unreachable'> {
+  let res: Response;
+  try {
+    res = await fetch(path, init);
+  } catch {
+    return 'unreachable';
+  }
+  if (res.status === 401) {
+    return 'unauthorized';
+  }
+  return res;
+}
+
+export async function getRedaction(): Promise<RedactState | 'unauthorized' | 'unreachable'> {
+  const res = await redactFetch('/api/redact');
+  if (typeof res === 'string') {
+    return res;
+  }
+  if (!res.ok) {
+    return 'unreachable';
+  }
+  let data: unknown;
+  try {
+    data = await res.json();
+  } catch {
+    return 'unreachable';
+  }
+  if (
+    isObject(data) &&
+    isObject(data.policy) &&
+    Array.isArray(data.types) &&
+    Array.isArray(data.modes) &&
+    isObject(data.stats) &&
+    typeof data.rules === 'number'
+  ) {
+    return data as unknown as RedactState;
+  }
+  return 'unreachable';
+}
+
+export async function setRedactionPolicy(
+  policy: RedactPolicy,
+): Promise<true | 'unauthorized' | 'unreachable'> {
+  const res = await redactFetch('/api/redact/policy', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(policy),
+  });
+  if (typeof res === 'string') {
+    return res;
+  }
+  return res.status === 204 ? true : 'unreachable';
+}
+
+export async function testRedaction(
+  text: string,
+): Promise<RedactTestResult | 'unauthorized' | 'too-long' | 'unreachable'> {
+  const res = await redactFetch('/api/redact/test', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  if (typeof res === 'string') {
+    return res;
+  }
+  if (res.status === 400) {
+    return 'too-long';
+  }
+  if (!res.ok) {
+    return 'unreachable';
+  }
+  let data: unknown;
+  try {
+    data = await res.json();
+  } catch {
+    return 'unreachable';
+  }
+  if (isObject(data) && typeof data.text === 'string' && Array.isArray(data.findings) && Array.isArray(data.blocked)) {
+    return data as unknown as RedactTestResult;
+  }
+  return 'unreachable';
+}

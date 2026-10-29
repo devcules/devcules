@@ -10,6 +10,7 @@ import {
   type PasskeySummary,
 } from '../api';
 import { credentialToJSON, passkeysUsableHere, toCreationOptions } from '../webauthn';
+import Redaction from './Redaction';
 
 // 'elsewhere': the server has passkeys on, but this page is open at
 // an IP address, where WebAuthn never works.
@@ -290,6 +291,7 @@ export default function Settings({
           </p>
         )}
       </section>
+      <Redaction onSessionExpired={onSessionExpired} />
       <button
         type="button"
         onClick={leave}

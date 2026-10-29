@@ -446,6 +446,8 @@ func (m *Manager) Close(ctx context.Context, id string) error {
 		a.wait()
 	}
 	_, err := m.run(ctx, "kill-session", "-t", terminals.SessionName(id))
+	// An agent's launch dir holds its token: gone with the terminal.
+	_ = os.RemoveAll(m.LaunchDir(id))
 	if err != nil {
 		if !m.hasSession(ctx, id) {
 			return nil
@@ -461,7 +463,7 @@ func (m *Manager) Close(ctx context.Context, id string) error {
 func (m *Manager) List(ctx context.Context) ([]terminals.TermInfo, error) {
 	ctx, stop := context.WithTimeout(ctx, tmuxTimeout)
 	defer stop()
-	out, err := m.tmux(ctx, "list-sessions", "-F", "#{session_name} #{session_created}").CombinedOutput()
+	out, err := m.tmux(ctx, "list-sessions", "-F", "#{session_name} #{session_created} #{"+agentOption+"}").CombinedOutput()
 	if err != nil {
 		text := string(out)
 		if strings.Contains(text, "no server running") ||
@@ -473,10 +475,11 @@ func (m *Manager) List(ctx context.Context) ([]terminals.TermInfo, error) {
 	}
 	var terms []terminals.TermInfo
 	for line := range strings.Lines(strings.TrimSpace(string(out))) {
-		name, created, ok := strings.Cut(line, " ")
-		if !ok {
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
 			continue
 		}
+		name, created := fields[0], fields[1]
 		id, found := strings.CutPrefix(name, "dvc-")
 		if !found || !terminals.ValidID(id) {
 			continue
@@ -485,7 +488,11 @@ func (m *Manager) List(ctx context.Context) ([]terminals.TermInfo, error) {
 		if err != nil {
 			continue
 		}
-		terms = append(terms, terminals.TermInfo{Term: id, Created: secs})
+		info := terminals.TermInfo{Term: id, Created: secs}
+		if len(fields) > 2 && terminals.ValidAgentID(fields[2]) {
+			info.Agent = fields[2]
+		}
+		terms = append(terms, info)
 	}
 	return terms, nil
 }

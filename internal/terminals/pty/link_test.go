@@ -52,7 +52,7 @@ func livePair(t *testing.T) (*hub.Hub, context.CancelFunc, <-chan link.Frame) {
 	})
 	// Serve registers its handlers before it returns, so they are in
 	// place before the first request below.
-	pty.Serve(ctx, c, mgr)
+	pty.Serve(ctx, c, mgr, nil)
 	deadline := time.Now().Add(10 * time.Second)
 	for time.Now().Before(deadline) {
 		// The hub registers a link just after its welcome, so wait

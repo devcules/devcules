@@ -270,6 +270,62 @@ if $COMPOSE logs --no-color serve runner | grep -qF -e smoke-branch -e smoke-dir
 fi
 curl -fsS -b "$jar2" "$URL/api/push" | python3 -c 'import json,sys; k=json.load(sys.stdin)["publicKey"]; sys.exit(0 if len(k)==87 else 1)' || fail "GET /api/push has no 65-byte VAPID key"
 
+# M3.3 agents: the runner image has no agent CLIs, so it lists Muse
+# Code as not installed with its install command, and a start is
+# refused with 409 before any token is minted.
+agents_body=$(curl -fsS -b "$jar2" "$URL/api/agents") || fail "GET /api/agents"
+printf '%s' "$agents_body" | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+m = [a for a in d["agents"] if a["id"] == "musecode"]
+sys.exit(0 if d["runner"] and d["mode"] == "" and m and not m[0]["installed"] and "install.sh" in m[0]["install"] else 1)' ||
+  fail "GET /api/agents does not list Muse Code as not installed: $agents_body"
+linked_runner=$(printf '%s' "$agents_body" | python3 -c 'import json,sys; print(json.load(sys.stdin)["runner"])')
+launches_before=$(curl -fsS -b "$jar2" "$URL/api/launch-tokens")
+[ "$(curl -sS -o /dev/null -w '%{http_code}' -b "$jar2" -H 'Content-Type: application/json' -d '{"agent":"musecode"}' "$URL/api/agents")" = "409" ] ||
+  fail "starting a missing agent is not 409"
+[ "$(curl -fsS -b "$jar2" "$URL/api/launch-tokens")" = "$launches_before" ] || fail "a refused agent start minted a token"
+
+# A stand-in muse on the runner's PATH: it records what the launch
+# gave it and runs its PreToolUse hook the way Muse Code would. With
+# the linked runner in critical mode, a plain command is allowed.
+curl -fsS -b "$jar2" -X PUT -H 'Content-Type: application/json' \
+  -d '{"target":"runner:'"$linked_runner"'","mode":"critical"}' "$URL/api/approvals/modes" >/dev/null || fail "set the linked runner's access mode"
+$COMPOSE exec -T runner sh -c 'mkdir -p "$HOME/.local/bin" && cat >"$HOME/.local/bin/muse" && chmod 755 "$HOME/.local/bin/muse"' <<'MUSE'
+#!/bin/sh
+[ "$1" = "--version" ] && { echo "Muse Code 9.9.9 (smoke)"; exit 0; }
+out=/tmp/fake-muse.out
+cfg="$XDG_CONFIG_HOME/muse/settings.json"
+{
+  echo "args: $*"
+  grep -q '"base_url": "http://serve:7659/llm/meta/v1"' "$cfg" && echo "router ok"
+  grep -q '"url": "http://serve:7659/mcp"' "$cfg" && echo "mcp ok"
+  [ -n "$META_API_KEY" ] && echo "key set"
+  hook=$(sed -n 's/^ *"command": "\(.*\)",$/\1/p' "$cfg")
+  printf '%s' '{"hook_event_name":"PreToolUse","tool_name":"shell","tool_input":{"command":"ls -la"}}' | sh -c "$hook"
+  echo "hook exit $?"
+} >"$out.tmp" 2>&1
+mv "$out.tmp" "$out"
+MUSE
+$COMPOSE exec -T runner bash -lc 'command -v muse' >/dev/null || fail "the stand-in muse is not on the runner's login PATH"
+start_body=$(curl -fsS -b "$jar2" -H 'Content-Type: application/json' -d '{"agent":"musecode"}' "$URL/api/agents") || fail "POST /api/agents with muse installed"
+agent_term=$(printf '%s' "$start_body" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
+start=$SECONDS
+until $COMPOSE exec -T runner test -f /tmp/fake-muse.out; do
+  [ $((SECONDS - start)) -lt 30 ] || fail "the agent terminal never ran muse"
+  sleep 0.5
+done
+muse_out=$($COMPOSE exec -T runner cat /tmp/fake-muse.out)
+for want in "args: --model muse-spark-1.3 --approval-judge off --disable-approval" "router ok" "mcp ok" "key set" "hook exit 0"; do
+  case "$muse_out" in
+    *"$want"*) ;;
+    *) fail "the agent launch is missing '$want': $muse_out" ;;
+  esac
+done
+curl -fsS -b "$jar2" "$URL/api/terminals" | grep -q "\"term\":\"$agent_term\",\"created\":[0-9]*,\"agent\":\"musecode\"" || fail "the agent terminal is not labelled"
+[ "$(curl -sS -o /dev/null -w '%{http_code}' -b "$jar2" -X DELETE "$URL/api/terminals/$agent_term")" = "204" ] || fail "close the agent terminal"
+curl -fsS -b "$jar2" "$URL/api/audit/export" | grep -q '"action":"agent.launch"' || fail "the agent launch is not audited"
+
 serve_id=$($COMPOSE ps -q serve)
 start=$SECONDS
 $COMPOSE stop -t 20 serve >/dev/null

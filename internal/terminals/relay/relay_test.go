@@ -318,7 +318,7 @@ func withTmuxCalm(t *testing.T, ctx context.Context, s *linktest.Server, name st
 	}
 	t.Cleanup(func() { m.Shutdown(context.Background()) })
 	c, stop := runDialerCalm(t, s, ctx, name, calm)
-	pty.Serve(ctx, c, m)
+	pty.Serve(ctx, c, m, nil)
 	return m, stop
 }
 

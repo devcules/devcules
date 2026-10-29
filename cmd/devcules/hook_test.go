@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -46,7 +47,7 @@ func hookServe(t *testing.T, mode approvals.Mode) (*httptest.Server, string, *ap
 func runHookWith(t *testing.T, cfg config.Config, stdin string, c hookClient) (int, string, string) {
 	t.Helper()
 	var out, errOut bytes.Buffer
-	code := runHook(cfg, strings.NewReader(stdin), &out, &errOut, c)
+	code := runHook(cfg, nil, strings.NewReader(stdin), &out, &errOut, c)
 	return code, out.String(), errOut.String()
 }
 
@@ -150,3 +151,68 @@ func TestHookRetriesUntilServeAnswers(t *testing.T) {
 		t.Fatal("sleepCtx ignored its context")
 	}
 }
+
+func TestAgentHook(t *testing.T) {
+	srv, token, _ := hookServe(t, approvals.ModeCritical)
+	muse, _ := hookAgent("musecode")
+	c := hookClient{http: srv.Client(), sleep: noSleep}
+	cfg := config.Config{ServeURL: srv.URL, LaunchToken: token}
+	run := func(cfg config.Config, stdin string) (int, string, string) {
+		var out, errOut bytes.Buffer
+		code := runHook(cfg, muse, strings.NewReader(stdin), &out, &errOut, c)
+		return code, out.String(), errOut.String()
+	}
+	call := func(cmd string) string {
+		return `{"hook_event_name":"PreToolUse","tool_name":"shell","tool_input":{"command":"` + cmd + `"}}`
+	}
+
+	if code, out, errOut := run(cfg, call("go test ./...")); code != 0 || out != "" || errOut != "" {
+		t.Fatalf("allow = %d %q %q", code, out, errOut)
+	}
+	// Off blocks, and the reason reaches the agent on stderr.
+	srvOff, tokenOff, _ := hookServe(t, approvals.ModeOff)
+	c.http = srvOff.Client()
+	if code, _, errOut := run(config.Config{ServeURL: srvOff.URL, LaunchToken: tokenOff}, call("ls")); code != 2 ||
+		!strings.Contains(errOut, "Devcules blocked this call") {
+		t.Fatalf("deny = %d %q", code, errOut)
+	}
+	c.http = srv.Client()
+	// Every failure blocks the call.
+	for name, tc := range map[string]struct {
+		cfg   config.Config
+		stdin string
+		want  string
+	}{
+		"no token":   {config.Config{ServeURL: srv.URL}, call("ls"), "no launch token"},
+		"bad stdin":  {cfg, `nope`, "could not check"},
+		"bad event":  {cfg, `{"hook_event_name":"Stop"}`, "could not check"},
+		"bad token":  {config.Config{ServeURL: srv.URL, LaunchToken: "dvl_nope"}, call("ls"), "refused the hook (401)"},
+		"odd answer": {config.Config{ServeURL: srv.URL + "/healthz#", LaunchToken: token}, call("ls"), "could not check"},
+	} {
+		code, out, errOut := run(tc.cfg, tc.stdin)
+		if code != 2 || out != "" || !strings.Contains(errOut, tc.want) || strings.Contains(errOut, token) {
+			t.Errorf("%s: exit %d stdout %q stderr %q", name, code, out, errOut)
+		}
+	}
+	odd := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"decision":"maybe"}`))
+	}))
+	defer odd.Close()
+	c.http = odd.Client()
+	if code, _, errOut := run(config.Config{ServeURL: odd.URL, LaunchToken: "dvl_x"}, call("ls")); code != 2 || !strings.Contains(errOut, `serve answered "maybe"`) {
+		t.Fatalf("odd decision = %d %q", code, errOut)
+	}
+}
+
+func TestAgentHookReadFailure(t *testing.T) {
+	muse, _ := hookAgent("musecode")
+	var out, errOut bytes.Buffer
+	code := runHook(config.Config{LaunchToken: "dvl_x"}, muse, failReader{}, &out, &errOut, hookClient{})
+	if code != 2 || !strings.Contains(errOut.String(), "cannot read the tool call") {
+		t.Fatalf("exit %d stderr %q", code, errOut.String())
+	}
+}
+
+type failReader struct{}
+
+func (failReader) Read([]byte) (int, error) { return 0, io.ErrUnexpectedEOF }

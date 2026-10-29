@@ -21,6 +21,7 @@ const actionLabels: Record<string, string> = {
   'passkey.remove': 'Removed a passkey',
   'terminal.open': 'Opened a terminal',
   'terminal.close': 'Closed a terminal',
+  'agent.launch': 'Started an agent',
   'redact.policy': 'Changed redaction',
   'launch.mint': 'Issued a launch token',
   'launch.revoke': 'Revoked a launch token',

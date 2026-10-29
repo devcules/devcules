@@ -36,8 +36,10 @@ const maxTmuxCalls = 4
 // Dial handlers run inline in the link read loop, so nothing here may
 // block it: requests that run tmux (open, attach, detach, close, list)
 // move to their own goroutine, and input is queued per stream.
-func Serve(ctx context.Context, d *dial.Client, m *Manager) {
-	h := &linkRunner{d: d, m: m, calls: make(chan struct{}, maxTmuxCalls)}
+//
+// agents builds agent launches; nil means this runner offers none.
+func Serve(ctx context.Context, d *dial.Client, m *Manager, agents Launcher) {
+	h := &linkRunner{d: d, m: m, agents: agents, calls: make(chan struct{}, maxTmuxCalls)}
 	d.On(terminals.TypeOpen, h.async(h.open))
 	d.On(terminals.TypeAttach, h.async(h.attachReq))
 	d.On(terminals.TypeInput, h.input)
@@ -45,6 +47,7 @@ func Serve(ctx context.Context, d *dial.Client, m *Manager) {
 	d.On(terminals.TypeDetach, h.async(h.detach))
 	d.On(terminals.TypeClose, h.async(h.close))
 	d.On(terminals.TypeList, h.async(h.list))
+	d.On(terminals.TypeAgents, h.async(h.agentList))
 	go func() {
 		h.watchSession(ctx)
 		m.dropStreams()
@@ -55,10 +58,11 @@ func Serve(ctx context.Context, d *dial.Client, m *Manager) {
 // pumps on every stream share it, so concurrent term.output writes
 // never interleave on the wire.
 type linkRunner struct {
-	d     *dial.Client
-	m     *Manager
-	send  sync.Mutex
-	calls chan struct{} // semaphore for concurrent tmux calls
+	d      *dial.Client
+	m      *Manager
+	agents Launcher
+	send   sync.Mutex
+	calls  chan struct{} // semaphore for concurrent tmux calls
 }
 
 // async runs a handler on its own goroutine, at most maxTmuxCalls at a
@@ -125,11 +129,46 @@ func (h *linkRunner) open(ctx context.Context, req link.Frame) {
 		h.reply(req, false, "invalid request")
 		return
 	}
+	if o.Agent != nil {
+		h.openAgent(ctx, req, o)
+		return
+	}
 	if _, err := h.m.Open(ctx, o.Term); err != nil {
 		h.reply(req, false, reasonFor(err))
 		return
 	}
 	h.reply(req, true, "")
+}
+
+// openAgent builds the agent's launch and starts it. Reasons stay
+// fixed strings; the token never reaches a log line.
+func (h *linkRunner) openAgent(ctx context.Context, req link.Frame, o terminals.Open) {
+	if h.agents == nil {
+		h.reply(req, false, "agents unavailable")
+		return
+	}
+	l, err := h.agents.Launch(ctx, *o.Agent, h.m.LaunchDir(o.Term))
+	if err != nil {
+		h.m.log.Warn("agent launch refused", "agent", o.Agent.ID, "err", err.Error())
+		h.reply(req, false, "agent unavailable")
+		return
+	}
+	if _, err := h.m.OpenAgent(ctx, o.Term, o.Agent.ID, l); err != nil {
+		h.reply(req, false, reasonFor(err))
+		return
+	}
+	h.reply(req, true, "")
+}
+
+// agentList answers term.agents with the agents this runner knows and
+// whether each CLI is installed here.
+func (h *linkRunner) agentList(ctx context.Context, req link.Frame) {
+	list := []terminals.AgentInfo{}
+	if h.agents != nil {
+		list = append(list, h.agents.Agents(ctx)...)
+	}
+	data, _ := json.Marshal(terminals.AgentList{Agents: list})
+	_ = h.sendFrame(link.Frame{V: link.Version, Type: terminals.TypeAgentList, ID: req.ID, Data: data})
 }
 
 func (h *linkRunner) attachReq(ctx context.Context, req link.Frame) {
@@ -242,6 +281,8 @@ func reasonFor(err error) string {
 		return "input queue full"
 	case startsWith(msg, "too many terminals"):
 		return "too many terminals"
+	case startsWith(msg, "agent:"):
+		return "agent launch failed"
 	case startsWith(msg, "term:") || startsWith(msg, "stream:") ||
 		startsWith(msg, "size:") || startsWith(msg, "b64:"):
 		return "invalid request"

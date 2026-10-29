@@ -19,12 +19,15 @@ const (
 	TypeDetach = "term.detach"
 	TypeClose  = "term.close"
 	TypeList   = "term.list"
+	TypeAgents = "term.agents"
 
 	TypeOK     = "term.ok"
 	TypeError  = "term.error"
 	TypeOutput = "term.output"
 	TypeExit   = "term.exit"
 	TypeListed = "term.listed"
+	// TypeAgentList answers term.agents: the agent CLIs on the runner.
+	TypeAgentList = "term.agentlist"
 )
 
 // Limits. MaxTerminals bounds tmux sessions per runner; dimensions
@@ -64,9 +67,37 @@ func ValidSize(cols, rows int) bool {
 	return cols >= MinCols && cols <= MaxCols && rows >= MinRows && rows <= MaxRows
 }
 
-// Open asks the runner to create the terminal's tmux session.
+// Open asks the runner to create the terminal's tmux session. With
+// Agent set, the session runs that coding agent instead of a shell.
 type Open struct {
-	Term string `json:"term"`
+	Term  string       `json:"term"`
+	Agent *AgentLaunch `json:"agent,omitempty"`
+}
+
+// AgentLaunch names the agent to start and carries its per-launch
+// token: the runner builds the command, environment and config files
+// itself, since only it knows how it reaches serve. The token is never
+// logged on either side.
+type AgentLaunch struct {
+	ID    string `json:"id"`
+	Token string `json:"token"`
+	Model string `json:"model,omitempty"`
+}
+
+// AgentInfo describes one agent CLI as the runner sees it. Install is
+// the documented install command, shown to the owner, never run.
+type AgentInfo struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Provider  string `json:"provider"`
+	Installed bool   `json:"installed"`
+	Version   string `json:"version,omitempty"`
+	Install   string `json:"install,omitempty"`
+}
+
+// AgentList answers term.agents.
+type AgentList struct {
+	Agents []AgentInfo `json:"agents"`
 }
 
 // Attach asks the runner to start an attach client for one browser:
@@ -125,10 +156,12 @@ type Exit struct {
 	Stream string `json:"stream"`
 }
 
-// TermInfo describes one tmux session for the list.
+// TermInfo describes one tmux session for the list. Agent is the
+// agent id when the session runs one.
 type TermInfo struct {
 	Term    string `json:"term"`
 	Created int64  `json:"created"`
+	Agent   string `json:"agent,omitempty"`
 }
 
 // Listed answers term.list from the runner's live tmux: serve keeps
@@ -137,10 +170,34 @@ type Listed struct {
 	Terms []TermInfo `json:"terms"`
 }
 
+var (
+	agentIDRE = regexp.MustCompile(`^[a-z][a-z0-9]{0,31}$`)
+	modelRE   = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]{0,99}$`)
+	tokenRE   = regexp.MustCompile(`^[!-~]{1,512}$`)
+)
+
+// ValidAgentID reports a well-formed agent id ("musecode").
+func ValidAgentID(id string) bool { return agentIDRE.MatchString(id) }
+
+// ValidModel reports a well-formed model id: it lands in a config
+// file and a command line, so it is a plain token.
+func ValidModel(m string) bool { return modelRE.MatchString(m) }
+
 // CheckOpen validates term.open.
 func CheckOpen(o Open) error {
 	if !ValidID(o.Term) {
 		return fmt.Errorf("term: want 16 hex chars")
+	}
+	if a := o.Agent; a != nil {
+		if !ValidAgentID(a.ID) {
+			return fmt.Errorf("agent: want a lowercase id")
+		}
+		if !tokenRE.MatchString(a.Token) {
+			return fmt.Errorf("agent: want a token")
+		}
+		if a.Model != "" && !ValidModel(a.Model) {
+			return fmt.Errorf("agent: bad model id")
+		}
 	}
 	return nil
 }

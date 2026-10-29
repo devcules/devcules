@@ -35,6 +35,8 @@ test('terminals tab', async ({ page }) => {
   await expect(page.getByText('Nothing needs you.')).toBeVisible();
   await page.getByRole('button', { name: 'Terminals', exact: true }).first().click();
   await expect(page.getByRole('button', { name: 'New terminal' })).toBeVisible();
+  // The agent list loads on its own: wait so the shot never races it.
+  await expect(page.getByRole('region', { name: 'Start an agent' })).toBeVisible();
   await expect(page).toHaveScreenshot({ animations: 'disabled', caret: 'hide' });
 });
 

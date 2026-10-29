@@ -280,7 +280,7 @@ export async function deletePasskey(id: string): Promise<true | 'unauthorized' |
   return 'unreachable';
 }
 
-export type TerminalSummary = { term: string; created: number };
+export type TerminalSummary = { term: string; created: number; agent?: string };
 
 // Every terminal call resolves to one of these: data, an expired
 // session (the app returns to sign-in), a missing runner (the UI
@@ -321,7 +321,8 @@ export async function listTerminals(): Promise<{ terminals: TerminalSummary[] } 
           'term' in t &&
           typeof t.term === 'string' &&
           'created' in t &&
-          typeof t.created === 'number',
+          typeof t.created === 'number' &&
+          (!('agent' in t) || typeof t.agent === 'string'),
       ),
     };
   }
@@ -363,6 +364,82 @@ export async function closeTerminal(id: string): Promise<true | TerminalError> {
   }
   if (res.status === 503) {
     return 'offline';
+  }
+  return 'unreachable';
+}
+
+// Agents (M3.3): the coding agent CLIs a runner offers, started in a
+// terminal of their own with a fresh launch token.
+export type AgentInfo = {
+  id: string;
+  name: string;
+  provider: string;
+  installed: boolean;
+  version?: string;
+  install?: string;
+};
+
+export type RunnerAgents = { runner: string; mode: AccessMode | ''; agents: AgentInfo[] };
+
+function isAgent(a: unknown): a is AgentInfo {
+  return (
+    typeof a === 'object' &&
+    a !== null &&
+    'id' in a &&
+    typeof a.id === 'string' &&
+    'name' in a &&
+    typeof a.name === 'string' &&
+    'installed' in a &&
+    typeof a.installed === 'boolean'
+  );
+}
+
+export async function listAgents(): Promise<RunnerAgents | TerminalError> {
+  const res = await terminalFetch('/api/agents');
+  if (typeof res === 'string') {
+    return res;
+  }
+  if (res.status === 503) {
+    return 'offline';
+  }
+  if (!res.ok) {
+    return 'unreachable';
+  }
+  const data: unknown = await res.json().catch(() => null);
+  if (typeof data === 'object' && data !== null && 'agents' in data && Array.isArray(data.agents)) {
+    const d = data as { runner?: unknown; mode?: unknown };
+    return {
+      runner: typeof d.runner === 'string' ? d.runner : '',
+      mode: typeof d.mode === 'string' ? (d.mode as AccessMode | '') : '',
+      agents: data.agents.filter(isAgent),
+    };
+  }
+  return 'unreachable';
+}
+
+// startAgent opens a terminal running agent. A refusal (not
+// installed, no provider) carries the server's reason.
+export async function startAgent(agent: string): Promise<{ id: string } | TerminalError | 'busy' | { refused: string }> {
+  const res = await terminalFetch('/api/agents', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ agent }),
+  });
+  if (typeof res === 'string') {
+    return res;
+  }
+  const data: unknown = await res.json().catch(() => null);
+  if (res.status === 201 && typeof data === 'object' && data !== null && 'id' in data && typeof data.id === 'string') {
+    return { id: data.id };
+  }
+  if (res.status === 503) {
+    return 'offline';
+  }
+  if (res.status === 504) {
+    return 'busy';
+  }
+  if (res.status >= 400 && res.status < 500 && isObject(data) && typeof data.error === 'string') {
+    return { refused: data.error };
   }
   return 'unreachable';
 }

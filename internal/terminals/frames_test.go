@@ -122,3 +122,22 @@ func TestCheckers(t *testing.T) {
 		t.Fatal("DecodeOutput(bad b64) succeeded")
 	}
 }
+
+func TestCheckOpenAgent(t *testing.T) {
+	id := "0123456789abcdef"
+	ok := AgentLaunch{ID: "musecode", Token: "dvl_abc", Model: "muse-spark-1.3"}
+	if err := CheckOpen(Open{Term: id, Agent: &ok}); err != nil {
+		t.Fatalf("CheckOpen(agent): %s", err)
+	}
+	for name, a := range map[string]AgentLaunch{
+		"upper id":    {ID: "MuseCode", Token: "t"},
+		"empty id":    {Token: "t"},
+		"no token":    {ID: "musecode"},
+		"space token": {ID: "musecode", Token: "a b"},
+		"bad model":   {ID: "musecode", Token: "t", Model: "x; rm -rf /"},
+	} {
+		if err := CheckOpen(Open{Term: id, Agent: &a}); err == nil {
+			t.Errorf("%s: CheckOpen succeeded", name)
+		}
+	}
+}

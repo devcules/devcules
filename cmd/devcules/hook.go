@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/devcules/devcules/internal/config"
+	"github.com/devcules/devcules/plugins/agents"
 )
 
 // Hook exit codes: agents' adapters map them onto their own hook
@@ -71,7 +72,14 @@ func sleepCtx(ctx context.Context, d time.Duration) error {
 // to allow or 2 to deny. While it waits it says so on stderr once.
 // Network failures are retried until hookMaxWait; then, or on any
 // other failure, it exits 1.
-func runHook(cfg config.Config, stdin io.Reader, stdout, stderr io.Writer, c hookClient) int {
+//
+// With an agent (`devcules hook --agent musecode`), stdin and the
+// answer follow that agent's own hook protocol instead, and a failure
+// blocks the call the way the adapter says.
+func runHook(cfg config.Config, agent agents.Agent, stdin io.Reader, stdout, stderr io.Writer, c hookClient) int {
+	if agent != nil {
+		return runAgentHook(cfg, agent, stdin, stdout, stderr, c)
+	}
 	if cfg.LaunchToken == "" {
 		fmt.Fprintln(stderr, "devcules hook: DEVCULES_LAUNCH_TOKEN (or _FILE) is not set: Devcules sets it when it launches the agent")
 		return exitError
@@ -88,24 +96,7 @@ func runHook(cfg config.Config, stdin io.Reader, stdout, stderr io.Writer, c hoo
 		fmt.Fprintln(stderr, `devcules hook: stdin must be {"tool": "...", "command": "...", "irreversible": false, "agent": "..."}`)
 		return exitError
 	}
-	body, _ := json.Marshal(call)
-	ctx, cancel := context.WithTimeout(context.Background(), hookMaxWait)
-	defer cancel()
-	base := strings.TrimRight(cfg.ServeURL, "/")
-
-	ans, err := hookRequest(ctx, c, cfg.LaunchToken, http.MethodPost, base+"/hook/approvals?wait=0", body)
-	told := false
-	for err == nil && ans.Decision == "ask" && ans.Approval != nil {
-		if !told {
-			what := "this step"
-			if ans.Approval.RuleName != "" {
-				what = ans.Approval.RuleName
-			}
-			fmt.Fprintf(stderr, "devcules: %s needs approval; answer it in Devcules on your phone\n", what)
-			told = true
-		}
-		ans, err = hookRequest(ctx, c, cfg.LaunchToken, http.MethodGet, base+"/hook/approvals/"+url.PathEscape(ans.Approval.ID)+"?wait=25", nil)
-	}
+	ans, err := decide(cfg, call, stderr, c)
 	if err != nil {
 		fmt.Fprintln(stderr, "devcules hook:", err)
 		return exitError
@@ -124,6 +115,73 @@ func runHook(cfg config.Config, stdin io.Reader, stdout, stderr io.Writer, c hoo
 	}
 	fmt.Fprintf(stderr, "devcules hook: serve answered %q\n", ans.Decision)
 	return exitError
+}
+
+// maxAgentStdin caps an agent's hook payload (Muse Code sends at most
+// 256 KiB).
+const maxAgentStdin = 512 << 10
+
+// agentReply ends an agent hook run the way the agent's protocol
+// says.
+func agentReply(agent agents.Agent, a agents.Answer, stdout, stderr io.Writer) int {
+	r := agent.HookAnswer(a)
+	if len(r.Stdout) > 0 {
+		_, _ = stdout.Write(r.Stdout)
+	}
+	if r.Stderr != "" {
+		fmt.Fprintln(stderr, r.Stderr)
+	}
+	return r.Code
+}
+
+// runAgentHook is runHook for an agent's own hook protocol.
+func runAgentHook(cfg config.Config, agent agents.Agent, stdin io.Reader, stdout, stderr io.Writer, c hookClient) int {
+	reply := func(a agents.Answer) int { return agentReply(agent, a, stdout, stderr) }
+	if cfg.LaunchToken == "" {
+		return reply(agents.Answer{Failed: true, Reason: "this terminal has no launch token"})
+	}
+	raw, err := io.ReadAll(io.LimitReader(stdin, maxAgentStdin))
+	if err != nil {
+		return reply(agents.Answer{Failed: true, Reason: "cannot read the tool call"})
+	}
+	call, err := agent.HookCall(raw)
+	if err != nil {
+		return reply(agents.Answer{Failed: true, Reason: err.Error()})
+	}
+	ans, err := decide(cfg, hookCall{Agent: agent.Name(), Tool: call.Tool, Command: call.Command, Irreversible: call.Irreversible}, stderr, c)
+	switch {
+	case err != nil:
+		return reply(agents.Answer{Failed: true, Reason: err.Error()})
+	case ans.Decision == "allow":
+		return reply(agents.Answer{Allow: true, Reason: ans.Reason})
+	case ans.Decision == "deny":
+		return reply(agents.Answer{Reason: ans.Reason})
+	default:
+		return reply(agents.Answer{Failed: true, Reason: fmt.Sprintf("serve answered %q", ans.Decision)})
+	}
+}
+
+// decide reports the call and waits for its answer.
+func decide(cfg config.Config, call hookCall, stderr io.Writer, c hookClient) (hookAnswer, error) {
+	body, _ := json.Marshal(call)
+	ctx, cancel := context.WithTimeout(context.Background(), hookMaxWait)
+	defer cancel()
+	base := strings.TrimRight(cfg.ServeURL, "/")
+
+	ans, err := hookRequest(ctx, c, cfg.LaunchToken, http.MethodPost, base+"/hook/approvals?wait=0", body)
+	told := false
+	for err == nil && ans.Decision == "ask" && ans.Approval != nil {
+		if !told {
+			what := "this step"
+			if ans.Approval.RuleName != "" {
+				what = ans.Approval.RuleName
+			}
+			fmt.Fprintf(stderr, "devcules: %s needs approval; answer it in Devcules on your phone\n", what)
+			told = true
+		}
+		ans, err = hookRequest(ctx, c, cfg.LaunchToken, http.MethodGet, base+"/hook/approvals/"+url.PathEscape(ans.Approval.ID)+"?wait=25", nil)
+	}
+	return ans, err
 }
 
 // hookRequest sends one request, retrying transport errors and 5xx

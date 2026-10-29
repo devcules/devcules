@@ -22,12 +22,17 @@ the link (`docs/link.md`); nothing is stubbed.
 serve → runner: `term.open {term}`, `term.attach {term, stream,
 cols, rows}`, `term.input {stream, b64}`, `term.resize {stream,
 cols, rows}`, `term.detach {stream}`, `term.close {term}`,
-`term.list`. runner → serve: `term.ok` / `term.error {reason}`
-(same id as the request), `term.output {stream, b64}`, `term.exit
-{stream}`, `term.listed {terms:[{term, created}]}`.
+`term.list`, `term.agents`. runner → serve: `term.ok` /
+`term.error {reason}` (same id as the request), `term.output
+{stream, b64}`, `term.exit {stream}`, `term.listed {terms:[{term,
+created, agent}]}`, `term.agentlist {agents:[{id, name, provider,
+installed, version, install}]}`.
 
 `term.open`, `term.attach`, `term.close` and `term.detach` answer
-`term.ok` or `term.error`; `term.list` answers `term.listed`.
+`term.ok` or `term.error`; `term.list` answers `term.listed` and
+`term.agents` answers `term.agentlist`. `term.open` may carry
+`agent: {id, token, model}` to start a coding agent in the new
+terminal (`docs/agents.md`).
 `term.input` is one-way (only a failure answers) because it is the
 busiest frame; the relay sends `term.resize` and `term.detach`
 one-way too and drops their answers.
@@ -94,6 +99,8 @@ read `/link/runner.token`. Separate uids come later; the file stays
   `?runner=<name>` → 400; unknown name → 404.
 - `POST /api/terminals` → `201 {"id"}` (CSRF-checked).
 - `DELETE /api/terminals/{id}` → 204, idempotent (CSRF-checked).
+- `GET` and `POST /api/agents`: the runner's coding agents, and
+  starting one (`docs/agents.md`).
 - `GET /api/terminals/{id}/stream`: the terminal WebSocket.
   Session cookie plus an Origin check (same host or
   `DEVCULES_PUBLIC_URL`) against cross-site hijacking. Binary

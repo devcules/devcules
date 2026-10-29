@@ -276,7 +276,7 @@ func withTmuxRunner(t *testing.T, pipe *linktest.Server, h *hub.Hub, ctx context
 	}
 	t.Cleanup(func() { m.Shutdown(context.Background()) })
 	c, stop := terminalDialer(t, pipe, ctx, name)
-	pty.Serve(ctx, c, m)
+	pty.Serve(ctx, c, m, nil)
 	// The hub registers a link just after its welcome: wait for the
 	// hub's view so the first request finds the runner.
 	deadline := time.Now().Add(10 * time.Second)

@@ -77,12 +77,13 @@ func (r *Relay) Run() {
 	r.hub.On(terminals.TypeOK, r.onReply)
 	r.hub.On(terminals.TypeError, r.onReply)
 	r.hub.On(terminals.TypeListed, r.onReply)
+	r.hub.On(terminals.TypeAgentList, r.onReply)
 	r.hub.On(terminals.TypeOutput, r.onOutput)
 	r.hub.On(terminals.TypeExit, r.onExit)
 	r.hub.OnChange(r.onChange)
 }
 
-// onReply routes term.ok / term.error / term.listed to the request's
+// onReply routes term.ok / term.error / term.listed / term.agentlist to the request's
 // waiter by frame id. Unknown ids are late replies past their timeout
 // and are dropped. It never blocks: the channel holds one reply.
 func (r *Relay) onReply(_ context.Context, _ string, f link.Frame) {
@@ -260,6 +261,48 @@ func (r *Relay) Open(ctx context.Context, runner string) (string, *Error) {
 		return "", roundTripError(err)
 	}
 	return id, nil
+}
+
+// OpenAgent mints a terminal id and asks the runner to start the
+// agent in it. a carries the launch token; it crosses only the link.
+func (r *Relay) OpenAgent(ctx context.Context, runner string, a terminals.AgentLaunch) (string, *Error) {
+	name, aerr := r.PickRunner(runner)
+	if aerr != nil {
+		return "", aerr
+	}
+	id := terminals.NewID()
+	if err := terminals.CheckOpen(terminals.Open{Term: id, Agent: &a}); err != nil {
+		return "", &Error{Status: 400, Msg: err.Error()}
+	}
+	if err := r.ok(ctx, name, terminals.TypeOpen, terminals.Open{Term: id, Agent: &a}); err != nil {
+		return "", roundTripError(err)
+	}
+	return id, nil
+}
+
+// Agents asks the runner which agent CLIs it offers and has
+// installed. Detection runs commands on the runner, so it is fresh
+// every call.
+func (r *Relay) Agents(ctx context.Context, runner string) ([]terminals.AgentInfo, *Error) {
+	name, aerr := r.PickRunner(runner)
+	if aerr != nil {
+		return nil, aerr
+	}
+	reply, err := r.request(ctx, name, terminals.TypeAgents, struct{}{})
+	if err != nil {
+		return nil, &Error{Status: 504, Msg: err.Error()}
+	}
+	if reply.Type != terminals.TypeAgentList {
+		return nil, &Error{Status: 502, Msg: fmt.Sprintf("runner answered %s", reply.Type)}
+	}
+	var list terminals.AgentList
+	if err := strictDecode(reply.Data).Decode(&list); err != nil {
+		return nil, &Error{Status: 502, Msg: "runner sent a bad agent list"}
+	}
+	if list.Agents == nil {
+		list.Agents = []terminals.AgentInfo{}
+	}
+	return list.Agents, nil
 }
 
 // Delete kills the terminal's session. The runner treats missing

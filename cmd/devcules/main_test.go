@@ -198,6 +198,22 @@ func TestRun(t *testing.T) {
 		}
 	})
 
+	t.Run("agent hook blocks without a launch token", func(t *testing.T) {
+		code, stdout, stderr := invoke(t, map[string]string{}, "hook", "--agent", "musecode")
+		if code != 2 || stdout != "" || !strings.Contains(stderr, "so it is blocked: this terminal has no launch token") {
+			t.Fatalf("exit = %d, stdout = %q, stderr = %q, want a fail-closed block", code, stdout, stderr)
+		}
+	})
+
+	for _, args := range [][]string{{"hook", "--agent", "nope"}, {"hook", "--agent"}, {"hook", "extra"}} {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			code, _, stderr := invoke(t, map[string]string{}, args...)
+			if code != exitUsage || !strings.Contains(stderr, "--agent <id> (known: musecode)") {
+				t.Fatalf("exit = %d, stderr = %q, want usage with the known agents", code, stderr)
+			}
+		})
+	}
+
 	// The vault key is optional everywhere and forbidden outside serve.
 	// serve needs a key and runner blocks, so only the stub qualifies here.
 	for _, role := range []string{"machine"} {
@@ -258,4 +274,18 @@ func TestRun(t *testing.T) {
 			t.Fatalf("stderr = %q, want not-running error", stderr)
 		}
 	})
+}
+
+// An agent hook that cannot even load its config must still block
+// the call in the agent's protocol: exit 1 would let Muse run it.
+func TestAgentHookConfigErrorBlocks(t *testing.T) {
+	for _, env := range []map[string]string{
+		{"DEVCULES_LISTEN": "notaport"},
+		{"META_API_KEY": "x", "DEVCULES_LAUNCH_TOKEN": "dvl_x"},
+	} {
+		code, stdout, stderr := invoke(t, env, "hook", "--agent", "musecode")
+		if code != 2 || stdout != "" || !strings.Contains(stderr, "so it is blocked: devcules hook is misconfigured") {
+			t.Errorf("%v: exit = %d, stderr = %q, want a fail-closed block", env, code, stderr)
+		}
+	}
 }

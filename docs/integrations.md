@@ -44,6 +44,24 @@ Checked 2026-10-29 at
 | Tools | Names 1 to 128 of `A-Z a-z 0-9 _ - .`; tool failures are results with `isError: true`; an unknown tool is `-32602` |
 | Pagination | Opaque `cursor` / `nextCursor`; a bad cursor is `-32602` |
 
+## Muse Code
+
+Checked 2026-10-29 at <https://dev.meta.ai/docs/muse-code> against
+`muse` 1.4.14, with a local request logger standing in for the API.
+Used by `plugins/agents/musecode` (`docs/agents.md`).
+
+| Fact | Value |
+|---|---|
+| Install | `curl -fsSL https://dev.meta.ai/install.sh \| sh`; the binary is `muse` |
+| Version | `muse --version` prints `Muse Code 1.4.14 (1.4.14-R7309.1)`; `MUSE_NO_AUTO_UPDATE=1` stops the launcher updating itself |
+| Settings | `$XDG_CONFIG_HOME/muse/settings.json` (auth and trust files move with it); needs `schema_version: 1`; `provider` is a plain string |
+| Endpoint | `endpoint_transport: {base_url, auth: "bearer"}`; the key comes from `META_API_KEY` |
+| Calls | `POST <base_url>/responses` (OpenAI Responses API, streamed): Muse appends only `/responses`, so the base must end in `/v1`. Also `GET <origin>/muse-code/models` at the host root, whose failure Muse tolerates |
+| MCP | `mcpServers.<name>: {type: "streamable-http", url, headers, required}`; header values are literal |
+| Hooks | `hooks.PreToolUse: [{matcher, hooks: [{type: "command", command, timeout, statusMessage}]}]`; stdin carries `hook_event_name`, `tool_name`, `tool_input` and more; the env is cleared to an allowlist |
+| Hook answer | exit `0` allows (stdout starting `{` is read as JSON); exit `2` blocks with stderr as the reason; any other exit is a failed hook and the call goes on |
+| Flags | `--model`, `--approval-judge off`, `--disable-approval` (keeps the sandbox), `--trust-workspace`, `-c KEY=VALUE` |
+
 ## Web Push
 
 Checked 2026-10-29 at <https://www.rfc-editor.org/rfc/rfc8030>,

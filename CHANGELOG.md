@@ -4,6 +4,25 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-29, M3.3)
+
+- `plugins/agents`: the agent adapter interface, a registry, and
+  shared contract tests. `plugins/agents/musecode` starts Muse Code
+  with its model calls on the router, Devcules' MCP server, and
+  `devcules hook --agent musecode` as its `PreToolUse` hook, all in a
+  private config dir so the owner's own Muse settings stay untouched.
+- Runners start agents in tmux with the launch token in `0600` files,
+  never on a command line, and remove them when the agent exits.
+- `GET` and `POST /api/agents`; link frames `term.agents` and
+  `term.agentlist`; `term.open` can carry an agent. A failed start
+  revokes its token. Audited as `agent.launch`.
+- `devcules hook --agent <id>` speaks the agent's own hook protocol
+  and blocks the call on any failure.
+- The PWA: Start an agent in Terminals, with the install command for
+  a missing CLI and a note when the runner's access mode blocks or
+  never asks. Agent terminals carry the agent's name. See
+  `docs/agents.md`.
+
 ### Added (2026-10-29, M3.2)
 
 - `internal/approvals`: access modes per runner (`off`, `critical`,

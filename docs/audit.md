@@ -18,6 +18,7 @@ tab.
 | `terminal.open`, `terminal.close` | Terminals from the browser | terminal id |
 | `redact.policy` | The redaction policy changes | each changed type, `old → new` |
 | `launch.mint`, `launch.revoke` | Launch tokens | launch id, `label`, `provider`, `expires` |
+| `agent.launch` | Starting an agent | terminal id, `agent`, `runner`, `launch`, `model` |
 | `trace.read` | Someone opens a trace | launch id |
 | `audit.export` | The log is exported (API or CLI) | |
 | `vault.rotate` | `devcules vault rotate` (actor `cli`) | `from`, `to` key ids |

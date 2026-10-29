@@ -12,6 +12,7 @@ import (
 
 	"github.com/devcules/devcules/internal/bus/memory"
 	"github.com/devcules/devcules/internal/config"
+	"github.com/devcules/devcules/plugins/agents"
 )
 
 // Exit codes: 0 means done, 1 means the configuration or the run failed,
@@ -22,7 +23,7 @@ const (
 	exitUsage = 2
 )
 
-const usageLine = "usage: devcules [serve|runner|machine|hook|version|health|vault rotate|audit export|audit verify|help]"
+const usageLine = "usage: devcules [serve|runner|machine|hook [--agent <id>]|version|health|vault rotate|audit export|audit verify|help]"
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
@@ -36,8 +37,18 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) > 0 {
 		name, rest = args[0], args[1:]
 	}
-	if len(rest) > 0 && name != "vault" && name != "audit" {
+	if len(rest) > 0 && name != "vault" && name != "audit" && name != "hook" {
 		return usage(stderr, "too many arguments: %q takes none", name)
+	}
+	var hookWith agents.Agent
+	if name == "hook" && len(rest) > 0 {
+		ok := false
+		if len(rest) == 2 && rest[0] == "--agent" {
+			hookWith, ok = hookAgent(rest[1])
+		}
+		if !ok {
+			return usage(stderr, "hook takes no arguments, or --agent <id> (known: %s)", agentIDs())
+		}
 	}
 
 	// version, help and usage errors never need configuration: they are most
@@ -58,8 +69,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	cfg, err := config.Load()
 	if err != nil {
-		fmt.Fprintln(stderr, err.Error())
-		return exitError
+		return configFailed(hookWith, err, stdout, stderr)
 	}
 
 	// Blocking roles wait on these; created once per invocation.
@@ -89,13 +99,12 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	cfg, err = cfg.ForRole(role)
 	if err != nil {
-		fmt.Fprintln(stderr, err.Error())
-		return exitError
+		return configFailed(hookWith, err, stdout, stderr)
 	}
 	// serve binds the listener and runner links to serve, so both
 	// block: tests drive runServe/runRunner directly with fakes.
 	if role == "hook" {
-		return runHook(cfg, os.Stdin, stdout, stderr, hookClient{http: &http.Client{Timeout: 45 * time.Second}, sleep: sleepCtx})
+		return runHook(cfg, hookWith, os.Stdin, stdout, stderr, hookClient{http: &http.Client{Timeout: 45 * time.Second}, sleep: sleepCtx})
 	}
 	if role == "serve" || role == "runner" {
 		return runBlockingRole(cfg, role, stdout, stderr, sigs)
@@ -124,4 +133,15 @@ func usage(stderr io.Writer, format string, args ...any) int {
 	}
 	fmt.Fprintln(stderr, usageLine)
 	return exitUsage
+}
+
+// configFailed reports a configuration error. An agent's hook must
+// still answer in the agent's protocol, blocking the call: a plain
+// exit 1 lets some agents (Muse Code) run it anyway.
+func configFailed(hookWith agents.Agent, err error, stdout, stderr io.Writer) int {
+	if hookWith != nil {
+		return agentReply(hookWith, agents.Answer{Failed: true, Reason: "devcules hook is misconfigured: " + err.Error()}, stdout, stderr)
+	}
+	fmt.Fprintln(stderr, err.Error())
+	return exitError
 }

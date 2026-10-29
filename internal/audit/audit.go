@@ -46,6 +46,7 @@ const (
 	ApprovalRules   = "approval.rules"
 	PushSubscribe   = "push.subscribe"
 	PushRemove      = "push.remove"
+	AgentLaunch     = "agent.launch"
 	maxField        = 200
 	maxDetailItems  = 16
 )

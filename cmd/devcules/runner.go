@@ -50,7 +50,7 @@ func runRunner(cfg config.Config, stdout, stderr io.Writer, sigs <-chan os.Signa
 	if m, err := terminalManager(log); err != nil {
 		log.Warn("terminals unavailable, linking without them", "err", err.Error())
 	} else {
-		pty.Serve(ctx, c, m)
+		pty.Serve(ctx, c, m, newAgentLauncher(cfg.ServeURL))
 	}
 	done := make(chan error, 1)
 	go func() { done <- c.Run(ctx) }()

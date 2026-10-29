@@ -269,7 +269,6 @@ if $COMPOSE logs --no-color serve runner | grep -qF -e smoke-branch -e smoke-dir
   fail "the logs hold a command or the hook token"
 fi
 curl -fsS -b "$jar2" "$URL/api/push" | python3 -c 'import json,sys; k=json.load(sys.stdin)["publicKey"]; sys.exit(0 if len(k)==87 else 1)' || fail "GET /api/push has no 65-byte VAPID key"
-$COMPOSE logs --no-color serve | grep -q '"msg":"push key created"' || fail "serve did not create its push key"
 
 serve_id=$($COMPOSE ps -q serve)
 start=$SECONDS

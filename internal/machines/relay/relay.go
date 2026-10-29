@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -28,6 +29,40 @@ func strictDecode(data json.RawMessage) *json.Decoder {
 // timeout into 504; late replies find no waiter and are dropped.
 const roundTripTimeout = 5 * time.Second
 
+// slowTimeouts are the requests that do real work on the machine
+// before they answer: an OCR pass or a tree walk over a busy desktop
+// takes seconds, and grounding waits on the router (its client
+// allows 45 s), so 5 s would time them out while they still run.
+var slowTimeouts = map[string]time.Duration{
+	machframes.TypeScreen: 15 * time.Second,
+	machframes.TypeTree:   30 * time.Second,
+	machframes.TypeWords:  30 * time.Second,
+	machframes.TypeVerify: 30 * time.Second,
+	machframes.TypeGround: 60 * time.Second,
+}
+
+// waitFor is how long a request of typ waits for its answer.
+func waitFor(typ string) time.Duration {
+	if d, ok := slowTimeouts[typ]; ok {
+		return d
+	}
+	return roundTripTimeout
+}
+
+// errNoAnswer is a request that outlived its wait.
+type errNoAnswer struct{ after time.Duration }
+
+func (e errNoAnswer) Error() string {
+	return fmt.Sprintf("machine did not answer within %s", e.after)
+}
+
+// waiter is one request awaiting its answer, and the link address of
+// the machine asked: only that machine may answer it.
+type waiter struct {
+	machine string
+	reply   chan link.Frame
+}
+
 // screenMaxBytes is the PNG cap serve asks for: 2 MiB covers a
 // retina frame without unbounded links, and the machine refuses
 // over the cap rather than truncating.
@@ -41,7 +76,7 @@ type Relay struct {
 	hub *hub.Hub
 
 	mu      sync.Mutex
-	pending map[string]chan link.Frame // request frame id → reply waiter
+	pending map[string]waiter // request frame id → reply waiter
 
 	budgetMu sync.Mutex
 	budget   int // serve's mirror of the machine's action budget
@@ -52,7 +87,7 @@ type Relay struct {
 func New(h *hub.Hub) *Relay {
 	return &Relay{
 		hub:     h,
-		pending: map[string]chan link.Frame{},
+		pending: map[string]waiter{},
 		budget:  machframes.BudgetMax,
 	}
 }
@@ -71,25 +106,27 @@ func (r *Relay) Run() {
 
 // onReply routes every machine answer to the request's waiter by
 // frame id. Unknown ids are late replies past their timeout and are
-// dropped. It never blocks: the channel holds one reply.
-func (r *Relay) onReply(_ context.Context, _ string, f link.Frame) {
+// dropped, as is an answer from any machine but the one asked. It
+// never blocks: the channel holds one reply.
+func (r *Relay) onReply(_ context.Context, from string, f link.Frame) {
 	r.mu.Lock()
-	waiter, ok := r.pending[f.ID]
-	if ok {
+	w, ok := r.pending[f.ID]
+	if ok && w.machine == from {
 		delete(r.pending, f.ID)
 	}
 	r.mu.Unlock()
-	if !ok {
+	if !ok || w.machine != from {
 		return
 	}
 	select {
-	case waiter <- f:
+	case w.reply <- f:
 	default:
 	}
 }
 
 // request sends one machframes request to the machine and awaits the
-// correlated reply for up to 5 s. Callers map timeouts to 504.
+// correlated reply (5 s, longer for the slow requests). Callers map
+// timeouts to 504.
 func (r *Relay) request(ctx context.Context, machine, typ string, data any) (link.Frame, error) {
 	payload, err := json.Marshal(data)
 	if err != nil {
@@ -103,9 +140,9 @@ func (r *Relay) request(ctx context.Context, machine, typ string, data any) (lin
 	if err != nil {
 		return link.Frame{}, err
 	}
-	waiter := make(chan link.Frame, 1)
+	w := waiter{machine: hub.MachineAddr(machine), reply: make(chan link.Frame, 1)}
 	r.mu.Lock()
-	r.pending[req.ID] = waiter
+	r.pending[req.ID] = w
 	r.mu.Unlock()
 	defer func() {
 		r.mu.Lock()
@@ -115,13 +152,14 @@ func (r *Relay) request(ctx context.Context, machine, typ string, data any) (lin
 	if err := r.hub.SendTo(hub.MachineAddr(machine), req); err != nil {
 		return link.Frame{}, err
 	}
-	timeout := time.NewTimer(roundTripTimeout)
+	wait := waitFor(typ)
+	timeout := time.NewTimer(wait)
 	defer timeout.Stop()
 	select {
-	case reply := <-waiter:
+	case reply := <-w.reply:
 		return reply, nil
 	case <-timeout.C:
-		return link.Frame{}, fmt.Errorf("machine did not answer within 5 s")
+		return link.Frame{}, errNoAnswer{after: wait}
 	case <-ctx.Done():
 		return link.Frame{}, ctx.Err()
 	}
@@ -168,7 +206,7 @@ func (e *Error) Error() string { return e.Msg }
 // roundTripError maps transport failures to API errors: a silent
 // machine is 504, a refusal carries the machine's reason.
 func roundTripError(err error) *Error {
-	if err.Error() == "machine did not answer within 5 s" {
+	if errors.As(err, new(errNoAnswer)) {
 		return &Error{Status: 504, Msg: err.Error()}
 	}
 	return &Error{Status: 502, Msg: err.Error()}
@@ -199,21 +237,32 @@ func (r *Relay) wantType(ctx context.Context, machine, typ string, data any, wan
 	return reply, nil
 }
 
-// Screen captures one frame from the machine as PNG bytes.
-func (r *Relay) Screen(ctx context.Context, machine string) ([]byte, *Error) {
+// Screen captures one frame from the machine as PNG bytes. scale is
+// the screen pixels per frame pixel (1 unless the machine shrank the
+// capture to fit the cap).
+func (r *Relay) Screen(ctx context.Context, machine string) (png []byte, scale float64, aerr *Error) {
 	name, aerr := r.PickMachine(machine)
 	if aerr != nil {
-		return nil, aerr
+		return nil, 0, aerr
 	}
 	reply, aerr := r.wantType(ctx, name, machframes.TypeScreen, machframes.Screen{MaxBytes: screenMaxBytes}, machframes.TypeFrame)
 	if aerr != nil {
-		return nil, aerr
+		return nil, 0, aerr
 	}
 	var frame machframes.FrameOut
 	if err := strictDecode(reply.Data).Decode(&frame); err != nil || len(frame.PNG) == 0 {
-		return nil, &Error{Status: 502, Msg: "machine sent a bad frame"}
+		return nil, 0, &Error{Status: 502, Msg: "machine sent a bad frame"}
 	}
-	return frame.PNG, nil
+	return frame.PNG, fullSize(frame.Scale), nil
+}
+
+// fullSize reads a frame's scale: an absent or nonsense one means the
+// frame is the screen's own size.
+func fullSize(scale float64) float64 {
+	if scale < 1 {
+		return 1
+	}
+	return scale
 }
 
 // Tree reads the machine's accessibility tree.
@@ -336,34 +385,44 @@ func (r *Relay) spendLocal() {
 	r.budgetMu.Unlock()
 }
 
+// Verified is the done-verifier's fresh look at the machine.
+type Verified struct {
+	PNG   []byte
+	Scale float64 // screen pixels per PNG pixel
+	Tree  elements.Tree
+	Note  string
+}
+
 // Verify runs the done-verifier: a fresh capture plus a fresh tree
 // read from the machine, answered together so a task may only
 // report success against what the machine sees now.
-func (r *Relay) Verify(ctx context.Context, machine string) (png []byte, tree elements.Tree, note string, aerr *Error) {
+func (r *Relay) Verify(ctx context.Context, machine string) (Verified, *Error) {
 	name, aerr := r.PickMachine(machine)
 	if aerr != nil {
-		return nil, elements.Tree{}, "", aerr
+		return Verified{}, aerr
 	}
 	reply, aerr := r.wantType(ctx, name, machframes.TypeVerify, machframes.Verify{}, machframes.TypeVerifyOut)
 	if aerr != nil {
-		return nil, elements.Tree{}, "", aerr
+		return Verified{}, aerr
 	}
 	var out verifyOut
 	if err := strictDecode(reply.Data).Decode(&out); err != nil {
-		return nil, elements.Tree{}, "", &Error{Status: 502, Msg: "machine sent a bad verify"}
+		return Verified{}, &Error{Status: 502, Msg: "machine sent a bad verify"}
 	}
+	v := Verified{PNG: out.PNG, Scale: fullSize(out.Scale), Note: out.Note}
 	if out.Tree != nil {
-		tree = *out.Tree
-		if tree.Elements == nil {
-			tree.Elements = []elements.Element{}
-		}
+		v.Tree = *out.Tree
 	}
-	return out.PNG, tree, out.Note, nil
+	if v.Tree.Elements == nil {
+		v.Tree.Elements = []elements.Element{}
+	}
+	return v, nil
 }
 
 // verifyOut mirrors the helper's done-verifier answer shape.
 type verifyOut struct {
-	PNG  []byte         `json:"png,omitempty"`
-	Tree *elements.Tree `json:"tree,omitempty"`
-	Note string         `json:"note,omitempty"`
+	PNG   []byte         `json:"png,omitempty"`
+	Scale float64        `json:"scale,omitempty"`
+	Tree  *elements.Tree `json:"tree,omitempty"`
+	Note  string         `json:"note,omitempty"`
 }

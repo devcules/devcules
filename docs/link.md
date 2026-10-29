@@ -28,8 +28,9 @@ One WebSocket text message is one frame:
   shape. It must be present (never missing or `null`).
 - Unknown top-level fields are rejected, as is trailing data after the
   JSON value. One frame is exactly one value.
-- Read limit is 1 MiB per frame on both ends (the library default of
-  32 KiB is raised on the runner side too). Oversize senders are
+- Read limit is 4 MiB per frame on both ends, sized for a machine's
+  2 MiB screen capture sent base64 in JSON. The library default of
+  32 KiB is raised on the runner side too. Oversize senders are
   dropped with 1009.
 
 `FuzzDecode` fuzzes the codec (30 s in CI) with a committed seed

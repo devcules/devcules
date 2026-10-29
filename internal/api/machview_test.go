@@ -182,6 +182,10 @@ func TestMachviewHappyPath(t *testing.T) {
 	if got := w.Header().Get("Content-Type"); got != "image/png" {
 		t.Fatalf("screen content-type = %q", got)
 	}
+	// A frame that does not name a scale is full size.
+	if got := w.Header().Get("X-Devcules-Screen-Scale"); got != "1" {
+		t.Fatalf("screen scale = %q, want 1", got)
+	}
 	if len(w.Body.Bytes()) == 0 {
 		t.Fatal("screen body is empty")
 	}

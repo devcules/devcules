@@ -137,27 +137,41 @@ the helper.
 
 Serve exposes the machine's senses to the owner through
 session-guarded REST, relayed over the link by
-`internal/machines/relay` (request/reply correlated by frame id, 5 s
-round trip, mirroring the terminal relay):
+`internal/machines/relay` (request/reply correlated by frame id,
+mirroring the terminal relay). Only the machine that was asked may
+answer. Input and budget wait 5 s for the answer; a capture waits
+15 s, a tree read, OCR pass or verify 30 s, and grounding 60 s,
+because the machine's router call alone may take 45 s. A timeout is
+`504`.
 
 | Route | What it does |
 |---|---|
 | `GET /api/machines` | the linked machine names and the mirrored budget |
-| `GET /api/machines-screen?machine=` | one PNG capture (`image/png`) |
+| `GET /api/machines-screen?machine=` | one PNG capture (`image/png`), with `X-Devcules-Screen-Scale` |
 | `GET /api/machines-tree?machine=` | the accessibility tree as JSON |
 | `POST /api/machines-input {kind,x,y,key,text}` | inject one input event — **take control** |
 | `POST /api/machines-ground {phrase}` | SAM matches with click points |
-| `POST /api/machines-verify` | the done-verifier's answer: base64 PNG, tree, note |
+| `POST /api/machines-verify` | the done-verifier's answer: base64 PNG, its scale, tree, note |
 | `GET /api/machines-budget` | the mirrored remaining actions |
 
 With several machines linked every route takes `?machine=<name>`;
 with exactly one the parameter may be omitted. Zero machines is 503.
 
+**Captures fit the link.** Serve asks for at most 2 MiB of PNG. A
+capture that is larger is shrunk (to 3/4, 1/2, 3/8, then 1/4 of the
+screen, box-averaged so text stays legible) until it fits, and the
+answer says by how much: `X-Devcules-Screen-Scale` (or `scale` in a
+verify) is screen pixels per frame pixel, `1` at full size. A viewer
+multiplies a point on the frame by it to get screen pixels, which is
+the space input and grounding use. Smaller than a quarter, the
+machine refuses rather than send an unreadable frame.
+
 **The action budget is enforced at the machine, not serve.** The
 helper starts each task at the plan's 40 screen actions, spends one
 per injected input, and refuses at zero with `mach.error "budget
 exhausted"` — no serve-side bug or restart can move a machine past
-its budget. Serve keeps an in-memory mirror (start 40, decrement per
+its budget. A malformed event or an inject the driver fails moves
+nothing, so it costs nothing. Serve keeps an in-memory mirror (start 40, decrement per
 accepted inject, reset on `mach.budget`) only so the UI can show
 what is left; a serve restart loses the mirror but never the
 authority, and the machine's counter is the one that refuses.

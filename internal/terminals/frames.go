@@ -32,7 +32,7 @@ const (
 
 // Limits. MaxTerminals bounds tmux sessions per runner; dimensions
 // keep one attach from requesting an absurd window; MaxInputBytes
-// bounds one decoded input write (the envelope adds its own 1 MiB).
+// bounds one decoded input write (the envelope adds its own 4 MiB).
 const (
 	MaxTerminals  = 16
 	MinCols       = 1
@@ -262,7 +262,7 @@ func CheckClose(c Close) error {
 
 // DecodeOutput validates term.output and returns the raw bytes for
 // the browser queue. No size ceiling here: the runner batches at
-// 32 KiB and the envelope caps the frame at 1 MiB.
+// 32 KiB and the envelope caps the frame at 4 MiB.
 func DecodeOutput(o Output) ([]byte, error) {
 	if !ValidID(o.Stream) {
 		return nil, fmt.Errorf("stream: want 16 hex chars")

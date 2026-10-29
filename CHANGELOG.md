@@ -4,6 +4,26 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Fixed (2026-10-29, machine task view)
+
+- The live screen and Check done failed on a real desktop: link
+  frames were capped at 1 MiB, a capture goes base64 in JSON, so
+  anything over about 760 KB never left the machine and serve
+  answered 504 after 5 s. The frame limit is 4 MiB now, and a capture
+  over serve's 2 MiB cap is shrunk until it fits. The answer carries
+  the scale (`X-Devcules-Screen-Scale`, or `scale` in a verify) so
+  taps and markers map back to screen pixels.
+- The relay gave every request 5 s, but grounding waits on a router
+  call allowed 45 s, and OCR and tree walks can run longer than 5 s.
+  Captures, trees, OCR, verify and grounding now get their own waits.
+- A malformed input event or a failed inject spent one of the task's
+  actions. Now only an inject that moved something costs one.
+- The relay took an answer from any machine that sent the waiting
+  id. Now only the machine that was asked can answer.
+- A helper answer too large for the link was dropped silently. The
+  helper now refuses with the reason, so serve does not wait out the
+  timeout.
+
 ### Fixed (2026-10-29, machines: enrolment and link)
 
 - `devcules machine` was still the M0 stub, so no computer could ever

@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
-	"image/png"
 	"sync/atomic"
 
 	"github.com/devcules/devcules/internal/link"
@@ -94,7 +92,7 @@ func (h *Helper) spend() bool {
 }
 
 // screenReq captures one frame and answers mach.frame with PNG bytes
-// capped by the request.
+// capped by the request, shrunk to fit when the full size does not.
 func (h *Helper) screenReq(ctx context.Context, req link.Frame) {
 	if h.d.Screen == nil {
 		h.fail(ctx, req.ID, "screen capture unavailable on this machine")
@@ -110,29 +108,21 @@ func (h *Helper) screenReq(ctx context.Context, req link.Frame) {
 		h.fail(ctx, req.ID, err.Error())
 		return
 	}
-	var buf bytes.Buffer
-	if err := png.Encode(&buf, img); err != nil {
-		h.fail(ctx, req.ID, "cannot encode the frame")
+	frame, scale, err := encodeFit(img, ask.MaxBytes)
+	if err != nil {
+		h.fail(ctx, req.ID, err.Error())
 		return
 	}
-	png_ := buf.Bytes()
-	if len(png_) > ask.MaxBytes {
-		h.fail(ctx, req.ID, fmt.Sprintf("frame is %d bytes, over the %d cap", len(png_), ask.MaxBytes))
-		return
-	}
-	h.reply(ctx, req.ID, machframes.TypeFrame, machframes.FrameOut{PNG: png_})
+	h.reply(ctx, req.ID, machframes.TypeFrame, machframes.FrameOut{PNG: frame, Scale: scale})
 }
 
 // input injects one event, spending one budget unit. The budget
-// check comes first: a task out of actions must not move the
-// machine, whatever serve asks.
+// check comes before the inject: a task out of actions must not move
+// the machine, whatever serve asks. A malformed event or a failed
+// inject moves nothing and costs nothing.
 func (h *Helper) input(ctx context.Context, req link.Frame) {
 	if h.d.Input == nil {
 		h.fail(ctx, req.ID, "input unavailable on this machine")
-		return
-	}
-	if !h.spend() {
-		h.fail(ctx, req.ID, "budget exhausted")
 		return
 	}
 	var ev machframes.Input
@@ -140,7 +130,13 @@ func (h *Helper) input(ctx context.Context, req link.Frame) {
 		h.fail(ctx, req.ID, "bad input event")
 		return
 	}
+	if !h.spend() {
+		h.fail(ctx, req.ID, "budget exhausted")
+		return
+	}
 	if err := h.d.Input.Inject(input.Event{Kind: ev.Kind, X: ev.X, Y: ev.Y, Key: ev.Key, Text: ev.Text}); err != nil {
+		// Nothing moved, so the action is not spent.
+		h.budget.Add(1)
 		h.fail(ctx, req.ID, err.Error())
 		return
 	}
@@ -229,9 +225,8 @@ func (h *Helper) verify(ctx context.Context, req link.Frame) {
 	out := verifyOut{}
 	if h.d.Screen != nil {
 		if img, err := h.d.Screen.Capture(); err == nil {
-			var buf bytes.Buffer
-			if png.Encode(&buf, img) == nil {
-				out.PNG = buf.Bytes()
+			if frame, scale, err := encodeFit(img, verifyMaxBytes); err == nil {
+				out.PNG, out.Scale = frame, scale
 			}
 		}
 	}
@@ -249,10 +244,15 @@ func (h *Helper) verify(ctx context.Context, req link.Frame) {
 // verifyOut is the done-verifier's answer: what the machine sees
 // now, so a task's success is judged on the live screen.
 type verifyOut struct {
-	PNG  []byte         `json:"png,omitempty"`
-	Tree *elements.Tree `json:"tree,omitempty"`
-	Note string         `json:"note,omitempty"`
+	PNG   []byte         `json:"png,omitempty"`
+	Scale float64        `json:"scale,omitempty"`
+	Tree  *elements.Tree `json:"tree,omitempty"`
+	Note  string         `json:"note,omitempty"`
 }
+
+// verifyMaxBytes caps the verifier's capture. The tree rides in the
+// same frame, so the capture keeps well under the link's frame limit.
+const verifyMaxBytes = 2 << 20
 
 // reply answers a request with a typed frame under the same id, so
 // serve correlates answers machframes-local. Replies serialize on the
@@ -262,7 +262,14 @@ func (h *Helper) reply(_ context.Context, id, typ string, data any) {
 	if err != nil {
 		return
 	}
-	_ = h.dial.Send(link.Frame{V: link.Version, Type: typ, ID: id, Data: b})
+	f := link.Frame{V: link.Version, Type: typ, ID: id, Data: b}
+	if _, err := link.Encode(f); err != nil && typ != machframes.TypeFailure {
+		// Over the frame limit: say so now instead of leaving serve
+		// to time out on an answer that never left.
+		reason, _ := json.Marshal(machframes.Failure{Reason: "answer is too large for the link"})
+		f = link.Frame{V: link.Version, Type: machframes.TypeFailure, ID: id, Data: reason}
+	}
+	_ = h.dial.Send(f)
 }
 
 // fail refuses a request with the reason.

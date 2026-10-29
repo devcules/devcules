@@ -2,6 +2,7 @@ package helper_test
 
 import (
 	"context"
+	"errors"
 	"image"
 	"image/color"
 	"log/slog"
@@ -41,9 +42,15 @@ func (fakeScreen) Capture() (image.Image, error) {
 }
 func (fakeScreen) Close() error { return nil }
 
-type fakeInput struct{ injected atomic.Int32 }
+type fakeInput struct {
+	injected atomic.Int32
+	broken   atomic.Bool // Inject fails, as a lost display would
+}
 
 func (f *fakeInput) Inject(input.Event) error {
+	if f.broken.Load() {
+		return errors.New("display gone")
+	}
 	f.injected.Add(1)
 	return nil
 }
@@ -121,7 +128,7 @@ func fixture(t *testing.T) (*machrelay.Relay, *fakeInput) {
 func TestScreenRoundTrip(t *testing.T) {
 	t.Parallel()
 	r, _ := fixture(t)
-	png, aerr := r.Screen(context.Background(), "")
+	png, _, aerr := r.Screen(context.Background(), "")
 	if aerr != nil {
 		t.Fatalf("Screen: %d %s", aerr.Status, aerr.Msg)
 	}
@@ -171,6 +178,33 @@ func TestBudgetReset(t *testing.T) {
 	}
 }
 
+func TestRefusedInputCostsNothing(t *testing.T) {
+	t.Parallel()
+	r, in := fixture(t)
+	if aerr := r.SetBudget(context.Background(), "", 1); aerr != nil {
+		t.Fatalf("SetBudget: %+v", aerr)
+	}
+	// A malformed event and a failed inject both move nothing, so the
+	// one action left survives them.
+	if aerr := r.Inject(context.Background(), "", machframes.Input{}); aerr == nil {
+		t.Fatal("an event with no kind was accepted")
+	}
+	in.broken.Store(true)
+	if aerr := r.Inject(context.Background(), "", machframes.Input{Kind: "tap"}); aerr == nil || aerr.Msg != "display gone" {
+		t.Fatalf("failed inject = %+v, want the driver's reason", aerr)
+	}
+	in.broken.Store(false)
+	if aerr := r.Inject(context.Background(), "", machframes.Input{Kind: "tap"}); aerr != nil {
+		t.Fatalf("the last action was spent by refusals: %+v", aerr)
+	}
+	if aerr := r.Inject(context.Background(), "", machframes.Input{Kind: "tap"}); aerr == nil {
+		t.Fatal("budget not enforced")
+	}
+	if got := in.injected.Load(); got != 1 {
+		t.Fatalf("injected = %d, want 1", got)
+	}
+}
+
 func TestTreeRoundTrip(t *testing.T) {
 	t.Parallel()
 	r, _ := fixture(t)
@@ -198,18 +232,18 @@ func TestWordsRoundTrip(t *testing.T) {
 func TestVerifyRoundTrip(t *testing.T) {
 	t.Parallel()
 	r, _ := fixture(t)
-	png, tree, note, aerr := r.Verify(context.Background(), "")
+	v, aerr := r.Verify(context.Background(), "")
 	if aerr != nil {
 		t.Fatalf("Verify: %d %s", aerr.Status, aerr.Msg)
 	}
-	if len(png) < 8 || png[0] != 0x89 {
-		t.Fatalf("verify png = %v", png)
+	if len(v.PNG) < 8 || v.PNG[0] != 0x89 || v.Scale != 1 {
+		t.Fatalf("verify png = %v scale %v", v.PNG, v.Scale)
 	}
-	if tree.Front != "Safari" || len(tree.Elements) != 1 {
-		t.Fatalf("verify tree = %+v", tree)
+	if v.Tree.Front != "Safari" || len(v.Tree.Elements) != 1 {
+		t.Fatalf("verify tree = %+v", v.Tree)
 	}
-	if note != "" {
-		t.Fatalf("verify note = %q", note)
+	if v.Note != "" {
+		t.Fatalf("verify note = %q", v.Note)
 	}
 }
 

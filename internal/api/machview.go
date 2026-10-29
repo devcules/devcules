@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/devcules/devcules/internal/machframes"
 	"github.com/devcules/devcules/internal/machines/elements"
@@ -32,7 +33,9 @@ func machinesBudget(relay *machrelay.Relay) http.Handler {
 }
 
 // machinesScreen serves GET /api/machines-screen?machine=: one PNG
-// capture from the linked machine.
+// capture from the linked machine. X-Devcules-Screen-Scale carries
+// the screen pixels per PNG pixel (1 unless the machine shrank the
+// capture to fit), so a viewer maps taps back to the screen.
 func machinesScreen(relay *machrelay.Relay) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if relay == nil {
@@ -42,12 +45,13 @@ func machinesScreen(relay *machrelay.Relay) http.Handler {
 		if !requireMethod(w, r, http.MethodGet) {
 			return
 		}
-		png, aerr := relay.Screen(r.Context(), r.URL.Query().Get("machine"))
+		png, scale, aerr := relay.Screen(r.Context(), r.URL.Query().Get("machine"))
 		if aerr != nil {
 			writeAuthError(w, aerr.Status, aerr.Msg)
 			return
 		}
 		w.Header().Set("Content-Type", "image/png")
+		w.Header().Set("X-Devcules-Screen-Scale", strconv.FormatFloat(scale, 'f', -1, 64))
 		w.Header().Set("Cache-Control", "no-store")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(png)
@@ -147,19 +151,21 @@ func machinesVerify(relay *machrelay.Relay, publicURL string) http.Handler {
 			return
 		}
 		csrf(publicURL, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			png, tree, note, aerr := relay.Verify(r.Context(), r.URL.Query().Get("machine"))
+			v, aerr := relay.Verify(r.Context(), r.URL.Query().Get("machine"))
 			if aerr != nil {
 				writeAuthError(w, aerr.Status, aerr.Msg)
 				return
 			}
 			writeJSON(w, http.StatusOK, struct {
-				PNG  string        `json:"png"`
-				Tree elements.Tree `json:"tree"`
-				Note string        `json:"note"`
+				PNG   string        `json:"png"`
+				Scale float64       `json:"scale"`
+				Tree  elements.Tree `json:"tree"`
+				Note  string        `json:"note"`
 			}{
-				PNG:  base64.StdEncoding.EncodeToString(png),
-				Tree: tree,
-				Note: note,
+				PNG:   base64.StdEncoding.EncodeToString(v.PNG),
+				Scale: v.Scale,
+				Tree:  v.Tree,
+				Note:  v.Note,
 			})
 		})).ServeHTTP(w, r)
 	})

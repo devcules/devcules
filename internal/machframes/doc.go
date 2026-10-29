@@ -78,9 +78,13 @@ type Failure struct {
 	Reason string `json:"reason"`
 }
 
-// Frame is one captured screen: PNG bytes, capped by the request.
+// FrameOut is one captured screen: PNG bytes, capped by the request.
+// A capture that does not fit is shrunk; Scale is then the screen
+// pixels per frame pixel, so a point on the frame times Scale is the
+// point on the screen. Zero or one means full size.
 type FrameOut struct {
-	PNG []byte `json:"png"`
+	PNG   []byte  `json:"png"`
+	Scale float64 `json:"scale,omitempty"`
 }
 
 // BudgetMax is the plan's per-task action budget: 40 screen actions.

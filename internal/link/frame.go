@@ -17,9 +17,10 @@ const Version = 1
 
 // MaxFrameBytes bounds one decoded frame. The hub enforces the same
 // limit on the read side, so a peer cannot make serve buffer
-// unboundedly. 1 MiB fits terminal output and PTY batches (M1.4);
-// larger payloads need chunking in a later module.
-const MaxFrameBytes = 1 << 20
+// unboundedly. 4 MiB fits a machine's 2 MiB screen capture, which
+// travels base64 in JSON (a third larger), with room for the
+// envelope; terminal output and PTY batches (M1.4) stay far below.
+const MaxFrameBytes = 4 << 20
 
 // maxIDRunes bounds the id field: long enough for UUIDs, short enough
 // to keep link bookkeeping cheap.

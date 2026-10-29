@@ -4,8 +4,8 @@
 #
 # Both services build the same Dockerfile locally: the :latest tag does
 # not exist until the first release, so there is nothing to pull yet.
-# No vault, provider or Tailscale configuration exists at this stage;
-# the vault key stays optional and the runner carries no secrets at all.
+# The vault key stays optional (serve generates one), provider keys go
+# to serve only, and the runner carries no secrets at all.
 #
 # M1.3 link: the `link` volume carries the runner token file. Serve
 # mints it at /link/runner.token (read-write); the runner reads it
@@ -22,6 +22,11 @@ services:
       DEVCULES_LISTEN: "0.0.0.0:7659"
       DEVCULES_PUBLIC_URL: ${DEVCULES_PUBLIC_URL:-}
       DEVCULES_RUNNER_TOKEN_FILE: /link/runner.token
+      # M2.3: the Meta Model API key moves into the vault on first
+      # start (then it can leave the environment); the base URL is for
+      # a regional endpoint or the smoke test's mock provider.
+      META_API_KEY: ${META_API_KEY:-}
+      DEVCULES_META_BASE_URL: ${DEVCULES_META_BASE_URL:-}
     volumes:
       - devcules-data:/data
       - link:/link

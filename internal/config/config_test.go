@@ -28,6 +28,7 @@ var configEnv = []string{
 	"DEVCULES_PUBLIC_URL",
 	"META_API_KEY",
 	"META_API_KEY_FILE",
+	"DEVCULES_META_BASE_URL",
 	"HOME",
 }
 
@@ -69,6 +70,7 @@ func baseConfig() Config {
 		VaultKey:        validKey,
 		RunnerTokenFile: filepath.Join(dataDir, "runner.token"),
 		Workspace:       "/workspace",
+		MetaBaseURL:     "https://api.meta.ai",
 	}
 }
 
@@ -253,6 +255,16 @@ func TestLoad(t *testing.T) {
 			name: "meta api key set",
 			env:  merge(key, map[string]string{"META_API_KEY": "mk-1"}),
 			want: with(baseConfig(), func(c *Config) { c.MetaAPIKey = "mk-1" }),
+		},
+		{
+			name: "meta base url",
+			env:  merge(key, map[string]string{"DEVCULES_META_BASE_URL": "http://127.0.0.1:7701/"}),
+			want: with(baseConfig(), func(c *Config) { c.MetaBaseURL = "http://127.0.0.1:7701" }),
+		},
+		{
+			name:    "meta base url bad",
+			env:     merge(key, map[string]string{"DEVCULES_META_BASE_URL": "api.meta.ai"}),
+			wantErr: "invalid config:\n  - DEVCULES_META_BASE_URL invalid: \"api.meta.ai\" (want empty or an http(s) URL with a host)",
 		},
 		{
 			name:    "meta api key whitespace",

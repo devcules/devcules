@@ -271,6 +271,14 @@ func (s *Session) Redact(text string) (string, []Finding, error) {
 	return b.String(), findings, nil
 }
 
+// Issued reports how many distinct placeholders this session has
+// handed out. With none, a reply has nothing to restore.
+func (s *Session) Issued() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.values)
+}
+
 // placeholderRE matches a whole placeholder. Types hold no underscore,
 // so the second underscore always starts the 10 hex digits.
 var placeholderRE = regexp.MustCompile(`REDACTED_[A-Z0-9]+_[0-9A-F]{10}`)

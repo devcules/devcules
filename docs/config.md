@@ -22,6 +22,7 @@ forms are set, the direct value wins and the file is ignored entirely.
 | `DEVCULES_WORKSPACE` | `/workspace` | The code folder the runner may touch. Must be an absolute path. |
 | `DEVCULES_PUBLIC_URL` | empty | External URL for push and links, e.g. the Tailscale HTTPS name. Must be an `http(s)` URL with a host when set. Also the WebAuthn relying party (M1.5): passkeys work on `http://localhost:7659` and https names, and stay off without it or on an IP host (see `docs/auth.md`). |
 | `META_API_KEY` / `_FILE` | empty | Moved into the vault (`provider/meta/api_key`) on start; once logged as stored, it can leave the environment. A single whitespace-free string. Serve-only, like the vault keys. |
+| `DEVCULES_META_BASE_URL` | `https://api.meta.ai` | Meta Model API origin the router forwards to, without `/v1`. Must be an `http(s)` URL with a host; a trailing slash is dropped. Point it at a compatible endpoint or a test fake. See `docs/router.md`. |
 
 ## Subcommands
 

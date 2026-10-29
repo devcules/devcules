@@ -21,7 +21,11 @@ repo, `Secrets()` (sealed bytes by name; the vault encrypts before the
 store sees anything), with migration `0004`. The vault's wrapped data
 key sits in `Meta()` under `vault.dek`. M2.2 adds no repo: the
 redaction policy is one `Meta()` row, `redact.policy`, and its
-placeholder key is the vault secret `redact/hmac_key`.
+placeholder key is the vault secret `redact/hmac_key`. M2.3 adds
+the launch tokens' repo, `LaunchTokens()` (one row per token: id,
+SHA-256 of the token, label, provider, created, expiry, revoked and
+last-used times; the token itself never reaches the store), with
+migration `0005`.
 
 ## How a later module adds a repo
 

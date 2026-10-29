@@ -4,6 +4,27 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-29, M2.3)
+
+- `internal/router`: the model router at `/llm/{provider}/...`. Agents
+  call it with a launch token instead of a provider key; it redacts
+  each request, adds the key from the vault, forwards Chat Completions,
+  Responses, Messages, token counts and model lists, and restores
+  placeholders in the reply, streamed or not. Block mode answers `400`
+  in the caller's API style. One log line per call with counts only.
+- `internal/launch`: per-launch tokens (`dvl_…`, SHA-256 at rest,
+  12 hours by default, 7 days at most, optional provider limit,
+  revocable), the `LaunchTokens` repo and migration `0005`, and
+  `GET`/`POST /api/launch-tokens` and `DELETE /api/launch-tokens/{id}`.
+- `plugins/providers/meta`: the Meta Model API provider, with
+  `DEVCULES_META_BASE_URL` (default `https://api.meta.ai`) and a live
+  test that runs when `META_API_KEY` is set.
+- `devcules mockllm`, a hidden loopback-only fake provider, and a
+  smoke step proving a key is masked upstream and restored in the
+  reply. Compose passes `META_API_KEY` and `DEVCULES_META_BASE_URL`
+  to serve.
+- See `docs/router.md` and `docs/integrations.md`.
+
 ### Added (2026-10-29, M2.2)
 
 - `internal/redact`: secrets and personal data out of model calls.

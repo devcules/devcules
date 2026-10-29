@@ -135,6 +135,11 @@ func (s *sqliteStore) Secrets() store.SecretsRepo {
 	return secretsRepo{db: s.db}
 }
 
+// LaunchTokens returns launch's per-launch token repo.
+func (s *sqliteStore) LaunchTokens() store.LaunchTokensRepo {
+	return launchTokensRepo{db: s.db}
+}
+
 // usersRepo implements store.UsersRepo on the users table.
 type usersRepo struct {
 	db *sql.DB
@@ -735,4 +740,148 @@ func retryBusy(ctx context.Context, fn func() error) error {
 		case <-time.After(wait):
 		}
 	}
+}
+
+// launchTokensRepo implements store.LaunchTokensRepo on the
+// launch_tokens table. Errors name the token id, never its hash.
+type launchTokensRepo struct {
+	db *sql.DB
+}
+
+const launchTokenColumns = `id, token_hash, label, provider, created_at, expires_at, revoked_at, last_used_at`
+
+// optionalTime stores a zero time as the empty string.
+func optionalTime(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return formatTime(t)
+}
+
+func parseOptionalTime(raw, column string) (time.Time, error) {
+	if raw == "" {
+		return time.Time{}, nil
+	}
+	return parseTime(raw, column)
+}
+
+// Create stores a token. A duplicate id or hash wraps store.ErrExists.
+func (r launchTokensRepo) Create(ctx context.Context, t store.LaunchToken) error {
+	switch {
+	case t.ID == "":
+		return fmt.Errorf("store: launch token id must not be empty")
+	case len(t.TokenHash) == 0:
+		return fmt.Errorf("store: launch token %q hash must not be empty", t.ID)
+	}
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO launch_tokens (`+launchTokenColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		t.ID, t.TokenHash, t.Label, t.Provider, formatTime(t.CreatedAt), formatTime(t.ExpiresAt),
+		optionalTime(t.RevokedAt), optionalTime(t.LastUsedAt))
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			return fmt.Errorf("store: launch token %q already exists: %w", t.ID, store.ErrExists)
+		}
+		return fmt.Errorf("store: launch token create %q failed: %w", t.ID, err)
+	}
+	return nil
+}
+
+type rowScanner interface{ Scan(dest ...any) error }
+
+func scanLaunchToken(row rowScanner) (store.LaunchToken, error) {
+	var t store.LaunchToken
+	var created, expires, revoked, used string
+	if err := row.Scan(&t.ID, &t.TokenHash, &t.Label, &t.Provider, &created, &expires, &revoked, &used); err != nil {
+		return t, err
+	}
+	var err error
+	if t.CreatedAt, err = parseTime(created, "created_at"); err != nil {
+		return t, err
+	}
+	if t.ExpiresAt, err = parseTime(expires, "expires_at"); err != nil {
+		return t, err
+	}
+	if t.RevokedAt, err = parseOptionalTime(revoked, "revoked_at"); err != nil {
+		return t, err
+	}
+	if t.LastUsedAt, err = parseOptionalTime(used, "last_used_at"); err != nil {
+		return t, err
+	}
+	return t, nil
+}
+
+// ByHash returns the token, or an error wrapping store.ErrNotFound.
+func (r launchTokensRepo) ByHash(ctx context.Context, hash []byte) (store.LaunchToken, error) {
+	t, err := scanLaunchToken(r.db.QueryRowContext(ctx,
+		`SELECT `+launchTokenColumns+` FROM launch_tokens WHERE token_hash = ?`, hash))
+	if err == sql.ErrNoRows {
+		return store.LaunchToken{}, fmt.Errorf("store: launch token not found: %w", store.ErrNotFound)
+	}
+	if err != nil {
+		return store.LaunchToken{}, fmt.Errorf("store: launch token lookup failed: %w", err)
+	}
+	return t, nil
+}
+
+// List returns every token, newest first.
+func (r launchTokensRepo) List(ctx context.Context) ([]store.LaunchToken, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT `+launchTokenColumns+` FROM launch_tokens ORDER BY created_at DESC, id`)
+	if err != nil {
+		return nil, fmt.Errorf("store: launch token list failed: %w", err)
+	}
+	defer rows.Close()
+	var out []store.LaunchToken
+	for rows.Next() {
+		t, err := scanLaunchToken(rows)
+		if err != nil {
+			return nil, fmt.Errorf("store: launch token list failed: %w", err)
+		}
+		out = append(out, t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("store: launch token list failed: %w", err)
+	}
+	return out, nil
+}
+
+// Revoke marks the token revoked, keeping an earlier revoke time.
+func (r launchTokensRepo) Revoke(ctx context.Context, id string, at time.Time) error {
+	res, err := r.db.ExecContext(ctx,
+		`UPDATE launch_tokens SET revoked_at = CASE WHEN revoked_at = '' THEN ? ELSE revoked_at END WHERE id = ?`,
+		formatTime(at), id)
+	return launchTokenUpdated(res, err, "revoke", id)
+}
+
+// Touch records a use.
+func (r launchTokensRepo) Touch(ctx context.Context, id string, at time.Time) error {
+	res, err := r.db.ExecContext(ctx, `UPDATE launch_tokens SET last_used_at = ? WHERE id = ?`, formatTime(at), id)
+	return launchTokenUpdated(res, err, "touch", id)
+}
+
+func launchTokenUpdated(res sql.Result, err error, op, id string) error {
+	if err != nil {
+		return fmt.Errorf("store: launch token %s %q failed: %w", op, id, err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("store: launch token %s %q failed: %w", op, id, err)
+	}
+	if n == 0 {
+		return fmt.Errorf("store: launch token %q not found: %w", id, store.ErrNotFound)
+	}
+	return nil
+}
+
+// DeleteExpired removes tokens that expired before before.
+func (r launchTokensRepo) DeleteExpired(ctx context.Context, before time.Time) (int, error) {
+	res, err := r.db.ExecContext(ctx, `DELETE FROM launch_tokens WHERE expires_at < ?`, formatTime(before))
+	if err != nil {
+		return 0, fmt.Errorf("store: launch token cleanup failed: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("store: launch token cleanup failed: %w", err)
+	}
+	return int(n), nil
 }

@@ -49,6 +49,46 @@ type Store interface {
 	// Secrets returns the sealed-secret repo. It is the vault's repo:
 	// only the vault and the store backends may use it.
 	Secrets() SecretsRepo
+	// LaunchTokens returns the per-launch token repo. It is launch's
+	// repo: only internal/launch and the store backends may use it.
+	LaunchTokens() LaunchTokensRepo
+}
+
+// LaunchToken is one per-launch credential: what an agent presents to
+// the model router instead of a real provider key. TokenHash is the
+// SHA-256 of the token; the token itself is never stored. Provider
+// limits the token to one provider id ("" allows any). RevokedAt and
+// LastUsedAt are zero until set. Times are UTC.
+type LaunchToken struct {
+	ID         string
+	TokenHash  []byte
+	Label      string
+	Provider   string
+	CreatedAt  time.Time
+	ExpiresAt  time.Time
+	RevokedAt  time.Time
+	LastUsedAt time.Time
+}
+
+// LaunchTokensRepo stores per-launch tokens by id and token hash.
+type LaunchTokensRepo interface {
+	// Create stores a token. A duplicate id or hash is an error
+	// wrapping ErrExists. An empty id or hash is an error.
+	Create(ctx context.Context, t LaunchToken) error
+	// ByHash returns the token with that hash, or an error wrapping
+	// ErrNotFound.
+	ByHash(ctx context.Context, hash []byte) (LaunchToken, error)
+	// List returns every stored token, newest first.
+	List(ctx context.Context) ([]LaunchToken, error)
+	// Revoke marks the token revoked at at. Revoking twice keeps the
+	// first time. A missing id is an error wrapping ErrNotFound.
+	Revoke(ctx context.Context, id string, at time.Time) error
+	// Touch records a use at at. A missing id is an error wrapping
+	// ErrNotFound.
+	Touch(ctx context.Context, id string, at time.Time) error
+	// DeleteExpired removes tokens that expired before before and
+	// reports how many went.
+	DeleteExpired(ctx context.Context, before time.Time) (int, error)
 }
 
 // SecretsRepo stores sealed secrets by name. Values arrive already

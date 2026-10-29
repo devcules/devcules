@@ -16,11 +16,14 @@ import (
 	"github.com/devcules/devcules/internal/auth"
 	"github.com/devcules/devcules/internal/bus"
 	"github.com/devcules/devcules/internal/config"
+	"github.com/devcules/devcules/internal/launch"
 	"github.com/devcules/devcules/internal/link/hub"
+	"github.com/devcules/devcules/internal/router"
 	"github.com/devcules/devcules/internal/store"
 	"github.com/devcules/devcules/internal/store/sqlite"
 	"github.com/devcules/devcules/internal/terminals/relay"
 	"github.com/devcules/devcules/internal/web"
+	"github.com/devcules/devcules/plugins/providers/meta"
 )
 
 // drainTimeout bounds graceful shutdown: serve stops accepting, drains
@@ -72,6 +75,26 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 		s.Close()
 		return exitError
 	}
+	// Per-launch tokens and the model router. Providers are plug-ins:
+	// main hands them in, the router never imports them.
+	launches := launch.New(s)
+	if n, err := launches.Prune(context.Background()); err == nil && n > 0 {
+		log.Info("expired launch tokens pruned", "count", n)
+	}
+	llm, err := router.New(router.Options{
+		Providers: []router.Provider{meta.New(cfg.MetaBaseURL)},
+		Keys:      v,
+		Tokens:    launches,
+		Redactor:  redactor,
+		Settings:  redactSettings,
+		Log:       log,
+	})
+	if err != nil {
+		fmt.Fprintln(stderr, err.Error())
+		b.Close()
+		s.Close()
+		return exitError
+	}
 	tokenPath := cfg.RunnerTokenFile
 	if tokenPath == "" {
 		tokenPath = filepath.Join(cfg.DataDir, "runner.token")
@@ -106,7 +129,7 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 		fmt.Fprintln(stderr, "Admin password (shown once): "+password)
 	}
 	srv := &http.Server{
-		Handler:           api.Handler(api.Options{Store: s, Auth: authSvc, Web: web.Embedded(), PublicURL: cfg.PublicURL, Link: h, Terminals: terms, Redact: redactor, RedactSettings: redactSettings}),
+		Handler:           api.Handler(api.Options{Store: s, Auth: authSvc, Web: web.Embedded(), PublicURL: cfg.PublicURL, Link: h, Terminals: terms, Redact: redactor, RedactSettings: redactSettings, Router: llm, Launches: launches}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,

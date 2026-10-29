@@ -27,6 +27,7 @@ type memDB struct {
 	sessions map[string]store.Session
 	passkeys map[string]store.Passkey
 	secrets  map[string][]byte
+	launches map[string]store.LaunchToken
 	closed   map[*memStore]bool
 }
 
@@ -47,6 +48,7 @@ func newMemDB() *memDB {
 		sessions: map[string]store.Session{},
 		passkeys: map[string]store.Passkey{},
 		secrets:  map[string][]byte{},
+		launches: map[string]store.LaunchToken{},
 		closed:   map[*memStore]bool{},
 	}
 }
@@ -65,6 +67,122 @@ func (s *memStore) Passkeys() store.PasskeysRepo {
 
 func (s *memStore) Secrets() store.SecretsRepo {
 	return memSecrets{db: s.db, s: s}
+}
+
+func (s *memStore) LaunchTokens() store.LaunchTokensRepo {
+	return memLaunches{db: s.db, s: s}
+}
+
+type memLaunches struct {
+	db *memDB
+	s  *memStore
+}
+
+// lock takes the db lock and refuses a closed handle or a cancelled
+// context; the caller unlocks.
+func (m memLaunches) lock(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	m.db.mu.Lock()
+	if m.db.closed[m.s] {
+		m.db.mu.Unlock()
+		return fmt.Errorf("store: memStore is closed")
+	}
+	return nil
+}
+
+func (m memLaunches) Create(ctx context.Context, t store.LaunchToken) error {
+	if t.ID == "" || len(t.TokenHash) == 0 {
+		return fmt.Errorf("store: launch token id and hash must not be empty")
+	}
+	if err := m.lock(ctx); err != nil {
+		return err
+	}
+	defer m.db.mu.Unlock()
+	if _, ok := m.db.launches[t.ID]; ok {
+		return fmt.Errorf("store: launch token exists: %w", store.ErrExists)
+	}
+	for _, o := range m.db.launches {
+		if bytes.Equal(o.TokenHash, t.TokenHash) {
+			return fmt.Errorf("store: launch token exists: %w", store.ErrExists)
+		}
+	}
+	t.TokenHash = bytes.Clone(t.TokenHash)
+	m.db.launches[t.ID] = t
+	return nil
+}
+
+func (m memLaunches) ByHash(ctx context.Context, hash []byte) (store.LaunchToken, error) {
+	if err := m.lock(ctx); err != nil {
+		return store.LaunchToken{}, err
+	}
+	defer m.db.mu.Unlock()
+	for _, t := range m.db.launches {
+		if bytes.Equal(t.TokenHash, hash) {
+			return t, nil
+		}
+	}
+	return store.LaunchToken{}, fmt.Errorf("store: launch token not found: %w", store.ErrNotFound)
+}
+
+func (m memLaunches) List(ctx context.Context) ([]store.LaunchToken, error) {
+	if err := m.lock(ctx); err != nil {
+		return nil, err
+	}
+	defer m.db.mu.Unlock()
+	out := make([]store.LaunchToken, 0, len(m.db.launches))
+	for _, t := range m.db.launches {
+		out = append(out, t)
+	}
+	slices.SortFunc(out, func(a, b store.LaunchToken) int {
+		if c := b.CreatedAt.Compare(a.CreatedAt); c != 0 {
+			return c
+		}
+		return strings.Compare(a.ID, b.ID)
+	})
+	return out, nil
+}
+
+func (m memLaunches) update(ctx context.Context, id string, f func(*store.LaunchToken)) error {
+	if err := m.lock(ctx); err != nil {
+		return err
+	}
+	defer m.db.mu.Unlock()
+	t, ok := m.db.launches[id]
+	if !ok {
+		return fmt.Errorf("store: launch token not found: %w", store.ErrNotFound)
+	}
+	f(&t)
+	m.db.launches[id] = t
+	return nil
+}
+
+func (m memLaunches) Revoke(ctx context.Context, id string, at time.Time) error {
+	return m.update(ctx, id, func(t *store.LaunchToken) {
+		if t.RevokedAt.IsZero() {
+			t.RevokedAt = at.UTC().Truncate(time.Second)
+		}
+	})
+}
+
+func (m memLaunches) Touch(ctx context.Context, id string, at time.Time) error {
+	return m.update(ctx, id, func(t *store.LaunchToken) { t.LastUsedAt = at.UTC().Truncate(time.Second) })
+}
+
+func (m memLaunches) DeleteExpired(ctx context.Context, before time.Time) (int, error) {
+	if err := m.lock(ctx); err != nil {
+		return 0, err
+	}
+	defer m.db.mu.Unlock()
+	n := 0
+	for id, t := range m.db.launches {
+		if t.ExpiresAt.Before(before) {
+			delete(m.db.launches, id)
+			n++
+		}
+	}
+	return n, nil
 }
 
 type memSecrets struct {

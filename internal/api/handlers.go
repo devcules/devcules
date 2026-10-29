@@ -12,8 +12,10 @@ import (
 	"time"
 
 	"github.com/devcules/devcules/internal/auth"
+	"github.com/devcules/devcules/internal/launch"
 	"github.com/devcules/devcules/internal/link/hub"
 	"github.com/devcules/devcules/internal/redact"
+	"github.com/devcules/devcules/internal/router"
 	"github.com/devcules/devcules/internal/store"
 	"github.com/devcules/devcules/internal/terminals/relay"
 )
@@ -39,11 +41,17 @@ type Options struct {
 	// both.
 	Redact         *redact.Redactor
 	RedactSettings *redact.Settings
+	// Router serves /llm/{provider}/... for agents holding a launch
+	// token (never the session cookie); Launches mints and revokes
+	// those tokens. Nil answers their routes with 503.
+	Router   *router.Router
+	Launches *launch.Tokens
 }
 
-// Handler returns the M2.2 mux. /healthz, /readyz and GET /link stay
-// public (/link authenticates with its own credential, never the session
-// cookie); POST /auth/sign-in is the public password call, the
+// Handler returns the M2.3 mux. /healthz, /readyz, GET /link and
+// /llm/ stay public (/link and the model router authenticate with
+// their own credentials, the runner token and launch tokens, never the
+// session cookie); POST /auth/sign-in is the public password call, the
 // passkey login pair and the passkey status read are public too; the
 // static app (Web) is public too, since it holds no data; everything
 // else needs a live session and answers 401 without one. Only GET
@@ -92,6 +100,21 @@ func Handler(o Options) http.Handler {
 	mux.Handle("/api/redact", requireSession(o.Auth, redactRoot(o.Redact, o.RedactSettings)))
 	mux.Handle("/api/redact/policy", csrf(o.PublicURL, requireSession(o.Auth, redactPolicy(o.Redact, o.RedactSettings))))
 	mux.Handle("/api/redact/test", csrf(o.PublicURL, requireSession(o.Auth, redactTest(o.Redact, o.RedactSettings))))
+	// The model router authenticates with launch tokens of its own,
+	// like /link: no session, no CSRF (agents are not browsers).
+	if o.Router != nil {
+		mux.Handle("/llm/", o.Router)
+	} else {
+		mux.HandleFunc("/llm/", func(w http.ResponseWriter, r *http.Request) {
+			writeAuthError(w, http.StatusServiceUnavailable, "model router not configured")
+		})
+	}
+	providers := func() []string { return nil }
+	if o.Router != nil {
+		providers = o.Router.Providers
+	}
+	mux.Handle("/api/launch-tokens", requireSession(o.Auth, launchesRoot(o.Launches, providers, o.PublicURL)))
+	mux.Handle("/api/launch-tokens/", requireSession(o.Auth, launchOne(o.Launches, o.PublicURL)))
 	mux.Handle("/", root(o.Web, o.Auth))
 	return secureHeaders(mux)
 }

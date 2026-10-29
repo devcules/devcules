@@ -41,6 +41,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 	// version, help and usage errors never need configuration: they are most
 	// useful exactly when the setup is broken.
 	switch name {
+	case "mockllm":
+		// Hidden test tooling for scripts/smoke.sh; needs no config.
+		return runMockLLM(stderr)
 	case "version":
 		return runVersion(stdout)
 	case "help", "-h", "--help":

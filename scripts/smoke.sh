@@ -120,6 +120,52 @@ DEVCULES_PUBLIC_URL=http://localhost:7659 $COMPOSE up -d --wait serve >/dev/null
 [ "$(curl -fsS "$URL/auth/passkeys/status")" = '{"enabled":true}' ] || fail "passkey status with a localhost URL is not enabled"
 poll_readyz 1 90 || fail "/readyz never returned to runners_linked 1 after the public URL recreate"
 
+# M2.3 router: recreate serve with a provider key and the Meta base URL
+# pointed at the mock provider (`devcules mockllm`, loopback inside the
+# serve container), mint a launch token, and prove a fake AWS key
+# leaves serve masked and comes back restored, streamed or not.
+META_API_KEY=mock-smoke-key DEVCULES_META_BASE_URL=http://127.0.0.1:7701 DEVCULES_PUBLIC_URL=http://localhost:7659 \
+  $COMPOSE up -d --wait serve >/dev/null || fail "recreate serve with the mock provider"
+$COMPOSE exec -d serve devcules mockllm || fail "start the mock provider"
+token_body=$(curl -fsS -b "$jar2" -H 'Content-Type: application/json' \
+  -d '{"label":"smoke","provider":"meta","ttlMinutes":10}' "$URL/api/launch-tokens") || fail "POST /api/launch-tokens"
+llm_token=$(printf '%s' "$token_body" | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])') || fail "no token in $token_body"
+llm_id=$(printf '%s' "$token_body" | python3 -c 'import json,sys; print(json.load(sys.stdin)["launch"]["id"])')
+start=$SECONDS
+until [ "$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $llm_token" "$URL/llm/meta/v1/models")" = "200" ]; do
+  [ $((SECONDS - start)) -lt 20 ] || fail "the router never reached the mock provider"
+  sleep 0.5
+done
+chat='{"model":"mock-model","messages":[{"role":"user","content":"key '"$fake_key"' ok"}]}'
+reply=$(curl -fsS -H "Authorization: Bearer $llm_token" -H 'Content-Type: application/json' -d "$chat" "$URL/llm/meta/v1/chat/completions") || fail "router chat call"
+case "$reply" in
+  *"echo: key $fake_key ok"*) ;;
+  *) fail "router reply not restored: $reply" ;;
+esac
+streamed=$(curl -fsSN -H "Authorization: Bearer $llm_token" -H 'Content-Type: application/json' \
+  -d '{"model":"mock-model","stream":true,"messages":[{"role":"user","content":"key '"$fake_key"' ok"}]}' \
+  "$URL/llm/meta/v1/chat/completions" | python3 -c '
+import json, sys
+out = ""
+for line in sys.stdin:
+    line = line.strip()
+    if line.startswith("data: ") and line != "data: [DONE]":
+        for c in json.loads(line[6:])["choices"]:
+            out += c["delta"].get("content") or ""
+print(out)') || fail "router stream call"
+[ "$streamed" = "echo: key $fake_key ok" ] || fail "streamed reply not restored: $streamed"
+seen=$($COMPOSE exec -T serve cat /tmp/mockllm.log) || fail "read the mock provider log"
+case "$seen" in
+  *"$fake_key"*) fail "the provider saw the key unmasked" ;;
+  *REDACTED_SECRET_*) ;;
+  *) fail "the provider saw no placeholder: $seen" ;;
+esac
+if $COMPOSE logs --no-color serve | grep -qF -e "$fake_key" -e "$llm_token" -e mock-smoke-key; then
+  fail "serve logs leak a key or a launch token"
+fi
+[ "$(curl -sS -o /dev/null -w '%{http_code}' -b "$jar2" -X DELETE "$URL/api/launch-tokens/$llm_id")" = "204" ] || fail "revoke launch token"
+[ "$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $llm_token" "$URL/llm/meta/v1/models")" = "401" ] || fail "a revoked launch token still works"
+
 serve_id=$($COMPOSE ps -q serve)
 start=$SECONDS
 $COMPOSE stop -t 20 serve >/dev/null

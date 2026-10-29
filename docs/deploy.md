@@ -24,6 +24,8 @@ yet. `DEVCULES_TAG` selects another tag once releases exist.
 |---|---|
 | `DEVCULES_CODE_DIR` | Host code folder mounted at `/workspace`. Defaults to `~/code` (Compose expands the tilde). Create it yourself first: if it is missing, Docker creates it root-owned. On Linux it must also be writable by uid 10001. |
 | `DEVCULES_PUBLIC_URL` | Passed through to serve; empty by default. |
+| `META_API_KEY` | Passed through to serve, which moves it into the vault on start; once stored it can be removed. Empty by default. |
+| `DEVCULES_META_BASE_URL` | Passed through to serve; empty means `https://api.meta.ai`. |
 | `DEVCULES_TAG` | Image tag, default `edge`. |
 
 No vault key is needed: serve generates `/data/vault.key` on first

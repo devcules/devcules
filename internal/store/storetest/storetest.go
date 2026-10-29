@@ -350,6 +350,62 @@ func Run(t *testing.T, newStore func(t *testing.T) store.Store) {
 		mustf(t, r.Delete(ctx, name), "Delete missing (must be a no-op)")
 	})
 
+	t.Run("LaunchTokens", func(t *testing.T) {
+		s := newStore(t)
+		defer s.Close()
+		r := s.LaunchTokens()
+		at := time.Date(2026, 10, 29, 2, 0, 0, 0, time.UTC)
+		id := key(t, "lt")
+		hash := []byte(key(t, "hash-") + "0123456789abcdef")
+		tok := store.LaunchToken{ID: id, TokenHash: hash, Label: "musecode in t1", Provider: "meta", CreatedAt: at, ExpiresAt: at.Add(time.Hour)}
+
+		_, err := r.ByHash(ctx, hash)
+		mustNotFound(t, err, "ByHash missing token")
+		mustFail(t, r.Create(ctx, store.LaunchToken{TokenHash: hash}), "Create with an empty id")
+		mustFail(t, r.Create(ctx, store.LaunchToken{ID: id}), "Create with an empty hash")
+		mustf(t, r.Create(ctx, tok), "Create")
+		mustExists(t, r.Create(ctx, tok), "Create duplicate id")
+		dupHash := tok
+		dupHash.ID = key(t, "other")
+		mustExists(t, r.Create(ctx, dupHash), "Create duplicate hash")
+
+		got, err := r.ByHash(ctx, hash)
+		mustf(t, err, "ByHash")
+		check(t, got.ID == id && got.Label == tok.Label && got.Provider == "meta" &&
+			got.CreatedAt.Equal(at) && got.ExpiresAt.Equal(at.Add(time.Hour)) &&
+			got.RevokedAt.IsZero() && got.LastUsedAt.IsZero(), fmt.Sprintf("ByHash = %+v", got))
+
+		mustf(t, r.Touch(ctx, id, at.Add(time.Minute)), "Touch")
+		mustf(t, r.Revoke(ctx, id, at.Add(2*time.Minute)), "Revoke")
+		mustf(t, r.Revoke(ctx, id, at.Add(3*time.Minute)), "Revoke again")
+		got, err = r.ByHash(ctx, hash)
+		mustf(t, err, "ByHash after Revoke")
+		check(t, got.LastUsedAt.Equal(at.Add(time.Minute)), fmt.Sprintf("LastUsedAt = %v", got.LastUsedAt))
+		check(t, got.RevokedAt.Equal(at.Add(2*time.Minute)), fmt.Sprintf("RevokedAt = %v, want the first revoke", got.RevokedAt))
+		mustNotFound(t, r.Touch(ctx, key(t, "nope"), at), "Touch missing")
+		mustNotFound(t, r.Revoke(ctx, key(t, "nope"), at), "Revoke missing")
+
+		newer := store.LaunchToken{ID: key(t, "lt2"), TokenHash: []byte(key(t, "hash2-") + "0123456789abcdef"), CreatedAt: at.Add(time.Hour), ExpiresAt: at.Add(3 * time.Hour)}
+		mustf(t, r.Create(ctx, newer), "Create second")
+		list, err := r.List(ctx)
+		mustf(t, err, "List")
+		var ids []string
+		for _, lt := range list {
+			if lt.ID == id || lt.ID == newer.ID {
+				ids = append(ids, lt.ID)
+			}
+		}
+		check(t, slices.Equal(ids, []string{newer.ID, id}), fmt.Sprintf("List order = %v, want newest first", ids))
+
+		n, err := r.DeleteExpired(ctx, at.Add(2*time.Hour))
+		mustf(t, err, "DeleteExpired")
+		check(t, n >= 1, fmt.Sprintf("DeleteExpired removed %d, want at least 1", n))
+		_, err = r.ByHash(ctx, hash)
+		mustNotFound(t, err, "ByHash after DeleteExpired")
+		_, err = r.ByHash(ctx, newer.TokenHash)
+		mustf(t, err, "ByHash of an unexpired token after DeleteExpired")
+	})
+
 	t.Run("Ping", func(t *testing.T) {
 		s := newStore(t)
 		mustf(t, s.Ping(ctx), "Ping")

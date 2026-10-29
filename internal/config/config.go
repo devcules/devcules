@@ -42,6 +42,9 @@ type Config struct {
 	Workspace       string
 	PublicURL       string
 	MetaAPIKey      string
+	// MetaBaseURL is the Meta Model API origin the router forwards to
+	// (DEVCULES_META_BASE_URL, default https://api.meta.ai).
+	MetaBaseURL string
 }
 
 // ForRole returns c for the named role. Vault keys and provider keys live
@@ -208,6 +211,15 @@ func Load() (Config, error) {
 		fail(`%s`, problem)
 	} else {
 		cfg.MetaAPIKey = v
+	}
+
+	cfg.MetaBaseURL = "https://api.meta.ai"
+	if v, set := os.LookupEnv("DEVCULES_META_BASE_URL"); set && v != "" {
+		if checkWebURL(v) {
+			cfg.MetaBaseURL = strings.TrimRight(v, "/")
+		} else {
+			fail(`DEVCULES_META_BASE_URL invalid: %s (want empty or an http(s) URL with a host)`, describeURL(v))
+		}
 	}
 
 	if len(problems) > 0 {

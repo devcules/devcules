@@ -42,7 +42,11 @@ test('terminals tab', async ({ page }) => {
   // detected-state line is masked rather than pinned to a string the
   // runner may not reproduce.
   const panel = page.getByRole('region', { name: 'Start an agent' });
-  await expect(panel).toBeVisible();
+  // The runner links asynchronously after the stack boots: the panel
+  // appears only once it has. Wait up to 30 s (compose healthcheck has
+  // the stack ready; the link follows within seconds) so the shot
+  // never depends on the link race.
+  await expect(panel).toBeVisible({ timeout: 30_000 });
   // The agent rows show the adapters' display names (Codex's is
   // "Muse", from its adapter).
   for (const name of ['Muse Code', 'Claude Code', 'Muse']) {

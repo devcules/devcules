@@ -1,6 +1,7 @@
 package claudecode
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -10,64 +11,68 @@ import (
 
 func TestContract(t *testing.T) {
 	agenttest.Run(t, New(), agenttest.Fixture{
-		ShellCall: []byte(`{"hook_event_name":"PreToolUse","session_id":"s1","turn_id":"t1","cwd":"/workspace",` +
-			`"transcript_path":null,"model":"claude-sonnet-4-5","permission_mode":"default",` +
-			`"tool_name":"Bash","tool_input":{"command":"git push --force origin main","timeout":30},"tool_use_id":"u1"}`),
+		ShellCall: []byte(`{"session_id":"abc123","transcript_path":"/home/u/.claude/projects/x/t.jsonl","cwd":"/workspace",` +
+			`"permission_mode":"default","hook_event_name":"PreToolUse","tool_name":"Bash",` +
+			`"tool_input":{"command":"rm -rf build","description":"Clean","timeout":120000,"run_in_background":false},"tool_use_id":"toolu_01"}`),
 		WantTool:      "Bash",
-		WantCommand:   "git push --force origin main",
-		OtherCall:     []byte(`{"hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":"a.go","content":"x"}}`),
-		WantOtherTool: "Write",
+		WantCommand:   "rm -rf build",
+		OtherCall:     []byte(`{"hook_event_name":"PreToolUse","tool_name":"Edit","tool_input":{"file_path":"a.go","old_string":"a","new_string":"b"}}`),
+		WantOtherTool: "Edit",
 	})
 }
 
-func TestSettings(t *testing.T) {
-	a := New()
-	if a.Provider() != "anthropic" {
-		t.Fatalf("provider = %q want anthropic", a.Provider())
-	}
-	if a.ID() != "claudecode" {
-		t.Fatalf("id = %q", a.ID())
-	}
-	spec, err := a.LaunchSpec(agents.Launch{ServeURL: "http://serve.test:7659", Token: "tok", Dir: "/tmp/x", Hook: "echo ok"})
+func TestLaunch(t *testing.T) {
+	spec, err := New().LaunchSpec(agents.Launch{ServeURL: "http://serve:7659", Token: "tok", Dir: "/run/l", Hook: "HOOK", Model: "m-1"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	var all string
-	for _, v := range spec.Files {
-		all += string(v)
+	if got := strings.Join(spec.Cmd, " "); got != "claude --model m-1 --settings /run/l/settings.json --mcp-config /run/l/mcp.json" {
+		t.Fatalf("cmd = %q", got)
 	}
-	for _, needle := range []string{"/llm/anthropic/v1", "/mcp", "devcules", "Bearer tok", "hook"} {
-		if !strings.Contains(all, needle) && !strings.Contains(strings.Join(spec.Cmd, " ")+" "+all, needle) {
-			t.Errorf("launch missing %q", needle)
-		}
-	}
-}
-
-func TestHookCallShapes(t *testing.T) {
-	a := New()
-	for in, want := range map[string]string{
-		`{"tool_name":"shell","tool_input":{"command":"ls -la"}}`:                                   "ls -la",
-		`{"tool_name":"Edit","tool_input":{"file_path":"x.go"}}`:                                    `Edit {"file_path":"x.go"}`,
-		`{"tool_name":"Custom","tool_input":"raw text"}`:                                            "Custom raw text",
-		`{"tool_name":"Empty"}`:                                                                     "Empty",
-		`{"tool_name":"Big","tool_input":{"command":"` + strings.Repeat("a", maxCommand+10) + `"}}`: strings.Repeat("a", maxCommand),
+	for k, want := range map[string]string{
+		"CLAUDE_CONFIG_DIR": "/run/l/claude", "ANTHROPIC_BASE_URL": "http://serve:7659/llm/anthropic",
+		"ANTHROPIC_AUTH_TOKEN": "tok", "ANTHROPIC_MODEL": "m-1", "ANTHROPIC_DEFAULT_HAIKU_MODEL": "m-1",
+		"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
 	} {
-		c, err := a.HookCall([]byte(in))
-		if err != nil || c.Command != want {
-			t.Errorf("HookCall(%.60s) = %.80q %v, want %.80q", in, c.Command, err, want)
+		if spec.Env[k] != want {
+			t.Errorf("env %s = %q, want %q", k, spec.Env[k], want)
 		}
 	}
-	if _, err := a.HookCall([]byte(`{"hook_event_name":"PostToolUse","tool_name":"Bash"}`)); err == nil {
-		t.Error("a PostToolUse payload was accepted")
+	if _, ok := spec.Env["ANTHROPIC_API_KEY"]; ok {
+		t.Error("ANTHROPIC_API_KEY set: it would prompt for approval and go in x-api-key")
+	}
+	var s, m any
+	_ = json.Unmarshal(spec.Files["settings.json"], &s)
+	_ = json.Unmarshal(spec.Files["mcp.json"], &m)
+	gs, _ := json.Marshal(s)
+	gm, _ := json.Marshal(m)
+	if string(gs) != `{"hooks":{"PreToolUse":[{"hooks":[{"command":"HOOK","statusMessage":"Checking with Devcules","timeout":960,"type":"command"}],"matcher":"*"}]}}` {
+		t.Errorf("settings = %s", gs)
+	}
+	if string(gm) != `{"mcpServers":{"devcules":{"headers":{"Authorization":"Bearer tok"},"type":"http","url":"http://serve:7659/mcp"}}}` {
+		t.Errorf("mcp = %s", gm)
+	}
+	// No model: Claude Code picks its own default.
+	spec, _ = New().LaunchSpec(agents.Launch{ServeURL: "http://s", Token: "t", Dir: "/d", Hook: "h"})
+	if _, set := spec.Env["ANTHROPIC_MODEL"]; set || strings.Contains(strings.Join(spec.Cmd, " "), "--model") {
+		t.Errorf("no model asked, yet cmd %v env %v", spec.Cmd, spec.Env)
 	}
 }
 
-func TestHookAnswerShapes(t *testing.T) {
+func TestHookAnswer(t *testing.T) {
 	a := New()
-	if r := a.HookAnswer(agents.Answer{Allow: true}); r.Code != 0 || len(r.Stdout) != 0 || r.Stderr != "" {
-		t.Fatalf("allow = %+v: Claude needs exit 0 and no JSON", r)
+	r := a.HookAnswer(agents.Answer{Allow: true, Reason: "critical mode"})
+	var out struct {
+		HookSpecificOutput map[string]string `json:"hookSpecificOutput"`
 	}
-	if r := a.HookAnswer(agents.Answer{}); r.Code != 2 || r.Stderr != "Devcules blocked this call: denied" {
-		t.Fatalf("bare deny = %+v", r)
+	if r.Code != 0 || json.Unmarshal(r.Stdout, &out) != nil || out.HookSpecificOutput["permissionDecision"] != "allow" ||
+		out.HookSpecificOutput["hookEventName"] != "PreToolUse" || out.HookSpecificOutput["permissionDecisionReason"] != "critical mode" {
+		t.Fatalf("allow = %+v %s", r, r.Stdout)
+	}
+	if r := a.HookAnswer(agents.Answer{Allow: true}); !strings.Contains(string(r.Stdout), "allowed by Devcules") {
+		t.Fatalf("bare allow = %s", r.Stdout)
+	}
+	if r := a.HookAnswer(agents.Answer{Reason: "no"}); r.Code != 2 || len(r.Stdout) != 0 {
+		t.Fatalf("deny = %+v", r)
 	}
 }

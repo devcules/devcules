@@ -87,16 +87,53 @@ uses one.
 
 ## Claude Code
 
-Facts in `docs/integrations.md`. The adapter detects `claude --version`, writes a private
-`settings.json` pointing at the `anthropic` provider's router URL (`ANTHROPIC_BASE_URL`)
-with the launch token as the key, installs the hook, and runs `claude --model <model>`.
+Facts in `docs/integrations.md`. The adapter:
 
-## Muse
+- detects `claude --version` with nonessential traffic off;
+- sets `CLAUDE_CONFIG_DIR` to a dir in the launch dir, so the owner's
+  `~/.claude` login, history and settings stay untouched;
+- uses the router as an LLM gateway: `ANTHROPIC_BASE_URL` is
+  `/llm/anthropic` (Claude Code adds `/v1/messages`) and the token
+  goes in `ANTHROPIC_AUTH_TOKEN` (sent as `Authorization: Bearer`).
+  `ANTHROPIC_API_KEY` is never set: Claude Code would ask to approve
+  it. A launch with a model sets `--model` and every alias to it;
+  without one Claude Code keeps its own default;
+- turns nonessential traffic off
+  (`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`);
+- runs `claude --settings <launch>/settings.json --mcp-config
+  <launch>/mcp.json`. Command-line settings outrank the project's
+  `.claude/settings.json`, and hooks from every file run, so a repo
+  cannot drop the Devcules hook. Claude Code reads MCP servers only
+  from `--mcp-config` (or `.mcp.json`), never from `settings.json`.
 
-Facts in `docs/integrations.md`. The adapter detects `codex --version`, writes its private
-`codex/config.json` pointing at the `openai` provider's router (`OPENAI_BASE_URL`), the MCP
-server with bearer auth, and the hook as a `pre_exec_command` (timeout 960 s), then runs
-`codex --model <model>`.
+The hook groups follow Claude Code's shape (`{"matcher": "*", "hooks":
+[...]}`). An allowed call exits `0` with `{"hookSpecificOutput":
+{"hookEventName": "PreToolUse", "permissionDecision": "allow"}}`, so
+Claude Code does not ask again; silence would fall through to its own
+prompt. A deny exits `2`. Checked with a real run of Claude Code
+2.1.312: an allowed Bash call runs, and with agents off it is blocked
+with Devcules' reason.
+
+## Codex
+
+Facts in `docs/integrations.md`. The adapter:
+
+- detects `codex --version`;
+- sets `CODEX_HOME` to a dir in the launch dir;
+- writes `config.toml` with a `devcules` model provider (`base_url` the
+  router's `/llm/openai/v1`, `wire_api = "responses"`, the key from
+  `DEVCULES_LLM_KEY`), the Devcules MCP server (bearer token from
+  `DEVCULES_MCP_TOKEN`) and `[features] hooks = true`; the token
+  itself is only in the environment;
+- writes `hooks.json` with a `PreToolUse` command hook for every tool;
+- runs `codex --sandbox workspace-write`, plus `--model` when the
+  launch names one.
+
+Checked with a real run of Codex 0.165.0: it calls
+`<base_url>/responses` without a ChatGPT login and lists the Devcules
+MCP tools. Codex runs a user hook only after the owner trusted that
+exact hook, and it asks at start; until then Codex's own approvals
+and sandbox are the guard, which is why the adapter leaves them on.
 
 ## Routes (serve, session required)
 

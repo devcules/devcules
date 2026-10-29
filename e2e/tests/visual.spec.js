@@ -47,9 +47,8 @@ test('terminals tab', async ({ page }) => {
   // the stack ready; the link follows within seconds) so the shot
   // never depends on the link race.
   await expect(panel).toBeVisible({ timeout: 30_000 });
-  // The agent rows show the adapters' display names (Codex's is
-  // "Muse", from its adapter).
-  for (const name of ['Muse Code', 'Claude Code', 'Muse']) {
+  // The agent rows show the adapters' display names.
+  for (const name of ['Muse Code', 'Claude Code', 'Codex']) {
     await expect(panel.getByText(name, { exact: true })).toBeVisible();
   }
   await expect(page).toHaveScreenshot({

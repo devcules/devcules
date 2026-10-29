@@ -1,7 +1,6 @@
 package codex
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,119 +11,149 @@ import (
 )
 
 const (
-	DefaultModel = "gpt-5-codex"
-	installHint  = "npm i -g @openai/codex"
-	hookTimeout  = 960
-	maxCommand   = 60 << 10
-	routerPath   = "/llm/openai/v1"
+	// installHint is the npm installer (checked with 0.165.0).
+	installHint = "npm i -g @openai/codex"
+	// hookTimeout is the hook's limit in seconds: longer than an
+	// approval's 10 minutes plus the hook's retries.
+	hookTimeout = 960
+	// routerPath is the provider's base_url. Codex's own OpenAI base
+	// ends in /v1 and it adds /responses, so the base carries the
+	// router's /v1.
+	routerPath = "/llm/openai/v1"
+	// Env vars the config names: the provider key and the MCP bearer
+	// token, both the launch token.
+	keyEnv = "DEVCULES_LLM_KEY"
+	mcpEnv = "DEVCULES_MCP_TOKEN"
 )
 
-// Agent is the Muse adapter.
+// Agent is the Codex adapter.
 type Agent struct{}
 
 // New returns the adapter.
 func New() Agent { return Agent{} }
 
-func (Agent) ID() string          { return "codex" }
-func (Agent) Name() string        { return "Muse" }
-func (Agent) Provider() string    { return "openai" }
+// ID is "codex".
+func (Agent) ID() string { return "codex" }
+
+// Name is the product name.
+func (Agent) Name() string { return "Codex" }
+
+// Provider is "openai": Codex calls the router's OpenAI provider
+// through the Responses API.
+func (Agent) Provider() string { return "openai" }
+
+// InstallHint is the documented installer.
 func (Agent) InstallHint() string { return installHint }
 
+// Detect runs `codex --version`.
 func (Agent) Detect(ctx context.Context) (string, bool) {
-	return agents.Version(ctx, nil, "codex", "--version")
+	out, ok := agents.Version(ctx, nil, "codex", "--version")
+	if !ok {
+		return "", false
+	}
+	return agents.SemVer(out), true
 }
 
-// LaunchSpec builds a launch that routes through the Devcules router.
-// The token lives only in a 0600 file and env, never on the command line.
+// tomlString quotes s as a TOML basic string.
+func tomlString(s string) string {
+	var b strings.Builder
+	b.WriteByte('"')
+	for _, r := range s {
+		switch {
+		case r == '"' || r == '\\':
+			b.WriteByte('\\')
+			b.WriteRune(r)
+		case r < 0x20 || r == 0x7f:
+			fmt.Fprintf(&b, `\u%04X`, r)
+		default:
+			b.WriteRune(r)
+		}
+	}
+	b.WriteByte('"')
+	return b.String()
+}
+
+type hooks struct {
+	Hooks map[string][]matcher `json:"hooks"`
+}
+
+// matcher has no matcher field: a group without one runs for every
+// tool.
+type matcher struct {
+	Hooks []handler `json:"hooks"`
+}
+
+type handler struct {
+	Type    string `json:"type"`
+	Command string `json:"command"`
+	Timeout int    `json:"timeout"`
+}
+
+// LaunchSpec writes config.toml and hooks.json into the launch's
+// CODEX_HOME and starts `codex` with its own approvals off.
 func (Agent) LaunchSpec(l agents.Launch) (agents.Spec, error) {
-	if l.ServeURL == "" || l.Token == "" || l.Dir == "" {
-		return agents.Spec{}, fmt.Errorf("codex: missing ServeURL/Token/Dir")
+	if l.ServeURL == "" || l.Token == "" || l.Dir == "" || l.Hook == "" {
+		return agents.Spec{}, fmt.Errorf("codex: incomplete launch")
 	}
-	model := l.Model
-	if model == "" {
-		model = DefaultModel
+	var lines []string
+	if l.Model != "" {
+		lines = append(lines, "model = "+tomlString(l.Model))
 	}
-	base := strings.TrimRight(l.ServeURL, "/") + routerPath
-	settings := map[string]any{
-		"env": map[string]string{
-			"ANTHROPIC_BASE_URL": base,
-			"OPENAI_BASE_URL":    base,
-			"ANTHROPIC_API_KEY":  l.Token,
-			"OPENAI_API_KEY":     l.Token,
-		},
-		"mcpServers": map[string]any{"devcules": map[string]any{"url": strings.TrimRight(l.ServeURL, "/") + "/mcp", "headers": map[string]string{"Authorization": "Bearer " + l.Token}, "type": "streamable-http"}},
-		"hooks": map[string][]map[string]any{
-			"pre_exec_command": {{
-				"type": "command", "command": l.Hook, "timeout": hookTimeout,
-			}},
-		},
-	}
-	raw, err := json.MarshalIndent(settings, "", "  ")
+	config := strings.Join(append(lines,
+		`model_provider = "devcules"`,
+		"",
+		"[model_providers.devcules]",
+		`name = "Devcules"`,
+		"base_url = "+tomlString(l.ServeURL+routerPath),
+		"env_key = "+tomlString(keyEnv),
+		`wire_api = "responses"`,
+		"",
+		"[mcp_servers.devcules]",
+		"url = "+tomlString(l.ServeURL+"/mcp"),
+		"bearer_token_env_var = "+tomlString(mcpEnv),
+		"",
+		"[features]",
+		"hooks = true",
+		"",
+	), "\n")
+	h, err := json.MarshalIndent(hooks{Hooks: map[string][]matcher{"PreToolUse": {{Hooks: []handler{{
+		Type: "command", Command: l.Hook, Timeout: hookTimeout}}}}}}, "", "  ")
 	if err != nil {
 		return agents.Spec{}, err
 	}
+	// Codex keeps its own approvals: it runs a user hook only after
+	// the owner trusted it (Codex asks at start), so until then its
+	// own prompts and sandbox are the guard.
+	cmd := []string{"codex", "--sandbox", "workspace-write"}
+	if l.Model != "" {
+		cmd = append(cmd, "--model", l.Model)
+	}
 	return agents.Spec{
-		Cmd: []string{"codex", "--model", model},
-		Env: map[string]string{"HOME": filepath.Join(l.Dir, "home")},
+		Cmd: cmd,
+		Env: map[string]string{
+			"CODEX_HOME": filepath.Join(l.Dir, "codex"),
+			keyEnv:       l.Token,
+			mcpEnv:       l.Token,
+		},
 		Files: map[string][]byte{
-			"settings.json":             append(raw, '\n'),
-			agents.TokenFile:            []byte(l.Token),
-			"home/.codex/settings.json": append(raw, '\n'),
+			"codex/config.toml": []byte(config),
+			"codex/hooks.json":  append(h, '\n'),
 		},
 	}, nil
 }
 
-type hookInput struct {
-	Event     string          `json:"hook_event_name"`
-	ToolName  string          `json:"tool_name"`
-	ToolInput json.RawMessage `json:"tool_input"`
-}
-
+// HookCall reads Codex's PreToolUse payload; a shell command may come
+// as an argv list.
 func (Agent) HookCall(stdin []byte) (agents.Call, error) {
-	var in hookInput
-	if err := json.Unmarshal(stdin, &in); err != nil || in.ToolName == "" {
-		return agents.Call{}, fmt.Errorf("codex: stdin is not a tool call")
-	}
-	if in.Event != "" && in.Event != "PreToolUse" && in.Event != "pre_exec_command" {
-		return agents.Call{}, fmt.Errorf("codex: hook event %q is not PreToolUse", in.Event)
-	}
-	command := ""
-	var args map[string]json.RawMessage
-	if json.Unmarshal(in.ToolInput, &args) == nil {
-		var cmd string
-		if raw, ok := args["command"]; ok && json.Unmarshal(raw, &cmd) == nil {
-			command = cmd
-		}
-	}
-	if command == "" {
-		var s string
-		var compact bytes.Buffer
-		switch {
-		case json.Unmarshal(in.ToolInput, &s) == nil:
-			command = in.ToolName + " " + s
-		case len(in.ToolInput) > 0 && json.Compact(&compact, in.ToolInput) == nil:
-			command = in.ToolName + " " + compact.String()
-		default:
-			command = in.ToolName
-		}
-	}
-	if len(command) > maxCommand {
-		command = strings.ToValidUTF8(command[:maxCommand], "")
-	}
-	return agents.Call{Tool: in.ToolName, Command: command}, nil
+	return agents.PreToolUse("codex", stdin)
 }
 
+// HookAnswer: an allowed call exits 0 with nothing on stdout (an
+// unknown output field would count as a failed hook); a denied or
+// undecided one exits 2 with the reason on stderr.
 func (Agent) HookAnswer(a agents.Answer) agents.Reply {
-	switch {
-	case a.Failed:
-		return agents.Reply{Code: 2, Stderr: "Devcules could not check this call, so it is blocked: " + a.Reason}
-	case a.Allow:
-		return agents.Reply{Code: 0}
-	default:
-		reason := a.Reason
-		if reason == "" {
-			reason = "denied"
-		}
-		return agents.Reply{Code: 2, Stderr: "Devcules blocked this call: " + reason}
+	if a.Allow {
+		return agents.Reply{}
 	}
+	return agents.Blocked(a)
 }

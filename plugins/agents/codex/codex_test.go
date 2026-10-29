@@ -1,6 +1,7 @@
 package codex
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -10,64 +11,80 @@ import (
 
 func TestContract(t *testing.T) {
 	agenttest.Run(t, New(), agenttest.Fixture{
-		ShellCall: []byte(`{"hook_event_name":"PreToolUse","session_id":"s1","turn_id":"t1","cwd":"/workspace",` +
-			`"transcript_path":null,"model":"gpt-5-codex","permission_mode":"default",` +
-			`"tool_name":"Bash","tool_input":{"command":"git push --force origin main","timeout":30},"tool_use_id":"u1"}`),
+		ShellCall: []byte(`{"session_id":"s1","transcript_path":null,"cwd":"/workspace","hook_event_name":"PreToolUse",` +
+			`"model":"muse-spark-1.3","permission_mode":"default","turn_id":"t1","tool_name":"Bash",` +
+			`"tool_use_id":"c1","tool_input":{"command":["git","reset","--hard"]}}`),
 		WantTool:      "Bash",
-		WantCommand:   "git push --force origin main",
-		OtherCall:     []byte(`{"hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":"a.go","content":"x"}}`),
-		WantOtherTool: "Write",
+		WantCommand:   "git reset --hard",
+		OtherCall:     []byte(`{"hook_event_name":"PreToolUse","tool_name":"apply_patch","tool_input":{"input":"*** Begin Patch"}}`),
+		WantOtherTool: "apply_patch",
 	})
 }
 
-func TestSettings(t *testing.T) {
-	a := New()
-	if a.Provider() != "openai" {
-		t.Fatalf("provider = %q want openai", a.Provider())
-	}
-	if a.ID() != "codex" {
-		t.Fatalf("id = %q", a.ID())
-	}
-	spec, err := a.LaunchSpec(agents.Launch{ServeURL: "http://serve.test:7659", Token: "tok", Dir: "/tmp/x", Hook: "echo ok"})
+func TestLaunch(t *testing.T) {
+	spec, err := New().LaunchSpec(agents.Launch{ServeURL: "http://serve:7659", Token: "dvl_secret9", Dir: "/run/l", Hook: `env -i 'x' "y"`, Model: "gpt-x"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	var all string
-	for _, v := range spec.Files {
-		all += string(v)
+	if got := strings.Join(spec.Cmd, " "); got != "codex --sandbox workspace-write --model gpt-x" {
+		t.Fatalf("cmd = %q", got)
 	}
-	for _, needle := range []string{"/llm/openai/v1", "/mcp", "devcules", "Bearer tok", "hook"} {
-		if !strings.Contains(all, needle) && !strings.Contains(strings.Join(spec.Cmd, " ")+" "+all, needle) {
-			t.Errorf("launch missing %q", needle)
+	if spec.Env["CODEX_HOME"] != "/run/l/codex" || spec.Env[keyEnv] != "dvl_secret9" || spec.Env[mcpEnv] != "dvl_secret9" {
+		t.Fatalf("env = %v", spec.Env)
+	}
+	want := `model = "gpt-x"
+model_provider = "devcules"
+
+[model_providers.devcules]
+name = "Devcules"
+base_url = "http://serve:7659/llm/openai/v1"
+env_key = "DEVCULES_LLM_KEY"
+wire_api = "responses"
+
+[mcp_servers.devcules]
+url = "http://serve:7659/mcp"
+bearer_token_env_var = "DEVCULES_MCP_TOKEN"
+
+[features]
+hooks = true
+`
+	if got := string(spec.Files["codex/config.toml"]); got != want {
+		t.Fatalf("config.toml =\n%s\nwant\n%s", got, want)
+	}
+	if strings.Contains(string(spec.Files["codex/config.toml"]), "dvl_secret9") {
+		t.Fatal("the token is in config.toml; it belongs in the env")
+	}
+	var h any
+	_ = json.Unmarshal(spec.Files["codex/hooks.json"], &h)
+	got, _ := json.Marshal(h)
+	if string(got) != `{"hooks":{"PreToolUse":[{"hooks":[{"command":"env -i 'x' \"y\"","timeout":960,"type":"command"}]}]}}` {
+		t.Fatalf("hooks.json = %s", got)
+	}
+}
+
+func TestTOMLString(t *testing.T) {
+	for in, want := range map[string]string{`a"b\c`: `"a\"b\\c"`, "x\ny\x7f": `"x\u000Ay\u007F"`, "é": `"é"`} {
+		if got := tomlString(in); got != want {
+			t.Errorf("tomlString(%q) = %s, want %s", in, got, want)
 		}
 	}
 }
 
-func TestHookCallShapes(t *testing.T) {
-	a := New()
-	for in, want := range map[string]string{
-		`{"tool_name":"shell","tool_input":{"command":"ls -la"}}`:                                   "ls -la",
-		`{"tool_name":"Edit","tool_input":{"file_path":"x.go"}}`:                                    `Edit {"file_path":"x.go"}`,
-		`{"tool_name":"Custom","tool_input":"raw text"}`:                                            "Custom raw text",
-		`{"tool_name":"Empty"}`:                                                                     "Empty",
-		`{"tool_name":"Big","tool_input":{"command":"` + strings.Repeat("a", maxCommand+10) + `"}}`: strings.Repeat("a", maxCommand),
-	} {
-		c, err := a.HookCall([]byte(in))
-		if err != nil || c.Command != want {
-			t.Errorf("HookCall(%.60s) = %.80q %v, want %.80q", in, c.Command, err, want)
-		}
+func TestHookAnswer(t *testing.T) {
+	if r := New().HookAnswer(agents.Answer{Allow: true}); r.Code != 0 || len(r.Stdout) != 0 {
+		t.Fatalf("allow = %+v", r)
 	}
-	if _, err := a.HookCall([]byte(`{"hook_event_name":"PostToolUse","tool_name":"Bash"}`)); err == nil {
-		t.Error("a PostToolUse payload was accepted")
+	if r := New().HookAnswer(agents.Answer{Failed: true, Reason: "down"}); r.Code != 2 {
+		t.Fatalf("failed = %+v", r)
 	}
 }
 
-func TestHookAnswerShapes(t *testing.T) {
-	a := New()
-	if r := a.HookAnswer(agents.Answer{Allow: true}); r.Code != 0 || len(r.Stdout) != 0 || r.Stderr != "" {
-		t.Fatalf("allow = %+v: Muse needs exit 0 and no JSON", r)
+func TestLaunchWithoutModel(t *testing.T) {
+	spec, err := New().LaunchSpec(agents.Launch{ServeURL: "http://s", Token: "t", Dir: "/d", Hook: "h"})
+	if err != nil {
+		t.Fatal(err)
 	}
-	if r := a.HookAnswer(agents.Answer{}); r.Code != 2 || r.Stderr != "Devcules blocked this call: denied" {
-		t.Fatalf("bare deny = %+v", r)
+	if strings.Contains(string(spec.Files["codex/config.toml"]), "model =") || strings.Contains(strings.Join(spec.Cmd, " "), "--model") {
+		t.Fatalf("no model asked, yet cmd %v config %s", spec.Cmd, spec.Files["codex/config.toml"])
 	}
 }

@@ -4,6 +4,25 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Fixed (2026-10-29, agent adapters)
+
+- Claude Code: the hook was in the wrong shape and Claude Code never
+  ran it, MCP servers sat in `settings.json` where Claude Code does not
+  read them, the base URL doubled `/v1`, and `ANTHROPIC_API_KEY` made
+  it ask to approve the key. The adapter now uses its own
+  `CLAUDE_CONFIG_DIR`, `ANTHROPIC_BASE_URL` plus `ANTHROPIC_AUTH_TOKEN`,
+  `--settings` for the hook and `--mcp-config` for MCP, and answers an
+  allowed call with a JSON allow. Checked with a real Claude Code run.
+- Codex: the adapter wrote a `settings.json` Codex never reads, under
+  the name "Muse", with a hook event Codex does not have. It now writes
+  `config.toml` (a `devcules` provider on the router's OpenAI side, the
+  MCP server, the token only in the environment) and `hooks.json` in
+  its own `CODEX_HOME`, keeps Codex's approvals and sandbox on, and was
+  checked with a real Codex run.
+- `plugins/agents` shares one PreToolUse reader (argv commands too),
+  the blocking reply and version parsing. A launch without a model
+  leaves Claude Code and Codex on their own defaults.
+
 ### Fixed (2026-10-29, M4.5 follow-up)
 
 - tests: the hub-vs-dialer race had one more fixture path — runFakeMachine's own callers (PickMachine's two-machine test) waited only for the dialer's view. runFakeMachine now also waits for the hub to see the machine by name, so every fixture that links one waits the same way.

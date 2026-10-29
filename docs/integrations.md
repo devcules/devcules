@@ -65,6 +65,54 @@ Used by `plugins/agents/musecode` (`docs/agents.md`).
 | Hook answer | exit `0` allows (stdout starting `{` is read as JSON); exit `2` blocks with stderr as the reason; any other exit is a failed hook and the call goes on |
 | Flags | `--model`, `--approval-judge off`, `--disable-approval` (keeps the sandbox), `--trust-workspace`, `-c KEY=VALUE` |
 
+## Claude Code
+
+Checked 2026-10-29 at <https://code.claude.com/docs/en/hooks>,
+<https://code.claude.com/docs/en/settings>,
+<https://code.claude.com/docs/en/cli-reference>,
+<https://code.claude.com/docs/en/mcp>,
+<https://code.claude.com/docs/en/env-vars>,
+<https://code.claude.com/docs/en/llm-gateway-connect>,
+<https://code.claude.com/docs/en/llm-gateway-protocol> and
+<https://code.claude.com/docs/en/setup>. Used by
+`plugins/agents/claudecode` (`docs/agents.md`).
+
+| Fact | Value |
+|---|---|
+| Install | `curl -fsSL https://claude.ai/install.sh \| bash` (also Homebrew, WinGet, npm); the binary is `claude` |
+| Version | `claude --version` prints `2.1.211 (Claude Code)` |
+| Config dir | `CLAUDE_CONFIG_DIR` moves settings, history and plugins out of `~/.claude` |
+| Settings | precedence: managed, then `--settings <file or JSON>`, then project local, project, user; strict JSON; lists merge |
+| Gateway | `ANTHROPIC_BASE_URL`; `ANTHROPIC_AUTH_TOKEN` goes in `Authorization: Bearer`, `ANTHROPIC_API_KEY` in `x-api-key` (and asks once in interactive mode) |
+| Models | `ANTHROPIC_MODEL`; `ANTHROPIC_DEFAULT_HAIKU_MODEL` (also background work), `_SONNET_`, `_OPUS_` set the aliases |
+| Calls | `POST /v1/messages?beta=true`, optional `POST /v1/messages/count_tokens`, `HEAD /api/hello` at startup, `GET /v1/models` only with model discovery on |
+| Traffic | `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` turns off updates, telemetry and error reports |
+| MCP | `--mcp-config <file>` with `{"mcpServers": {"<name>": {"type": "http", "url", "headers"}}}`; credential variables read as empty in remote `url` and `headers` |
+| Hooks | `hooks.PreToolUse: [{matcher: "*", hooks: [{type: "command", command, timeout}]}]`; timeout in seconds, default 600; hooks inherit Claude Code's environment |
+| Hook stdin | `session_id`, `transcript_path`, `cwd`, `permission_mode`, `hook_event_name`, `tool_name`, `tool_input`, `tool_use_id` |
+| Hook answer | exit `0` applies JSON output (`hookSpecificOutput.permissionDecision`: `allow`, `deny`, `ask`, `defer`); silence falls through to the normal permission flow; exit `2` blocks with stderr as the reason; any other exit, or a timeout, is a non-blocking error and the call goes on |
+
+## Codex
+
+Checked 2026-10-29 at the Codex docs (<https://developers.openai.com/codex>,
+which now redirects to <https://learn.chatgpt.com/docs/config-file/config-reference>,
+<https://learn.chatgpt.com/docs/hooks>,
+<https://learn.chatgpt.com/docs/extend/mcp?surface=cli> and
+<https://learn.chatgpt.com/codex/cli>) and
+<https://github.com/openai/codex/blob/main/docs/config.md>. Used by
+`plugins/agents/codex` (`docs/agents.md`).
+
+| Fact | Value |
+|---|---|
+| Install | `curl -fsSL https://chatgpt.com/codex/install.sh \| sh` (also `npm i -g @openai/codex`); the binary is `codex`; `codex --version` prints `codex-cli 0.165.0` |
+| Home | `CODEX_HOME` (default `~/.codex`) holds `config.toml`, `hooks.json`, `auth.json` and logs |
+| Provider | `model_provider = "<id>"` selects `[model_providers.<id>]`: `name`, `base_url`, `env_key`, `wire_api` (only `"responses"`), `http_headers`, `env_http_headers`, `query_params`; ids `openai`, `ollama`, `lmstudio` are reserved |
+| MCP | `[mcp_servers.<name>]`: `url`, `bearer_token_env_var`, `http_headers`, `env_http_headers`, `enabled`, `required`, `startup_timeout_sec` (10), `tool_timeout_sec` (60) |
+| Hooks | `hooks.json` or `[hooks]`; on by default, `[features] hooks` (alias `codex_hooks`) turns them off; events include `PreToolUse` and `PermissionRequest`; timeout in seconds, default 600. A user hook runs only once trusted: `[hooks.state."<file>:pre_tool_use:<group>:<handler>"] trusted_hash = "sha256:…"`, a hash of the normalized hook (checked against 0.165.0) |
+| Hook stdin | `session_id`, `transcript_path`, `cwd`, `hook_event_name`, `model`, `turn_id`, `tool_name`, `tool_use_id`, `tool_input` |
+| Hook answer | exit `0` with no output goes on; exit `2` with stderr, or `permissionDecision: "deny"`, blocks; an unsupported output field marks the hook failed and the call goes on |
+| Flags | `--model`, `-c key=value`, `--ask-for-approval` (`on-request`, `never`), `--sandbox` (`read-only`, `workspace-write`, `danger-full-access`) |
+
 ## Web Push
 
 Checked 2026-10-29 at <https://www.rfc-editor.org/rfc/rfc8030>,

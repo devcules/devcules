@@ -14,7 +14,7 @@ func TestFrameTypes(t *testing.T) {
 		"screen": TypeScreen, "tree": TypeTree, "words": TypeWords,
 		"input": TypeInput, "ground": TypeGround, "budget": TypeBudget,
 		"verify": TypeVerify,
-		"ok": TypeOK, "error": TypeFailure, "frame": TypeFrame,
+		"ok":     TypeOK, "error": TypeFailure, "frame": TypeFrame,
 		"treeout": TypeTreeOut, "wordsout": TypeWordsOut,
 		"groundout": TypeGroundOut, "verifyout": TypeVerifyOut,
 	}

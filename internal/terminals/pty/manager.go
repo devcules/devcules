@@ -52,6 +52,7 @@ type Manager struct {
 	conf      string // written tmux.conf path
 	max       int    // terminal cap (terminals.MaxTerminals in production)
 	log       *slog.Logger
+	undo      func() // removes a relocated socket dir, once
 
 	// openMu makes the cap check and new-session one step, so two
 	// concurrent opens cannot both pass at 15 terminals.
@@ -149,8 +150,13 @@ func NewForTest(socketDir string) (*Manager, error) {
 	if err := os.MkdirAll(socketDir, 0o700); err != nil {
 		return nil, err
 	}
+	socketDir, undo, err := shortenSocket(socketDir)
+	if err != nil {
+		return nil, err
+	}
 	conf := filepath.Join(socketDir, "tmux.conf")
 	if err := os.WriteFile(conf, []byte(tmuxConf), 0o600); err != nil {
+		undo()
 		return nil, err
 	}
 	return &Manager{
@@ -160,6 +166,7 @@ func NewForTest(socketDir string) (*Manager, error) {
 		max:       2,
 		log:       slog.New(slog.DiscardHandler),
 		attaches:  map[string]*attach{},
+		undo:      undo,
 	}, nil
 }
 
@@ -176,8 +183,13 @@ func New(socketDir, workspace string, log *slog.Logger) (*Manager, error) {
 	if err := os.MkdirAll(socketDir, 0o700); err != nil {
 		return nil, fmt.Errorf("cannot create tmux socket dir %s: %s", socketDir, err)
 	}
+	socketDir, undo, err := shortenSocket(socketDir)
+	if err != nil {
+		return nil, err
+	}
 	conf := filepath.Join(socketDir, "tmux.conf")
 	if err := os.WriteFile(conf, []byte(tmuxConf), 0o600); err != nil {
+		undo()
 		return nil, fmt.Errorf("cannot write tmux config: %s", err)
 	}
 	return &Manager{
@@ -187,6 +199,7 @@ func New(socketDir, workspace string, log *slog.Logger) (*Manager, error) {
 		max:       terminals.MaxTerminals,
 		log:       log,
 		attaches:  map[string]*attach{},
+		undo:      undo,
 	}, nil
 }
 
@@ -506,10 +519,14 @@ func reap(a *attach) {
 
 // Shutdown kills the private tmux server and every session on it.
 // Tests call it so no tmux server outlives its test; the runner never
-// does, because sessions must survive serve restarts.
+// does, because sessions must survive serve restarts. It also removes
+// the socket dir when shortenSocket relocated it.
 func (m *Manager) Shutdown(ctx context.Context) {
 	m.dropStreams()
 	_, _ = m.run(ctx, "kill-server")
+	if m.undo != nil {
+		m.undo()
+	}
 }
 
 // eofLike reports a PTY read end: EOF, or EIO when the slave side

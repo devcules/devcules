@@ -4,6 +4,11 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Fixed (2026-10-29)
+
+- pty: tmux socket paths that overflow the OS Unix-socket limit (104 bytes on macOS — `t.TempDir()` paths under `/var/folders/...` pushed `$TMUX_TMPDIR/tmux-<uid>/devcules` past it, so every tmux call failed with "File name too long") are relocated to a short private dir under the system temp, removed on Shutdown. tmux-backed tests now pass on macOS too, not only CI's Linux.
+- tests: the hook-usage assertion still expected only `musecode` after M3.4 registered claudecode and codex; it now pins the full list.
+
 ### Added (2026-10-29, M4.3)
 
 - `internal/machines/elements`: the accessibility-tree driver (macOS AX via a compiled Swift walker, Linux AT-SPI, Windows UIA), all three printing one shared flat TSV that a single Go parser decodes into typed elements with pixel boxes — element centres are valid input targets. Password values never leave the walker; empty trees carry a note saying why (permission, missing stack, truncation); reads cap at 400 by default, 2000 max. Fixture tests per OS pin the walker output shapes, and per-OS driver tests drive install → invoke → parse with a scripted runner.

@@ -32,7 +32,7 @@ even where a driver is a stub that answers `ErrUnavailable`:
 
 | Package | Interface | macOS | Linux | Windows |
 |---|---|---|---|---|
-| `internal/machines/screen` | `Capture() (image.Image, error)` | stub | X11 (SHM where available) | stub |
+| `internal/machines/screen` | `Capture() (image.Image, error)` | `screencapture` (needs Screen Recording) | X11 (SHM where available) | stub |
 | `internal/machines/input` | `Inject(Event) error` | stub | X11 XTest | stub |
 | `internal/machines/elements` | `Tree(ctx, max) (Tree, error)` | AX tree | AT-SPI | UIA |
 | `internal/machines/ocr` | `Read(ctx, frame) ([]Word, error)` | Vision | tesseract | WinRT OCR |

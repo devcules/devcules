@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
@@ -118,5 +119,19 @@ func TestRunnerNameNonEmpty(t *testing.T) {
 	t.Parallel()
 	if runnerName() == "" {
 		t.Fatal("runnerName() is empty")
+	}
+}
+
+// TestRunnerWorkspace: the runner starts shells in DEVCULES_WORKSPACE,
+// not wherever it was launched from (the M1.4 code looked only at
+// /workspace and then the current directory).
+func TestRunnerWorkspace(t *testing.T) {
+	ws := t.TempDir()
+	if got := runnerWorkspace(ws); got != ws {
+		t.Fatalf("runnerWorkspace(%q) = %q", ws, got)
+	}
+	wd, _ := os.Getwd()
+	if got := runnerWorkspace(filepath.Join(ws, "missing")); got != wd {
+		t.Fatalf("missing workspace = %q, want the current dir %q", got, wd)
 	}
 }

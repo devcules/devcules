@@ -4,6 +4,17 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Fixed (2026-10-29, runner workspace, Mac screen)
+
+- The runner ignored `DEVCULES_WORKSPACE`: shells (and now project
+  paths and clones) started in `/workspace` or wherever the runner was
+  launched from. It now starts them in the workspace, falling back to
+  the current directory only when that does not exist.
+- macOS machines had no screen: the driver was a stub. It now runs the
+  system `screencapture` tool (no cgo); until the app running
+  `devcules machine` is allowed under Screen Recording, the Screen
+  view says exactly that. Input on macOS is still a stub.
+
 ### Added (2026-10-29, Machines and Projects tabs)
 
 - Machines tab: **Add a computer** mints the one-time code and shows

@@ -47,7 +47,7 @@ func runRunner(cfg config.Config, stdout, stderr io.Writer, sigs <-chan os.Signa
 	// missing tmux only loses terminals — the runner still links. Serve
 	// registers its handlers before Run starts, and drops every attach
 	// client on link changes and when ctx ends.
-	if m, err := terminalManager(log); err != nil {
+	if m, err := terminalManager(cfg.Workspace, log); err != nil {
 		log.Warn("terminals unavailable, linking without them", "err", err.Error())
 	} else {
 		pty.Serve(ctx, c, m, newAgentLauncher(cfg.ServeURL))
@@ -98,21 +98,27 @@ func linkURL(serveURL string) (string, error) {
 
 // terminalManager builds the tmux driver for this runner. The socket
 // lives under TMUX_TMPDIR when set (a tmpfs in compose), else a private
-// dir in the system temp area; shells start in /workspace, falling back
-// to the current directory outside containers.
-func terminalManager(log *slog.Logger) (*pty.Manager, error) {
+// dir in the system temp area. Shells, project paths and clones start
+// in DEVCULES_WORKSPACE (default /workspace), falling back to the
+// current directory when it does not exist.
+func terminalManager(workspace string, log *slog.Logger) (*pty.Manager, error) {
 	socketDir := os.Getenv("TMUX_TMPDIR")
 	if socketDir == "" {
 		socketDir = filepath.Join(os.TempDir(), "devcules-tmux")
 	}
-	workspace := "/workspace"
-	if st, err := os.Stat(workspace); err != nil || !st.IsDir() {
-		workspace, err = os.Getwd()
-		if err != nil {
-			return nil, err
-		}
+	return pty.New(socketDir, runnerWorkspace(workspace), log)
+}
+
+// runnerWorkspace is ws when it is an existing directory, else the
+// current directory (a runner started by hand outside a container).
+func runnerWorkspace(ws string) string {
+	if st, err := os.Stat(ws); err == nil && st.IsDir() {
+		return ws
 	}
-	return pty.New(socketDir, workspace, log)
+	if wd, err := os.Getwd(); err == nil {
+		return wd
+	}
+	return os.TempDir()
 }
 
 // runnerName identifies this runner on the link. Hostnames are unique

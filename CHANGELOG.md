@@ -4,6 +4,11 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-29, M4.2)
+
+- `internal/machines/screen` + `input`: platform driver interfaces (`Capture`, `Inject`) with Linux X11 stubs behind build tags, macOS/Windows stubs elsewhere, and Xvfb-guarded tests that validate the real path when a display exists.
+- The machine helper now advertises screen/input capability during hello; diagrams gain the new input lanes.
+
 ### Added (2026-10-29, M4.1)
 
 - `internal/machines`: enrolment service (`Issuer.Mint/Redeem`) and ed25519 `NewNonce/Verify`; migration `0008` with `enrol_codes` + `machines` tables; store repos `Machines/EnrolCodes` with sqlite + storetest coverage; M4.1 diagram lane.

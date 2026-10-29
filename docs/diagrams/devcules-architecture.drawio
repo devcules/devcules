@@ -281,7 +281,8 @@
 
 
             <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)
-ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
+ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -478,7 +479,8 @@ ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, 
 
 
             <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)
-ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
+ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -670,7 +672,8 @@ ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, 
 
 
             <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)
-ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
+ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -849,7 +852,8 @@ ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, 
 
 
             <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)
-ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
+ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -1167,7 +1171,8 @@ ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, 
 
 
             <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)
-ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
+ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -1390,7 +1395,8 @@ ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, 
 
 
             <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)
-ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
+ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -1607,7 +1613,8 @@ ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, 
 
 
             <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)
-ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
+ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -1827,7 +1834,8 @@ ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, 
 
 
             <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)
-ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
+ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -2029,7 +2037,8 @@ ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, 
 
 
             <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)
-ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
+ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -2231,7 +2240,8 @@ ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, 
 
 
             <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)
-ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
+ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -2412,7 +2422,8 @@ ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, 
 
 
             <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)
-ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
+ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -2581,7 +2592,8 @@ ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, 
 
 
             <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)
-ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
+ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -2750,7 +2762,8 @@ ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, 
 
 
             <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)
-ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
+ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -2913,7 +2926,8 @@ ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, 
 
 
             <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)
-ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
+ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -3079,7 +3093,8 @@ ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, 
 
 
             <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)
-ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
+ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -3248,7 +3263,8 @@ ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, 
 
 
             <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)
-ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
+ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -3420,7 +3436,8 @@ ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, 
 
 
             <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)
-ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
+ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>
@@ -4041,7 +4058,8 @@ ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, 
 
 
             <mxCell id="arch-m34-note" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontColor=#666666" value="ARCH_11 — adds providers/anthropic + openai and agents/claudecode + codex (Anthropic Messages + OpenAI Responses)
-ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_12 — machine enrolment (enrol_codes, machines), ed25519 nonce challenge, link role=machine
+ARCH_13 — screen + input drivers (X11 XTest stubs, build-tagged, Xvfb-tested)" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>

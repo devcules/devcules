@@ -30,13 +30,14 @@ func strictDecode(data json.RawMessage) *json.Decoder {
 const roundTripTimeout = 5 * time.Second
 
 // slowTimeouts are the requests that do real work on the machine
-// before they answer: an OCR pass or a tree walk over a busy desktop
-// takes seconds, and grounding waits on the router (its client
-// allows 45 s), so 5 s would time them out while they still run.
+// before they answer, each longer than the machine's own limit for
+// that work: a tree walk allows 25 s (macOS compiles its walker on
+// first use), an OCR pass 45 s, and grounding waits on the router,
+// whose client allows 45 s. 5 s would time them out while they run.
 var slowTimeouts = map[string]time.Duration{
 	machframes.TypeScreen: 15 * time.Second,
 	machframes.TypeTree:   30 * time.Second,
-	machframes.TypeWords:  30 * time.Second,
+	machframes.TypeWords:  60 * time.Second,
 	machframes.TypeVerify: 30 * time.Second,
 	machframes.TypeGround: 60 * time.Second,
 }

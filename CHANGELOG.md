@@ -4,6 +4,15 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Fixed (2026-10-29, OCR)
+
+- Every OCR engine wrote the frame to one fixed `frame.png`, so two
+  reads at once could read each other's frame or a half-written one. Each read now writes a file of
+  its own and removes it afterwards.
+- The relay gave an OCR pass 30 s, but the engines allow 45 s, so a
+  slow read reported a timeout while it was still working. It now
+  waits 60 s.
+
 ### Added (2026-10-29, machine terminals and projects)
 
 - A machine's shell: `devcules machine` serves tmux terminals over its

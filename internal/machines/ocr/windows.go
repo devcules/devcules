@@ -42,10 +42,11 @@ func newWindowsWith(run command) (Driver, error) {
 func (d *windowsDriver) Read(ctx context.Context, frame image.Image) ([]Word, error) {
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
-	pngPath, err := writePNG(d.dir, "frame.png", frame)
+	pngPath, err := writePNG(d.dir, frame)
 	if err != nil {
 		return nil, err
 	}
+	defer os.Remove(pngPath)
 	out, err := d.run(ctx, "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
 		"-File", filepath.Join(d.dir, "reader.ps1"), pngPath)
 	if err != nil {

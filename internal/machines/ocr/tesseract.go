@@ -37,10 +37,11 @@ func newTesseractWith(run command) (Driver, error) {
 func (d *tesseractDriver) Read(ctx context.Context, frame image.Image) ([]Word, error) {
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
-	pngPath, err := writePNG(d.dir, "frame.png", frame)
+	pngPath, err := writePNG(d.dir, frame)
 	if err != nil {
 		return nil, err
 	}
+	defer os.Remove(pngPath)
 	out, err := d.run(ctx, "tesseract", pngPath, "stdout", "-l", "eng", "tsv")
 	if err != nil {
 		return nil, fmt.Errorf("ocr: tesseract read (is tesseract-ocr installed?): %w", err)

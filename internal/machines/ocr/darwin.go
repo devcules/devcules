@@ -48,10 +48,11 @@ func newDarwinWith(run command) (Driver, error) {
 func (d *darwinDriver) Read(ctx context.Context, frame image.Image) ([]Word, error) {
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
-	pngPath, err := writePNG(d.dir, "frame.png", frame)
+	pngPath, err := writePNG(d.dir, frame)
 	if err != nil {
 		return nil, err
 	}
+	defer os.Remove(pngPath)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	bin := filepath.Join(d.dir, "reader")

@@ -140,8 +140,9 @@ session-guarded REST, relayed over the link by
 `internal/machines/relay` (request/reply correlated by frame id,
 mirroring the terminal relay). Only the machine that was asked may
 answer. Input and budget wait 5 s for the answer; a capture waits
-15 s, a tree read, OCR pass or verify 30 s, and grounding 60 s,
-because the machine's router call alone may take 45 s. A timeout is
+15 s, a tree read or verify 30 s, and an OCR pass or grounding 60 s,
+because the machine's OCR engine and its router call may each take
+45 s. A timeout is
 `504`.
 
 | Route | What it does |

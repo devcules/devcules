@@ -5,6 +5,8 @@ package ocr
 import (
 	"context"
 	"image"
+	"os"
+	"sync"
 	"testing"
 	"time"
 )
@@ -57,3 +59,43 @@ var errMissing = missingErr("not found")
 type missingErr string
 
 func (e missingErr) Error() string { return string(e) }
+
+// TestTesseractReadsDoNotShareAFrame runs reads at once: each engine
+// run must see its own frame file, and no frame may outlive its read.
+func TestTesseractReadsDoNotShareAFrame(t *testing.T) {
+	var mu sync.Mutex
+	seen := map[string]bool{}
+	run := func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		if seen[args[0]] {
+			t.Errorf("two reads shared the frame %s", args[0])
+		}
+		seen[args[0]] = true
+		if _, err := os.Stat(args[0]); err != nil {
+			t.Errorf("frame missing while the engine runs: %v", err)
+		}
+		return []byte(tsvGood), nil
+	}
+	drv, err := newTesseractWith(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = drv.Close() })
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Go(func() {
+			if _, err := drv.Read(t.Context(), image.NewRGBA(image.Rect(0, 0, 20, 10))); err != nil {
+				t.Error(err)
+			}
+		})
+	}
+	wg.Wait()
+	left, err := os.ReadDir(drv.(*tesseractDriver).dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(left) != 0 {
+		t.Fatalf("frames left behind: %v", left)
+	}
+}

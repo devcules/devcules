@@ -394,9 +394,12 @@ func TestMachineTimeoutIs504(t *testing.T) {
 
 func TestSlowRequestsWaitLonger(t *testing.T) {
 	t.Parallel()
-	// Grounding waits on the router, whose client allows 45 s.
-	if got := waitFor(machframes.TypeGround); got <= 45*time.Second {
-		t.Fatalf("ground waits %s, want longer than the router's 45 s", got)
+	// Grounding waits on the router, whose client allows 45 s, and
+	// an OCR pass may run 45 s too.
+	for _, typ := range []string{machframes.TypeGround, machframes.TypeWords} {
+		if got := waitFor(typ); got <= 45*time.Second {
+			t.Fatalf("%s waits %s, want longer than the machine's 45 s", typ, got)
+		}
 	}
 	for _, typ := range []string{machframes.TypeScreen, machframes.TypeTree, machframes.TypeWords, machframes.TypeVerify} {
 		if got := waitFor(typ); got <= roundTripTimeout {

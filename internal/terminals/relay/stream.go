@@ -147,16 +147,6 @@ func (r *Relay) forget(streamID string) {
 	}
 }
 
-// linked reports whether the named runner currently has a link.
-func (r *Relay) linked(runner string) bool {
-	for _, n := range r.hub.Runners() {
-		if n == runner {
-			return true
-		}
-	}
-	return false
-}
-
 // send fires a one-way frame at the runner: input, resize and detach
 // carry no waiter (term.error answers without one are dropped).
 func (r *Relay) send(runner, typ string, data any) error {
@@ -207,30 +197,21 @@ func (r *Relay) AttachStream(ctx context.Context, runner, term string, cols, row
 		default:
 		}
 		r.forget(streamID)
-		if !r.linked(runner) {
-			_ = conn.Close(websocket.StatusCode(codeRunnerOffline), "runner offline")
-			return
-		}
 		// A killed session is gone for good: 4404 stops the UI's
 		// reattach loop instead of retrying a terminal that is no more.
 		if err.Error() == "unknown terminal" {
 			_ = conn.Close(websocket.StatusCode(codeUnknownTerm), "unknown terminal")
 			return
 		}
-		// The link may have died mid-request while the hub was still
-		// retiring it: linked() above saw the stale entry. Waiting for
-		// the hub to notice (the same 5 s ceiling as one request)
-		// turns that case into the runner-offline 1012 instead of a
-		// 1011 that looks like a relay bug.
-		deadline := time.Now().Add(roundTripTimeout)
-		for time.Now().Before(deadline) {
-			if !r.linked(runner) {
-				_ = conn.Close(websocket.StatusCode(codeRunnerOffline), "runner offline")
-				return
-			}
-			time.Sleep(10 * time.Millisecond)
-		}
-		_ = conn.Close(websocket.StatusInternalError, "runner did not attach")
+		// Any other attach failure — the link died mid-request, or a
+		// same-name runner replaced it while the request was in flight
+		// and the attach went to the dying link — leaves the stream
+		// unusable but the browser recoverable: 1012 tells the UI to
+		// reattach, which either lands on the live replacement or
+		// reports the runner offline. 1011 would tell it the relay is
+		// broken, which it can't act on and can't be, from here,
+		// distinguished reliably mid-swap.
+		_ = conn.Close(websocket.StatusCode(codeRunnerOffline), "runner offline")
 		return
 	}
 

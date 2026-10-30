@@ -280,7 +280,7 @@ export async function deletePasskey(id: string): Promise<true | 'unauthorized' |
   return 'unreachable';
 }
 
-export type TerminalSummary = { term: string; created: number; agent?: string; project?: string; dir?: string };
+export type TerminalSummary = { term: string; created: number; agent?: string; project?: string; dir?: string; name?: string };
 
 // Where names the link a terminal lives on: a machine by name, else
 // the runner (the only one, or the API's choice).
@@ -332,15 +332,23 @@ export async function listTerminals(where?: Where): Promise<{ terminals: Termina
           typeof t.created === 'number' &&
           (!('agent' in t) || typeof t.agent === 'string') &&
           (!('project' in t) || typeof t.project === 'string') &&
-          (!('dir' in t) || typeof t.dir === 'string'),
+          (!('dir' in t) || typeof t.dir === 'string') &&
+          (!('name' in t) || typeof t.name === 'string'),
       ),
     };
   }
   return 'unreachable';
 }
 
-export async function openTerminal(where?: Where): Promise<{ id: string } | TerminalError | 'busy'> {
-  return openedTerminal(await terminalFetch(`/api/terminals${whereQuery(where)}`, { method: 'POST' }));
+export async function openTerminal(where?: Where, name = ''): Promise<{ id: string } | TerminalError | 'busy'> {
+  return openedTerminal(await terminalFetch(`/api/terminals${whereQuery(where)}`, withName(name)));
+}
+
+// withName is a terminal open's POST, with the optional label.
+function withName(name: string): RequestInit {
+  return name === ''
+    ? { method: 'POST' }
+    : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) };
 }
 
 // openedTerminal reads a 201 {"id"} answer to any terminal open.
@@ -388,6 +396,8 @@ export type AgentInfo = {
   id: string;
   name: string;
   provider: string;
+  // providers lists the router providers it can use, its own first.
+  providers?: string[];
   installed: boolean;
   version?: string;
   install?: string;
@@ -433,14 +443,22 @@ export async function listAgents(): Promise<RunnerAgents | TerminalError> {
 
 // startAgent opens a terminal running agent. A refusal (not
 // installed, no provider) carries the server's reason.
+export type AgentStart = { project?: string; provider?: string; model?: string; name?: string };
+
 export async function startAgent(
   agent: string,
-  project?: string,
+  opts: AgentStart = {},
 ): Promise<{ id: string } | TerminalError | 'busy' | { refused: string }> {
+  const body: Record<string, string> = { agent };
+  for (const [k, v] of Object.entries(opts)) {
+    if (typeof v === 'string' && v !== '') {
+      body[k] = v;
+    }
+  }
   const res = await terminalFetch('/api/agents', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(project ? { agent, project } : { agent }),
+    body: JSON.stringify(body),
   });
   if (typeof res === 'string') {
     return res;
@@ -479,6 +497,7 @@ export type Project = {
   target: string;
   dir: string;
   repo?: string;
+  git?: boolean;
   createdAt: string;
 };
 export type ProjectList = { projects: Project[]; runners: string[]; machines: string[] };
@@ -510,7 +529,7 @@ export async function listProjects(): Promise<ProjectList | 'unauthorized' | 'un
   return 'unreachable';
 }
 
-export type NewProject = { name?: string; kind: ProjectKind; target: string; dir?: string; repo?: string };
+export type NewProject = { name?: string; kind: ProjectKind; target: string; dir?: string; repo?: string; git?: boolean };
 
 // addProject records a project; with a repo the server starts the
 // clone in a new terminal and returns its id.
@@ -545,8 +564,9 @@ export async function removeProject(id: string): Promise<true | 'unauthorized' |
 
 export async function openProjectTerminal(
   id: string,
+  name = '',
 ): Promise<{ id: string } | TerminalError | 'busy' | { refused: string }> {
-  const res = await terminalFetch(`/api/projects/${encodeURIComponent(id)}/terminals`, { method: 'POST' });
+  const res = await terminalFetch(`/api/projects/${encodeURIComponent(id)}/terminals`, withName(name));
   if (typeof res !== 'string' && res.status >= 400 && res.status < 500 && res.status !== 404) {
     const data: unknown = await res.json().catch(() => null);
     if (isObject(data) && typeof data.error === 'string') {
@@ -554,6 +574,81 @@ export async function openProjectTerminal(
     }
   }
   return openedTerminal(res);
+}
+
+// Browsed is one folder listing from a runner or machine, for the
+// project folder picker.
+export type Browsed = {
+  path: string;
+  parent?: string;
+  workspace: string;
+  home?: string;
+  git?: boolean;
+  entries: Array<{ name: string; git?: boolean; hidden?: boolean }>;
+  truncated?: boolean;
+};
+
+export async function browse(
+  where: Where,
+  path = '',
+): Promise<Browsed | TerminalError | { refused: string }> {
+  const q = new URLSearchParams();
+  if (where.machine) {
+    q.set('machine', where.machine);
+  }
+  if (path !== '') {
+    q.set('path', path);
+  }
+  const qs = q.toString();
+  const res = await terminalFetch(`/api/browse${qs ? `?${qs}` : ''}`);
+  if (typeof res === 'string') {
+    return res;
+  }
+  const data: unknown = await res.json().catch(() => null);
+  if (res.ok && isObject(data) && typeof data.path === 'string' && Array.isArray(data.entries)) {
+    return data as unknown as Browsed;
+  }
+  if (res.status === 503) {
+    return 'offline';
+  }
+  if (isObject(data) && typeof data.error === 'string') {
+    return { refused: data.error };
+  }
+  return 'unreachable';
+}
+
+// Providers: the router's model vendors, and whether each has a key.
+export type ProviderState = { id: string; ready: boolean };
+
+export async function listProviders(): Promise<ProviderState[] | 'unauthorized' | 'unreachable'> {
+  const res = await terminalFetch('/api/providers');
+  if (typeof res === 'string') {
+    return res === 'unauthorized' ? res : 'unreachable';
+  }
+  const data: unknown = await res.json().catch(() => null);
+  if (res.ok && isObject(data) && Array.isArray(data.providers)) {
+    return data.providers.filter(
+      (p): p is ProviderState => isObject(p) && typeof p.id === 'string' && typeof p.ready === 'boolean',
+    );
+  }
+  return 'unreachable';
+}
+
+// providerModels lists one provider's models, read by serve with its
+// key; a refusal (no key, the vendor erred) carries the reason.
+export async function providerModels(id: string): Promise<string[] | 'unauthorized' | 'unreachable' | { refused: string }> {
+  const res = await terminalFetch(`/api/providers/${encodeURIComponent(id)}/models`);
+  if (typeof res === 'string') {
+    return res === 'unauthorized' ? res : 'unreachable';
+  }
+  const data: unknown = await res.json().catch(() => null);
+  if (res.ok && isObject(data) && Array.isArray(data.models)) {
+    return strings(data.models);
+  }
+  if (isObject(data) && typeof data.error === 'string') {
+    return { refused: data.error };
+  }
+  return 'unreachable';
 }
 
 // projectWhere is the link a project's terminals live on.

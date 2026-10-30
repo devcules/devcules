@@ -96,7 +96,9 @@ test('projects tab', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('Nothing needs you.')).toBeVisible();
   await page.getByRole('button', { name: 'Projects', exact: true }).first().click();
-  await expect(page.getByText('No projects yet.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Add a project' })).toBeVisible();
+  // On desktop the sidebar tree says it too; the tab's own empty state
+  // is the one in main.
+  await expect(page.getByRole('main').getByText('No projects yet.')).toBeVisible();
+  await expect(page.getByRole('main').getByRole('button', { name: 'Add a project' })).toBeVisible();
   await expect(page).toHaveScreenshot({ animations: 'disabled', caret: 'hide' });
 });

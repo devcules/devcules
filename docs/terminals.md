@@ -175,3 +175,11 @@ opens terminals and agents in its directory, tagged with its id.
   agent starts in its directory on its target.
 - `DELETE /api/projects/{id}` → 204 (audited `project.remove`). Files
   and terminals stay where they are.
+
+In the web app the desktop sidebar lists the projects under the tabs,
+each with its own terminals (`ProjectTree`); the Projects tab shows the
+same tree on phones. Adding a project uses a folder picker over
+`GET /api/browse` that marks repositories (a picked repo is stored with
+`git`), and a project's + opens one form: an optional name, then a
+shell or an installed agent with its provider and model
+(`docs/agents.md`).

@@ -132,6 +132,9 @@ export default function Terminals({ onSessionExpired }: { onSessionExpired: () =
   // label names a terminal by its agent, when it runs one.
   function label(t: TerminalSummary): string {
     const short = t.term.slice(0, 8);
+    if (t.name) {
+      return `${t.name} · ${short}`;
+    }
     if (!t.agent) {
       return short;
     }

@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { listApprovals } from '../api';
 import { Inbox, type PendingState } from '../screens/Approvals';
 import Machines from '../screens/Machines';
-import Projects from '../screens/Projects';
+import Projects, { type ProjectAsk, type ProjectIntent } from '../screens/Projects';
+import ProjectTree from '../screens/ProjectTree';
 import Terminals from '../screens/Terminals';
 import Settings from '../screens/Settings';
 import Activity from '../screens/Activity';
@@ -30,6 +31,14 @@ export default function Shell({
   const [tab, setTab] = useState<Tab>('home');
   const [pending, setPending] = useState<PendingState>('loading');
   const [focus, setFocus] = useState<string | null>(takeApprovalLink);
+  // The sidebar's project tree asks the Projects tab to show things;
+  // treeReload tells the tree the list changed.
+  const [intent, setIntent] = useState<ProjectIntent | undefined>(undefined);
+  const [treeReload, setTreeReload] = useState(0);
+  const ask = useCallback((next: ProjectAsk) => {
+    setIntent((prev) => ({ ...next, seq: (prev?.seq ?? 0) + 1 }));
+    setTab('projects');
+  }, []);
 
   // One poll feeds both the Home inbox and the tab badge. It runs
   // while the page is visible; coming back polls at once.
@@ -82,13 +91,34 @@ export default function Shell({
   return (
     <div className="flex min-h-dvh bg-base text-text md:flex-row">
       {/* Desktop: sidebar. Phone: bottom bar below. */}
-      <nav aria-label="Primary" className="hidden w-48 flex-col gap-1 p-4 md:flex">
+      <nav aria-label="Primary" className="hidden w-60 shrink-0 flex-col gap-1 overflow-y-auto p-4 md:flex">
         {tabs.map((t) => (
           <NavButton key={t.id} active={tab === t.id} onClick={() => setTab(t.id)}>
             {t.label}
             {t.id === 'home' && <Badge count={waiting} />}
           </NavButton>
         ))}
+        {/* Projects with their terminals, under the tabs. */}
+        <section aria-label="Project tree" className="mt-4 flex flex-col gap-1">
+          <div className="flex items-center justify-between px-3">
+            <h2 className="text-body font-semibold text-muted">Projects</h2>
+            <button
+              type="button"
+              onClick={() => ask({ kind: 'new-project' })}
+              aria-label="Add a project"
+              className="min-h-9 rounded-md px-2 text-body text-text"
+            >
+              + Project
+            </button>
+          </div>
+          <ProjectTree
+            compact
+            reload={treeReload}
+            onSessionExpired={onSessionExpired}
+            onOpen={(id, where) => ask({ kind: 'open', id, where })}
+            onNewTerminal={(project) => ask({ kind: 'new-terminal', project })}
+          />
+        </section>
       </nav>
       {/* The standalone PWA draws under the iPhone status bar
           (black-translucent), so content starts below the inset. */}
@@ -96,7 +126,9 @@ export default function Shell({
         {tab === 'home' && (
           <Inbox pending={pending} focus={focus} onAnswered={poll} onSessionExpired={onSessionExpired} />
         )}
-        {tab === 'projects' && <Projects onSessionExpired={onSessionExpired} />}
+        {tab === 'projects' && (
+          <Projects intent={intent} onChanged={() => setTreeReload((n) => n + 1)} onSessionExpired={onSessionExpired} />
+        )}
         {tab === 'terminals' && <Terminals onSessionExpired={onSessionExpired} />}
         {tab === 'machines' && <Machines onSessionExpired={onSessionExpired} />}
         {tab === 'activity' && <Activity onSessionExpired={onSessionExpired} />}

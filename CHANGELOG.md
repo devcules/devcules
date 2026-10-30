@@ -4,6 +4,21 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-30, projects in the sidebar, new-terminal form)
+
+- The desktop sidebar lists projects under the tabs, each folding open
+  to its own terminals (named, agent or short id), with + for a new
+  terminal and ✕ to forget it; the fold state is kept per browser. The
+  Projects tab shows the same tree on phones.
+- Adding a project picks the folder in a browser on its runner or
+  machine (up, home, workspace, a typed path, hidden folders on
+  demand), marking git repositories; cloning a URL still works.
+- A new terminal asks for an optional name and what runs in it: a
+  shell, or an installed agent with the provider it calls (providers
+  without a key are off, with "add its key in Settings") and a model
+  from that provider's own list or typed. Off the agent's own provider
+  a model is required.
+
 ### Added (2026-10-30, pick the provider for an agent)
 
 - Claude Code and Codex can run on Meta (its Anthropic Messages and

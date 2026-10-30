@@ -8,12 +8,31 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
 
 	"github.com/devcules/devcules/internal/config"
 )
+
+// syncBuffer is an io.Writer that lets a test read the log while a
+// server goroutine writes to it (bytes.Buffer races).
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
 
 // TestRunLocalEndToEnd boots the one-command host desk: serve and the
 // host runner against a loopback listener, in its own data dir, no env
@@ -44,7 +63,7 @@ func TestRunLocalEndToEnd(t *testing.T) {
 	cfg.Workspace = "" // runLocal lands it in home
 
 	sigs := make(chan os.Signal, 2)
-	var stdout, stderr bytes.Buffer
+	var stdout, stderr syncBuffer
 	done := make(chan int, 1)
 	go func() { done <- runLocal(cfg, &stdout, &stderr, sigs, openSQLite) }()
 

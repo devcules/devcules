@@ -115,6 +115,32 @@ func New(s store.Store, opts ...Option) *Service {
 	return a
 }
 
+// ResetPassword gives username a fresh random password, stores only
+// its hash, and signs the user out everywhere. The password comes back
+// to the caller (the CLI prints it once to the operator's terminal);
+// nothing else keeps it. An unknown username wraps store.ErrNotFound.
+func (a *Service) ResetPassword(ctx context.Context, username string) (password string, signedOut int, err error) {
+	if _, err := a.store.Users().PasswordHash(ctx, username); err != nil {
+		return "", 0, err
+	}
+	password, err = GeneratePassword()
+	if err != nil {
+		return "", 0, err
+	}
+	hash, err := HashPassword(password)
+	if err != nil {
+		return "", 0, err
+	}
+	if err := a.store.Users().SetPasswordHash(ctx, username, hash); err != nil {
+		return "", 0, err
+	}
+	n, err := a.store.Sessions().DeleteForUser(ctx, username)
+	if err != nil {
+		return "", 0, fmt.Errorf("auth: password reset but sessions not revoked: %w", err)
+	}
+	return password, n, nil
+}
+
 // EnsureAdmin creates the admin user on first start and returns its
 // one-time password with created true. Later starts return created
 // false: the password is never printed or recoverable again. There is

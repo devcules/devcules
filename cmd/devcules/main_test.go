@@ -161,6 +161,13 @@ func TestRun(t *testing.T) {
 		}
 	})
 
+	t.Run("admin reset needs serve's database", func(t *testing.T) {
+		code, _, stderr := invoke(t, map[string]string{}, "admin", "reset-password")
+		if code != exitError || !strings.Contains(stderr, "no Devcules database") {
+			t.Fatalf("exit = %d, stderr = %q", code, stderr)
+		}
+	})
+
 	t.Run("machine rejects other arguments", func(t *testing.T) {
 		code, _, _ := invoke(t, map[string]string{}, "machine", "frobnicate")
 		if code != exitUsage {

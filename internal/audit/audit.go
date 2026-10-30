@@ -25,6 +25,7 @@ const (
 	SignIn          = "auth.sign_in"
 	SignInFailed    = "auth.sign_in_failed"
 	SignOut         = "auth.sign_out"
+	PasswordReset   = "auth.password_reset"
 	PasskeyAdd      = "passkey.add"
 	PasskeyRename   = "passkey.rename"
 	PasskeyRemove   = "passkey.remove"

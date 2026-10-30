@@ -663,6 +663,22 @@ func (m memUsers) PasswordHash(ctx context.Context, username string) (string, er
 	return hash, nil
 }
 
+func (m memUsers) SetPasswordHash(ctx context.Context, username, hash string) error {
+	if hash == "" {
+		return fmt.Errorf("store: password hash must not be empty")
+	}
+	m.db.mu.Lock()
+	defer m.db.mu.Unlock()
+	if m.db.closed[m.s] {
+		return fmt.Errorf("store: memStore is closed")
+	}
+	if _, ok := m.db.users[username]; !ok {
+		return fmt.Errorf("store: user %q not found: %w", username, store.ErrNotFound)
+	}
+	m.db.users[username] = hash
+	return nil
+}
+
 func (m memUsers) EnsureWebAuthnHandle(ctx context.Context, username string) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -752,6 +768,22 @@ func (m memSessions) Delete(ctx context.Context, hash string) error {
 	}
 	delete(m.db.sessions, hash)
 	return nil
+}
+
+func (m memSessions) DeleteForUser(ctx context.Context, username string) (int, error) {
+	m.db.mu.Lock()
+	defer m.db.mu.Unlock()
+	if m.db.closed[m.s] {
+		return 0, fmt.Errorf("store: memStore is closed")
+	}
+	n := 0
+	for h, sess := range m.db.sessions {
+		if sess.Username == username {
+			delete(m.db.sessions, h)
+			n++
+		}
+	}
+	return n, nil
 }
 
 type memPasskeys struct {

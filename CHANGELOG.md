@@ -4,6 +4,14 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-30, admin password reset)
+
+- `devcules admin reset-password [--user NAME]`: a new random password,
+  printed once to the operator's terminal, every session of the user
+  signed out, audited as `auth.password_reset` without the password.
+  It runs beside a live serve. Before this a lost bootstrap password
+  meant starting a new data folder.
+
 ### Added (2026-10-30, provider keys in Settings)
 
 - Settings → Providers: add, replace or remove the Meta, Anthropic and

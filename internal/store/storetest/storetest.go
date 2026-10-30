@@ -175,6 +175,12 @@ func Run(t *testing.T, newStore func(t *testing.T) store.Store) {
 		got, err = u.PasswordHash(ctx, name)
 		mustf(t, err, "PasswordHash after duplicate Create")
 		check(t, got == "hash-one", fmt.Sprintf("hash %q after duplicate, want %q (duplicates must not overwrite)", got, "hash-one"))
+		mustf(t, u.SetPasswordHash(ctx, name, "hash-reset"), "SetPasswordHash")
+		got, err = u.PasswordHash(ctx, name)
+		mustf(t, err, "PasswordHash after reset")
+		check(t, got == "hash-reset", fmt.Sprintf("hash %q after reset, want %q", got, "hash-reset"))
+		mustNotFound(t, u.SetPasswordHash(ctx, key(t, "nobody"), "h"), "SetPasswordHash unknown user")
+		mustFail(t, u.SetPasswordHash(ctx, name, ""), "SetPasswordHash empty hash")
 	})
 
 	t.Run("Sessions", func(t *testing.T) {
@@ -206,6 +212,16 @@ func Run(t *testing.T, newStore func(t *testing.T) store.Store) {
 		_, err = r.Get(ctx, sess.TokenHash)
 		mustNotFound(t, err, "Get after Delete")
 		mustf(t, r.Delete(ctx, sess.TokenHash), "Delete missing (must be a no-op)")
+		other := key(t, "dave")
+		mustf(t, s.Users().Create(ctx, other, "hash"), "Create second user for sessions")
+		for i, u := range []string{user, user, other} {
+			mustf(t, r.Create(ctx, store.Session{TokenHash: key(t, fmt.Sprintf("t%d", i)), Username: u, CreatedAt: at, LastSeen: at}), "Create for DeleteForUser")
+		}
+		n, err := r.DeleteForUser(ctx, user)
+		mustf(t, err, "DeleteForUser")
+		check(t, n == 2, fmt.Sprintf("DeleteForUser removed %d, want 2", n))
+		_, err = r.Get(ctx, key(t, "t2"))
+		mustf(t, err, "another user's session survives DeleteForUser")
 	})
 
 	t.Run("Passkeys", func(t *testing.T) {

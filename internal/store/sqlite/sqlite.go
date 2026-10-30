@@ -209,6 +209,22 @@ func (u usersRepo) PasswordHash(ctx context.Context, username string) (string, e
 	return hash, nil
 }
 
+// SetPasswordHash replaces username's hash. Hashes never appear in
+// errors.
+func (u usersRepo) SetPasswordHash(ctx context.Context, username, hash string) error {
+	if hash == "" {
+		return fmt.Errorf("store: password hash must not be empty")
+	}
+	res, err := u.db.ExecContext(ctx, `UPDATE users SET password_hash = ? WHERE username = ?`, hash, username)
+	if err != nil {
+		return fmt.Errorf("store: password update %q failed: %w", username, err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return fmt.Errorf("store: user %q not found: %w", username, store.ErrNotFound)
+	}
+	return nil
+}
+
 // webauthnHandleBytes is the minted user handle length: 32 random
 // bytes, well under WebAuthn's 64-byte ceiling.
 const webauthnHandleBytes = 32
@@ -317,6 +333,16 @@ func (r sessionsRepo) Delete(ctx context.Context, hash string) error {
 		return fmt.Errorf("store: session delete failed: %w", err)
 	}
 	return nil
+}
+
+// DeleteForUser removes every session of username.
+func (r sessionsRepo) DeleteForUser(ctx context.Context, username string) (int, error) {
+	res, err := r.db.ExecContext(ctx, `DELETE FROM sessions WHERE username = ?`, username)
+	if err != nil {
+		return 0, fmt.Errorf("store: session delete for %q failed: %w", username, err)
+	}
+	n, _ := res.RowsAffected()
+	return int(n), nil
 }
 
 // passkeysRepo implements store.PasskeysRepo on the passkeys table.

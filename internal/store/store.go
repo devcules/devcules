@@ -234,6 +234,9 @@ type UsersRepo interface {
 	// never the username, and it never changes once minted. An
 	// unknown username is an error wrapping ErrNotFound.
 	EnsureWebAuthnHandle(ctx context.Context, username string) ([]byte, error)
+	// SetPasswordHash replaces the stored hash (a password reset). An
+	// unknown username wraps ErrNotFound; an empty hash is an error.
+	SetPasswordHash(ctx context.Context, username, passwordHash string) error
 }
 
 // Session is one login. TokenHash is the SHA-256 of the bearer token;
@@ -257,6 +260,9 @@ type SessionsRepo interface {
 	Touch(ctx context.Context, tokenHash string, at time.Time) error
 	// Delete removes the session. A missing session is not an error.
 	Delete(ctx context.Context, tokenHash string) error
+	// DeleteForUser removes every session of username and reports how
+	// many went (a password reset signs the user out everywhere).
+	DeleteForUser(ctx context.Context, username string) (int, error)
 }
 
 // Passkey is one registered WebAuthn credential. ID is the credential

@@ -23,7 +23,7 @@ const (
 	exitUsage = 2
 )
 
-const usageLine = "usage: devcules [serve|runner|machine [enrol <code> [--name <name>]]|hook [--agent <id>]|version|health|vault rotate|audit export|audit verify|help]"
+const usageLine = "usage: devcules [serve|runner|machine [enrol <code> [--name <name>]]|hook [--agent <id>]|version|health|vault rotate|audit export|audit verify|admin reset-password [--user <name>]|help]"
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
@@ -37,7 +37,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) > 0 {
 		name, rest = args[0], args[1:]
 	}
-	if len(rest) > 0 && name != "vault" && name != "audit" && name != "hook" && name != "machine" {
+	if len(rest) > 0 && name != "vault" && name != "audit" && name != "hook" && name != "machine" && name != "admin" {
 		return usage(stderr, "too many arguments: %q takes none", name)
 	}
 	var hookWith agents.Agent
@@ -62,7 +62,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	case "help", "-h", "--help":
 		fmt.Fprintln(stdout, usageLine)
 		return exitOK
-	case "", "serve", "runner", "machine", "hook", "health", "vault", "audit":
+	case "", "serve", "runner", "machine", "hook", "health", "vault", "audit", "admin":
 	default:
 		return usage(stderr, "unknown subcommand %q", name)
 	}
@@ -79,6 +79,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	if name == "health" {
 		return runHealth(cfg, stdout, stderr)
+	}
+	if name == "admin" {
+		// Like audit: it works on serve's store, so it runs where
+		// serve's data is, and holds no keys.
+		return runAdmin(cfg, rest, stderr, openSQLite)
 	}
 	if name == "audit" {
 		// The audit commands read the store only; they hold no

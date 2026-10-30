@@ -23,6 +23,24 @@ in `internal/auth/password.go`) reaches the store. There is
 deliberately no password env var: environment secrets leak to child
 processes and logs.
 
+## Lost the admin password
+
+The bootstrap password prints once and only its hash is kept, so it
+cannot be read back. Reset it on the machine that holds serve's data:
+
+```sh
+DEVCULES_DATA_DIR=<serve's data folder> devcules admin reset-password [--user admin]
+```
+
+It writes a new random password's hash, signs that user out of every
+session, audits `auth.password_reset` (the user and how many sessions
+ended, never the password) and prints the new password once to
+stderr. It runs while serve is up: SQLite's WAL lets both write, and
+serve checks passwords and sessions on every request. If the database
+stays locked past the busy timeout it says to stop serve first. It
+never creates a database, so a wrong `DEVCULES_DATA_DIR` fails instead
+of making an empty install.
+
 ## Sign-in
 
 `POST /auth/sign-in` takes a urlencoded form (`username`,

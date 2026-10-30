@@ -20,7 +20,7 @@ import (
 // first — runners get per-launch tokens, never real keys — and a
 // missing token fails with next steps, since the runner never mints
 // (only serve creates the file).
-func runRunner(cfg config.Config, stdout, stderr io.Writer, sigs <-chan os.Signal) int {
+func runRunner(cfg config.Config, name string, stdout, stderr io.Writer, sigs <-chan os.Signal) int {
 	if _, err := cfg.ForRole("runner"); err != nil {
 		fmt.Fprintln(stderr, err.Error())
 		return exitError
@@ -34,7 +34,9 @@ func runRunner(cfg config.Config, stdout, stderr io.Writer, sigs <-chan os.Signa
 		fmt.Fprintln(stderr, err.Error())
 		return exitError
 	}
-	name := runnerName()
+	if name == "" {
+		name = runnerName()
+	}
 	log := slog.New(slog.NewJSONHandler(stdout, nil))
 	// The serve address and link name are operational, not secret; the
 	// token never appears in a log line.
@@ -128,10 +130,17 @@ func runnerWorkspace(ws string) string {
 
 // runnerName identifies this runner on the link. Hostnames are unique
 // per machine and per container, so a restarted runner reclaims its
-// name (replacing its ghost) while two live runners never collide.
+// name (replacing its ghost) while two live runners never collide. In
+// a container the link names itself for what it is, so the picker does
+// not present the sandbox as the developer's own computer; a bare
+// `devcules` passes the host label directly and skips this.
 func runnerName() string {
-	if h, err := os.Hostname(); err == nil && h != "" {
-		return h
+	prefix := ""
+	if config.DetectContainer() {
+		prefix = "container "
 	}
-	return "runner"
+	if h, err := os.Hostname(); err == nil && h != "" {
+		return prefix + "(" + h + ")"
+	}
+	return prefix + "runner"
 }

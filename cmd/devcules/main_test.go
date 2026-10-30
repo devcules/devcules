@@ -290,6 +290,73 @@ func TestRun(t *testing.T) {
 	})
 }
 
+// TestUsageLineCoversModes pins the documented one-liner: it names both the
+// bare host desk (`local`) and the split roles, so `devcules help` cannot
+// drift from the dispatch.
+func TestUsageLineCoversModes(t *testing.T) {
+	for _, want := range []string{"local", "serve", "runner", "machine", "admin reset-password"} {
+		if !strings.Contains(usageLine, want) {
+			t.Errorf("usageLine %q missing %q", usageLine, want)
+		}
+	}
+}
+
+// TestLocalDispatches checks the bare desk and its explicit name take the
+// local branch. A bogus listen port is the probe: usage errors (2) say the
+// branch was missed, config errors (1) mean the argument was read. And an
+// argument `local extra` must stay a usage error like every other role.
+func TestLocalDispatches(t *testing.T) {
+	for _, args := range [][]string{{}, {"local"}} {
+		code, _, stderr := invoke(t, map[string]string{"DEVCULES_LISTEN": "notaport"}, args...)
+		if code == 2 || strings.Contains(stderr, "usage") {
+			t.Errorf("%v: exit = %d, stderr = %q — the desk branch was missed", args, code, stderr)
+		}
+	}
+	// An argument a recognised role never takes stays a usage error.
+	if code, _, stderr := invoke(t, map[string]string{}, "local", "extra"); code != 2 {
+		t.Errorf("local extra: exit = %d, stderr = %q, want 2", code, stderr)
+	}
+}
+
+// TestListenAddress pins the wild-card-to-loopback rewrite the in-process
+// runner uses; anything else passes through unchanged.
+func TestListenAddress(t *testing.T) {
+	for in, want := range map[string]string{
+		":7659":            "127.0.0.1:7659",
+		"0.0.0.0:7659":     "127.0.0.1:7659",
+		"[::]:7659":        "127.0.0.1:7659",
+		"127.0.0.1:7661":   "127.0.0.1:7661",
+		"10.1.2.3:7659":    "10.1.2.3:7659",
+		"hostname":         "hostname",
+		"hostname:abc:765": "hostname:abc:765",
+	} {
+		if got := listenAddress(in); got != want {
+			t.Errorf("listenAddress(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// TestLinkNames pins the host/container labels: `devcules` passes the host
+// label in, the workspace role names itself; whatever the prefix, each is
+// one word long enough to prefix-run a tmux session and legal for the hub.
+func TestLinkNames(t *testing.T) {
+	if h := hostRunnerName(); !strings.HasPrefix(h, "host (") || !strings.HasSuffix(h, ")") {
+		t.Errorf("hostRunnerName() = %q, want host (<hostname>)", h)
+	}
+	r := runnerName()
+	if h, err := os.Hostname(); err == nil && h != "" && !strings.Contains(r, "("+h+")") {
+		t.Errorf("runnerName() = %q, want the hostname inside", r)
+	}
+	for _, n := range []string{runnerName(), hostRunnerName()} {
+		if n == "" || len(n) > 64 || strings.Contains(n, "/") || strings.Contains(n, "\t") {
+			t.Errorf("%q would fail the hub's name check", n)
+		}
+	}
+	if config.DetectContainer() && !strings.HasPrefix(runnerName(), "container ") {
+		t.Errorf("in a container, runnerName() = %q, want the container prefix", r)
+	}
+}
+
 // An agent hook that cannot even load its config must still block
 // the call in the agent's protocol: exit 1 would let Muse run it.
 func TestAgentHookConfigErrorBlocks(t *testing.T) {

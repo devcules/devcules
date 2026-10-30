@@ -4,6 +4,17 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-30, one-command host desk)
+
+- Bare `devcules` (and the explicit `devcules local`) on a computer now
+  runs serve and its host runner in one process, on the loopback listen
+  address: no environment variable to set, no token file to pass, the
+  Projects picker roots in the computer's home folder and names the
+  link **host (hostname)**. The Docker stack's runner (still
+  `devcules serve` + `devcules runner`, or the compose file) names
+  itself **container (hostname)** so the picker never presents a
+  sandbox as the developer's own filesystem.
+
 ### Added (2026-10-30, project remote icons)
 
 - The Projects list and the folder picker show a repository's host icon

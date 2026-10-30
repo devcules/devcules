@@ -1,6 +1,20 @@
 # Deploy
 
-## Local stack
+## On your own computer
+
+One command, no environment variable:
+
+```sh
+devcules
+```
+
+That runs serve and its host runner in one process, on
+[http://127.0.0.1:7659](http://127.0.0.1:7659). The first start prints
+a bootstrap admin password; the Projects folder picker sees the
+computer's own folders, and the linked machine is named **host
+(hostname)** so it is never mistaken for the container sandbox below.
+
+## A sandboxed local stack
 
 Prerequisites: Docker with the Compose plugin.
 
@@ -11,8 +25,9 @@ docker compose -f deploy/compose.yaml up -d --wait
 
 That builds the image, starts `serve` on
 [http://127.0.0.1:7659](http://127.0.0.1:7659) and an idle `runner`,
-then proves health, hardening and shutdown. Tear down with
-`docker compose -f deploy/compose.yaml down -v`.
+then proves health, hardening and shutdown. The runner is a container
+(read-only, no secrets, capped): the picker names it **container (…)**.
+Tear down with `docker compose -f deploy/compose.yaml down -v`.
 
 Both services build the same local `Dockerfile`: the `:latest` tag
 does not exist until the first release, so there is nothing to pull

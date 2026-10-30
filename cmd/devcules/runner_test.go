@@ -2,6 +2,9 @@ package main
 
 import (
 	"bytes"
+	"errors"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +14,90 @@ import (
 
 	"github.com/devcules/devcules/internal/config"
 )
+
+// TestRunLocalEndToEnd boots the one-command host desk: serve and the
+// host runner against a loopback listener, in its own data dir, no env
+// var set. The picker sees a link named for the computer, not a
+// container, and a SIGTERM unwinds both halves cleanly.
+func TestRunLocalEndToEnd(t *testing.T) {
+	if testing.Short() {
+		t.Skip("boots serve, tmux and a link")
+	}
+	// A never-used port avoids colliding with a dev desk run by hand.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	listen := ln.Addr().String()
+	_ = ln.Close() // runLocal binds it itself
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("TMUX_TMPDIR", filepath.Join(home, "tmux"))
+
+	cfg := serveConfig(home)
+	cfg.Listen = listen
+	cfg.ServeURL = ""    // runLocal fills loopback from listen
+	cfg.PublicURL = ""   // and the host's own name
+	cfg.RunnerToken = "" // minted by serve, read by the runner half
+	cfg.RunnerTokenFile = ""
+	cfg.Workspace = "" // runLocal lands it in home
+
+	sigs := make(chan os.Signal, 2)
+	var stdout, stderr bytes.Buffer
+	done := make(chan int, 1)
+	go func() { done <- runLocal(cfg, &stdout, &stderr, sigs, openSQLite) }()
+
+	deadline := time.Now().Add(20 * time.Second)
+	// Wait for the link itself: the runner logs "runner connecting" with
+	// the host label only after the token hand-off finished.
+	for {
+		if err := healthz(listen); err == nil && strings.Contains(stdout.String(), "host (") {
+			break
+		}
+		if time.Now().After(deadline) {
+			sigs <- syscall.SIGTERM
+			<-done
+			t.Fatalf("desk never linked the host\nstdout: %s\nstderr: %s", stdout.String(), stderr.String())
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	sigs <- syscall.SIGTERM
+	select {
+	case code := <-done:
+		if code != exitOK {
+			t.Fatalf("exit = %d, want %d; stderr: %s", code, exitOK, stderr.String())
+		}
+	case <-time.After(20 * time.Second):
+		t.Fatal("the desk did not drain after SIGTERM")
+	}
+
+	// The link carried the host label, and serve minted the token file
+	// it shares with the runner half (the compose link volume in one
+	// process — nothing left in the test's env).
+	out := stdout.String()
+	if !strings.Contains(out, `name":"host (`) || strings.Contains(out, "container") {
+		t.Errorf("stdout lacks the host link label: %s", out)
+	}
+	if raw, err := os.ReadFile(filepath.Join(home, "runner.token")); err != nil || strings.TrimSpace(string(raw)) == "" {
+		t.Errorf("runner token never minted under %s: %v", home, err)
+	}
+}
+
+// healthz is the loopback readiness check the desk offers.
+func healthz(listen string) error {
+	port := listen[strings.LastIndex(listen, ":")+1:]
+	resp, err := http.Get("http://127.0.0.1:" + port + "/healthz")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return errors.New(resp.Status)
+	}
+	return nil
+}
 
 // runnerConfig links at an address nothing answers: dial fails fast
 // and the client backs off, so SIGTERM always lands cleanly.
@@ -29,7 +116,7 @@ func TestRunRunnerConnects(t *testing.T) {
 	sigs := make(chan os.Signal, 1)
 	var stdout, stderr bytes.Buffer
 	done := make(chan int, 1)
-	go func() { done <- runRunner(cfg, &stdout, &stderr, sigs) }()
+	go func() { done <- runRunner(cfg, "", &stdout, &stderr, sigs) }()
 	sigs <- syscall.SIGTERM
 	select {
 	case code := <-done:
@@ -53,7 +140,7 @@ func TestRunRunnerRefusesVaultKey(t *testing.T) {
 	cfg := config.Config{VaultKey: "k"}
 	sigs := make(chan os.Signal, 1)
 	var stdout, stderr bytes.Buffer
-	if code := runRunner(cfg, &stdout, &stderr, sigs); code != exitError {
+	if code := runRunner(cfg, "", &stdout, &stderr, sigs); code != exitError {
 		t.Fatalf("exit = %d, want %d", code, exitError)
 	}
 	if !strings.Contains(stderr.String(), "must not be set for runner") {
@@ -68,7 +155,7 @@ func TestRunRunnerMissingToken(t *testing.T) {
 	cfg.RunnerToken = ""
 	sigs := make(chan os.Signal, 1)
 	var stdout, stderr bytes.Buffer
-	if code := runRunner(cfg, &stdout, &stderr, sigs); code != exitError {
+	if code := runRunner(cfg, "", &stdout, &stderr, sigs); code != exitError {
 		t.Fatalf("exit = %d, want %d", code, exitError)
 	}
 	if !strings.Contains(stderr.String(), "runner token missing: set DEVCULES_RUNNER_TOKEN or DEVCULES_RUNNER_TOKEN_FILE") {

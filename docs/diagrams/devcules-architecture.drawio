@@ -3649,7 +3649,7 @@ ARCH_16 — machine task view: screen/input/tree/ground over the link, budget at
                 <mxCell id="divider" parent="1" style="rounded=0;fillColor=#CC0000;strokeColor=none;" value="" vertex="1">
                     <mxGeometry height="780" width="6" x="1076" y="180" as="geometry"/>
                 </mxCell>
-                <mxCell id="runner-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#FBFBFB;strokeColor=#CCCCCC;dashed=1;fontColor=#777777;fontSize=13" value="&lt;b&gt;devcules runner — untrusted zone · M1.3+&lt;/b&gt;&lt;br&gt;links to serve · tmux terminals today · agent CLIs · workspace next" vertex="1">
+                <mxCell id="runner-zone" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacing=10;spacingTop=6;fillColor=#FBFBFB;strokeColor=#CCCCCC;dashed=1;fontColor=#777777;fontSize=13" value="&lt;b&gt;devcules runner — untrusted zone · M1.3+&lt;/b&gt;&lt;br&gt;links to serve · tmux terminals · agent CLIs&lt;br&gt;bare `devcules` (the host desk) runs serve+runner in one process, picker in your home" vertex="1">
                     <mxGeometry height="420" width="580" x="1130" y="180" as="geometry"/>
                 </mxCell>
                 <mxCell id="r-tmux" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11" value="&lt;b&gt;tmux PTY terminals&lt;/b&gt; (M1.4 ✓)&lt;br&gt;tmux -L devcules · resume by redraw, no replay buffer&lt;br&gt;agent terminals: private launch dir (M3.3 ✓)" vertex="1">

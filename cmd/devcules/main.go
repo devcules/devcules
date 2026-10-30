@@ -23,7 +23,7 @@ const (
 	exitUsage = 2
 )
 
-const usageLine = "usage: devcules [serve|runner|machine [enrol <code> [--name <name>]]|hook [--agent <id>]|version|health|vault rotate|audit export|audit verify|admin reset-password [--user <name>]|help]"
+const usageLine = "usage: devcules [local|serve|runner|machine [enrol <code> [--name <name>]]|hook [--agent <id>]|version|health|vault rotate|audit export|audit verify|admin reset-password [--user <name>]|help]"
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
@@ -67,7 +67,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	case "help", "-h", "--help":
 		fmt.Fprintln(stdout, usageLine)
 		return exitOK
-	case "", "serve", "runner", "machine", "hook", "health", "vault", "audit", "admin":
+	case "", "local", "serve", "runner", "machine", "hook", "health", "vault", "audit", "admin":
 	default:
 		return usage(stderr, "unknown subcommand %q", name)
 	}
@@ -104,8 +104,21 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	// No subcommand: DEVCULES_ROLE decides.
 	role := name
+	_, roleFromEnv := os.LookupEnv("DEVCULES_ROLE")
 	if role == "" {
 		role = cfg.Role
+	}
+	// Bare `devcules` (no subcommand, DEVCULES_ROLE unset) is the host
+	// desk: serve and the host runner over loopback in one process, so a
+	// developer sees their own folders and sets no env var. `local`
+	// says the same out loud. Both leave the runner's key-refusal to
+	// runRunner when its half starts.
+	if (name == "" && !roleFromEnv) || name == "local" {
+		cfg, err = cfg.ForRole("serve")
+		if err != nil {
+			return configFailed(hookWith, err, stdout, stderr)
+		}
+		return runLocal(cfg, stdout, stderr, sigs, openSQLite)
 	}
 	cfg, err = cfg.ForRole(role)
 	if err != nil {
@@ -128,7 +141,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 // runBlockingRole starts serve or runner for real.
 func runBlockingRole(cfg config.Config, role string, stdout, stderr io.Writer, sigs chan os.Signal) int {
 	if role == "runner" {
-		return runRunner(cfg, stdout, stderr, sigs)
+		return runRunner(cfg, "", stdout, stderr, sigs)
 	}
 	ln, err := net.Listen("tcp", cfg.Listen)
 	if err != nil {

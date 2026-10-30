@@ -373,7 +373,7 @@ func TestDefaultDataDir(t *testing.T) {
 // TestLoadDataDirDefault asserts the host branch end to end. It holds
 // wherever tests run outside a container, which covers dev machines and CI.
 func TestLoadDataDirDefault(t *testing.T) {
-	if detectContainer() {
+	if DetectContainer() {
 		t.Skip("running inside a container: host default does not apply")
 	}
 	setEnv(t, map[string]string{"DEVCULES_VAULT_KEY": validKey})
@@ -390,7 +390,7 @@ func TestLoadDataDirDefault(t *testing.T) {
 // TestLoadNoHome covers a host with no HOME and no DATA_DIR: Load must say
 // what to set instead of failing obscurely.
 func TestLoadNoHome(t *testing.T) {
-	if detectContainer() {
+	if DetectContainer() {
 		t.Skip("running inside a container: HOME is irrelevant")
 	}
 	setEnv(t, map[string]string{"DEVCULES_VAULT_KEY": validKey})

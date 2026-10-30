@@ -1,12 +1,14 @@
 package pty
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/devcules/devcules/internal/terminals"
 )
@@ -84,10 +86,17 @@ func isRepo(dir string) bool {
 
 // remoteOf reads origin's URL and classifies its host (github, gitlab,
 // azure). A repo without an origin, or on a host we don't recognise,
-// stays empty. Cheap enough to run per folder: one short-lived git
-// child, no daemon.
+// stays empty. The child is bounded: browse runs inside the link's
+// request loop, so a hung git (no config, an interactive prompt, a
+// slow credential helper) is dropped after a second rather than
+// block every terminal on the link. Empty is the right answer for
+// anything that is not a one-shot get-url success.
 func remoteOf(dir string) string {
-	out, err := exec.Command("git", "-C", dir, "remote", "get-url", "origin").Output()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "git", "-C", dir, "remote", "get-url", "origin")
+	cmd.Stdin = nil // never inherit: a credential helper may not hold the link
+	out, err := cmd.Output()
 	if err != nil {
 		return ""
 	}

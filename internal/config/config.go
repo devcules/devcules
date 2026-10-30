@@ -131,7 +131,7 @@ func Load() (Config, error) {
 		default:
 			cfg.DataDir = v
 		}
-	} else if detectContainer() {
+	} else if DetectContainer() {
 		cfg.DataDir = defaultDataDir("", true)
 	} else if home, err := os.UserHomeDir(); err != nil {
 		fail(`DEVCULES_DATA_DIR missing: set it, or set HOME (no home directory: %s)`, err)
@@ -392,13 +392,13 @@ func checkWebURL(v string) bool {
 	return u.Scheme == "http" || u.Scheme == "https"
 }
 
-// detectContainer reports whether the process runs inside a container, in
+// DetectContainer reports whether the process runs inside a container, in
 // which case DATA_DIR defaults to /data. It trusts only well-known signals
 // — the Docker and Podman marker files, Kubernetes' service-host variable
 // and container runtimes in PID 1's cgroup — rather than guessing from
 // anything else. The cgroup alone is not enough: under cgroup v2 it reads
 // just "0::/".
-func detectContainer() bool {
+func DetectContainer() bool {
 	for _, marker := range []string{"/.dockerenv", "/run/.containerenv"} {
 		if _, err := os.Stat(marker); err == nil {
 			return true

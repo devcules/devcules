@@ -10,17 +10,24 @@ Tailscale.
 
 ## Quick start
 
-Prerequisites: Docker with the Compose plugin. From the repo root:
+One command on your computer:
 
 ```sh
-docker compose -f deploy/compose.yaml up -d --wait
-./scripts/smoke.sh
+go install github.com/devcules/devcules/cmd/devcules@latest
+devcules
 ```
 
-That starts `serve` on `127.0.0.1:7659` and an idle `runner`, then
-proves both are healthy. See [docs/deploy.md](docs/deploy.md) for
-environment, hardening and limits. The full plan lives in
-[PLAN.md](PLAN.md).
+That runs serve and its own host runner in one process, on
+http://127.0.0.1:7659. It sets no environment variable and asks nothing:
+the Projects picker sees your own folders, named **host (this
+computer)**, and the first start prints a bootstrap admin password.
+
+Prefer a sandbox, or a second machine? Both are machines you add from
+the GUI: **Machines → Add a computer** — the compose stack is the
+container option, and it shows up as **container (…)** so the desk
+never confuses it for your own filesystem. See
+[docs/deploy.md](docs/deploy.md) for environment, hardening and
+limits. The full plan lives in [PLAN.md](PLAN.md).
 
 ## How it is built
 

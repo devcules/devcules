@@ -50,6 +50,11 @@ func runRunner(cfg config.Config, stdout, stderr io.Writer, sigs <-chan os.Signa
 	if m, err := terminalManager(cfg.Workspace, log); err != nil {
 		log.Warn("terminals unavailable, linking without them", "err", err.Error())
 	} else {
+		// An agent's launch script runs this binary's `reap` when the
+		// agent exits, so what the agent detached stops with it.
+		if exe, err := os.Executable(); err == nil {
+			m.SetReaper(exe)
+		}
 		pty.Serve(ctx, c, m, newAgentLauncher(cfg.ServeURL))
 	}
 	done := make(chan error, 1)

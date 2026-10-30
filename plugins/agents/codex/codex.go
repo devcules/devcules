@@ -127,6 +127,9 @@ func (Agent) LaunchSpec(l agents.Launch) (agents.Spec, error) {
 		"",
 		"[features]",
 		"hooks = true",
+		// Codex 0.165 otherwise starts a shared app-server daemon
+		// from CODEX_HOME that outlives the terminal.
+		"daemon_auto_start = false",
 		"",
 	), "\n")
 	h, err := json.MarshalIndent(hooks{Hooks: map[string][]matcher{"PreToolUse": {{Hooks: []handler{{

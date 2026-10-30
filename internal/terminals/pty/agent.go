@@ -85,7 +85,7 @@ func (m *Manager) OpenAgentIn(ctx context.Context, id, agent string, l Launch, p
 	}
 	name := terminals.SessionName(id)
 	if _, err := m.run(ctx, "new-session", "-d", "-s", name, "-c", start,
-		"-x", strconv.Itoa(defaultCols), "-y", strconv.Itoa(defaultRows), "bash", "-lc", agentScript(dir, agent, l)); err != nil {
+		"-x", strconv.Itoa(defaultCols), "-y", strconv.Itoa(defaultRows), "bash", "-lc", agentScript(dir, agent, l, m.reaper)); err != nil {
 		_ = os.RemoveAll(dir)
 		if strings.Contains(err.Error(), "duplicate session") {
 			return time.Time{}, fmt.Errorf("terminal exists")
@@ -130,9 +130,10 @@ func writeLaunch(dir string, l Launch) error {
 }
 
 // agentScript runs the agent after the login profile (so PATH finds
-// user-installed CLIs), then forgets its environment and files and
-// leaves a shell, so the owner can read what happened.
-func agentScript(dir, agent string, l Launch) string {
+// user-installed CLIs), then stops what it left running (reaper, when
+// set: a daemon an agent detached), forgets its environment and files
+// and leaves a shell, so the owner can read what happened.
+func agentScript(dir, agent string, l Launch, reaper string) string {
 	quoted := make([]string, len(l.Cmd))
 	for i, a := range l.Cmd {
 		quoted[i] = shQuote(a)
@@ -142,6 +143,9 @@ func agentScript(dir, agent string, l Launch) string {
 	b.WriteString("set -a; . " + shQuote(filepath.Join(dir, "env.sh")) + "; set +a\n")
 	b.WriteString(strings.Join(quoted, " ") + "\n")
 	b.WriteString("code=$?\n")
+	if reaper != "" {
+		b.WriteString(shQuote(reaper) + " reap " + shQuote(dir) + " >/dev/null 2>&1\n")
+	}
 	if len(keys) > 0 {
 		b.WriteString("unset " + strings.Join(keys, " ") + "\n")
 	}

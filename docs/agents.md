@@ -64,10 +64,24 @@ provider.
    `env.sh` with the environment and `launch.token` for the hook, and
    starts the tmux session through a login shell. The token never
    appears on a command line, where other processes could read it.
-5. The terminal script sources `env.sh`, runs the agent, then unsets
-   the environment and removes the launch dir. When the agent exits,
-   the terminal says so and becomes a plain shell. Closing the
-   terminal removes the launch dir too.
+5. The terminal script sources `env.sh`, runs the agent, then runs
+   `devcules reap <launch dir>`, unsets the environment and removes
+   the launch dir. When the agent exits, the terminal says so and
+   becomes a plain shell. Closing the terminal removes the launch dir
+   too.
+
+   What an agent started goes with it. Closing an agent terminal stops
+   its pane's process tree (read before tmux kills the pane, so a
+   child in its own process group is still found) and its process
+   groups. Both closing and the agent exiting then sweep every process
+   whose executable, working directory or any environment value (like
+   `CODEX_HOME` or `CLAUDE_CONFIG_DIR`) is inside that launch dir:
+   `SIGTERM`, then `SIGKILL` after two seconds. The sweep goes by pid
+   and path only, never by process name, and spares itself and the
+   script that runs it (`internal/terminals/pty/reap.go`; Linux reads
+   `/proc`, macOS `kern.proc.all`, `kern.procargs2` and
+   `proc_pidinfo`). macOS hides the environment of its own platform
+   binaries, so such a process is found by its path or cwd only.
 6. Serve audits `agent.launch` (terminal id, agent, runner, launch
    id, model) and answers `201 {"id", "launch"}`; the browser opens
    the terminal. If the open fails, serve revokes the token again
@@ -154,8 +168,11 @@ Facts in `docs/integrations.md`. The adapter:
 - writes `config.toml` with a `devcules` model provider (`base_url` the
   router's `/llm/openai/v1`, `wire_api = "responses"`, the key from
   `DEVCULES_LLM_KEY`), the Devcules MCP server (bearer token from
-  `DEVCULES_MCP_TOKEN`) and `[features] hooks = true`; the token
-  itself is only in the environment;
+  `DEVCULES_MCP_TOKEN`), `[features] hooks = true` and
+  `daemon_auto_start = false` (Codex 0.165 otherwise starts a shared
+  `codex app-server` daemon from `CODEX_HOME`, in its own process
+  group, that outlives the terminal); the token itself is only in the
+  environment;
 - writes `hooks.json` with a `PreToolUse` command hook for every tool;
 - runs `codex --sandbox workspace-write`, plus `--model` when the
   launch names one.

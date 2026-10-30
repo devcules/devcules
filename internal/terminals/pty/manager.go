@@ -53,6 +53,9 @@ type Manager struct {
 	max       int    // terminal cap (terminals.MaxTerminals in production)
 	log       *slog.Logger
 	undo      func() // removes a relocated socket dir, once
+	// reaper is the devcules binary an agent's launch script runs as
+	// `reaper reap <launch dir>` when the agent exits; "" skips it.
+	reaper string
 
 	// openMu makes the cap check and new-session one step, so two
 	// concurrent opens cannot both pass at 15 terminals.
@@ -535,9 +538,26 @@ func (m *Manager) Close(ctx context.Context, id string) error {
 		a.close()
 		a.wait()
 	}
+	// An agent terminal takes everything it started with it: its
+	// pane's process tree (seen before tmux kills the pane and the
+	// children are reparented), then any process still pointing into
+	// the launch dir, like a daemon that detached itself.
+	dir := m.LaunchDir(id)
+	var t tree
+	if _, err := os.Stat(dir); err == nil {
+		if table, err := listProcs(); err == nil {
+			t = treeOf(table, m.panePIDs(ctx, id))
+		}
+	}
 	_, err := m.run(ctx, "kill-session", "-t", terminals.SessionName(id))
+	stop(t.pids, t.groups, nil)
+	if _, rerr := os.Stat(dir); rerr == nil {
+		if hit, rerr := Reap(dir); rerr == nil && len(hit) > 0 {
+			m.log.Info("agent processes stopped with their terminal", "term", id, "count", len(hit))
+		}
+	}
 	// An agent's launch dir holds its token: gone with the terminal.
-	_ = os.RemoveAll(m.LaunchDir(id))
+	_ = os.RemoveAll(dir)
 	if err != nil {
 		if !m.hasSession(ctx, id) {
 			return nil
@@ -545,6 +565,26 @@ func (m *Manager) Close(ctx context.Context, id string) error {
 		return fmt.Errorf("tmux failed to close the terminal")
 	}
 	return nil
+}
+
+// SetReaper names the devcules binary that agent launch scripts run
+// as `<exe> reap <launch dir>` when the agent exits, so what it left
+// running stops with it.
+func (m *Manager) SetReaper(exe string) { m.reaper = exe }
+
+// panePIDs lists the process ids of a session's panes.
+func (m *Manager) panePIDs(ctx context.Context, id string) []int {
+	out, err := m.run(ctx, "list-panes", "-s", "-t", terminals.SessionName(id), "-F", "#{pane_pid}")
+	if err != nil {
+		return nil
+	}
+	var pids []int
+	for _, f := range strings.Fields(out) {
+		if pid, err := strconv.Atoi(f); err == nil && pid > 1 {
+			pids = append(pids, pid)
+		}
+	}
+	return pids
 }
 
 // List returns the live tmux sessions as terminal infos. A missing

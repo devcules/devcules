@@ -4,6 +4,19 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Fixed (2026-10-30, agent leftovers)
+
+- Codex 0.165 started a shared `codex app-server` daemon from the
+  launch's `CODEX_HOME` that kept running after its terminal closed.
+  The adapter now sets `[features] daemon_auto_start = false`.
+- Whatever an agent leaves running stops with it. Closing an agent
+  terminal stops its pane's process tree and the process groups it
+  leads, and closing or the agent exiting (through the hidden
+  `devcules reap <launch dir>` its launch script runs) sweeps every
+  process whose executable, working directory or environment points
+  into that launch dir: SIGTERM, then SIGKILL after two seconds. It
+  goes by pid and path only, never by name.
+
 ### Added (2026-10-30, model provider profiles)
 
 - Providers are saved profiles now: a name, the API format

@@ -48,6 +48,7 @@ bearer_token_env_var = "DEVCULES_MCP_TOKEN"
 
 [features]
 hooks = true
+daemon_auto_start = false
 `
 	if got := string(spec.Files["codex/config.toml"]); got != want {
 		t.Fatalf("config.toml =\n%s\nwant\n%s", got, want)

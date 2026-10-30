@@ -37,6 +37,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if len(args) > 0 {
 		name, rest = args[0], args[1:]
 	}
+	if name == "reap" {
+		// Hidden: an agent's launch script runs it when the agent
+		// exits. It needs no config and no link.
+		return runReap(rest, stderr)
+	}
 	if len(rest) > 0 && name != "vault" && name != "audit" && name != "hook" && name != "machine" && name != "admin" {
 		return usage(stderr, "too many arguments: %q takes none", name)
 	}

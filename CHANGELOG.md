@@ -4,6 +4,15 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-30, provider keys in Settings)
+
+- Settings → Providers: add, replace or remove the Meta, Anthropic and
+  OpenAI API keys. They go to the vault, are never shown again, apply
+  with no restart (the model list cache for that provider is dropped),
+  and are audited by provider only. Before this only `META_API_KEY` at
+  start could set a key, and Anthropic and OpenAI had no way in, so the
+  new-terminal form's "add its key in Settings" led nowhere.
+
 ### Added (2026-10-30, projects in the sidebar, new-terminal form)
 
 - The desktop sidebar lists projects under the tabs, each folding open

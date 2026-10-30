@@ -137,3 +137,18 @@ func (rt *Router) modelPage(ctx context.Context, p Provider, key, after string) 
 	}
 	return ids, body.HasMore, body.LastID, nil
 }
+
+// ForgetModels drops the cached model list of provider id, so the next
+// Models call asks the provider again: a new key may see other models.
+func (rt *Router) ForgetModels(id string) {
+	rt.models.mu.Lock()
+	defer rt.models.mu.Unlock()
+	delete(rt.models.at, id)
+	delete(rt.models.list, id)
+}
+
+// Serves reports whether id is a provider the router serves.
+func (rt *Router) Serves(id string) bool {
+	_, ok := rt.providers[id]
+	return ok
+}

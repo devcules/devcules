@@ -634,6 +634,35 @@ export async function listProviders(): Promise<ProviderState[] | 'unauthorized' 
   return 'unreachable';
 }
 
+// setProviderKey stores a provider's API key in serve's vault. The key
+// is never read back: the list only says whether one is set.
+export async function setProviderKey(id: string, key: string): Promise<true | 'unauthorized' | 'unreachable' | { refused: string }> {
+  const res = await terminalFetch(`/api/providers/${encodeURIComponent(id)}/key`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key }),
+  });
+  if (typeof res === 'string') {
+    return res === 'unauthorized' ? res : 'unreachable';
+  }
+  if (res.status === 204) {
+    return true;
+  }
+  const data: unknown = await res.json().catch(() => null);
+  if (isObject(data) && typeof data.error === 'string') {
+    return { refused: data.error };
+  }
+  return 'unreachable';
+}
+
+export async function removeProviderKey(id: string): Promise<true | 'unauthorized' | 'unreachable'> {
+  const res = await terminalFetch(`/api/providers/${encodeURIComponent(id)}/key`, { method: 'DELETE' });
+  if (typeof res === 'string') {
+    return res === 'unauthorized' ? res : 'unreachable';
+  }
+  return res.status === 204 ? true : 'unreachable';
+}
+
 // providerModels lists one provider's models, read by serve with its
 // key; a refusal (no key, the vendor erred) carries the reason.
 export async function providerModels(id: string): Promise<string[] | 'unauthorized' | 'unreachable' | { refused: string }> {

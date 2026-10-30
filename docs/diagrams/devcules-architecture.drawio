@@ -3542,6 +3542,8 @@ ARCH_16 — machine task view: screen/input/tree/ground over the link, budget at
                 <mxCell id="e20d" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;strokeColor=#6C8EBF;endArrow=block" value="link" edge="1" source="relay20" target="runner20"><mxGeometry relative="1" as="geometry"/></mxCell>
                 <mxCell id="e20e" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;strokeColor=#6C8EBF;endArrow=block" value="vault key" edge="1" source="router20" target="meta20"><mxGeometry relative="1" as="geometry"/></mxCell>
                 <mxCell id="e20f" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;strokeColor=#6C8EBF;endArrow=block" value="launch" edge="1" source="runner20" target="agents20"><mxGeometry relative="1" as="geometry"/></mxCell>
+            <mxCell id="keys20" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;align=left;verticalAlign=top;spacing=8" value="&lt;b&gt;Settings → Providers&lt;/b&gt;&lt;br&gt;PUT / DELETE /api/providers/{id}/key → vault provider/{id}/api_key (never read back) · audit provider.key.set/remove · drops the model cache · applies with no restart" vertex="1"><mxGeometry x="1080" y="420" width="300" height="110" as="geometry"/></mxCell>
+                <mxCell id="e20g" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=10;strokeColor=#6C8EBF;endArrow=block" value="" edge="1" source="keys20" target="router20"><mxGeometry relative="1" as="geometry"/></mxCell>
             </root>
         </mxGraphModel>
     </diagram>

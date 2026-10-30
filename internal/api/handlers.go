@@ -73,6 +73,8 @@ type Options struct {
 	// Projects stores the Projects tab's named directories; nil answers
 	// its routes with 503.
 	Projects store.ProjectsRepo
+	// ProviderKeys stores provider API keys from Settings (the vault).
+	ProviderKeys KeyWriter
 	// Machines relays the machine task view (screen, input, tree,
 	// grounding, done-verify) to the linked machine helpers. Nil
 	// answers those routes with 503; serve always passes a real one.
@@ -178,7 +180,7 @@ func Handler(o Options) http.Handler {
 	// Providers: which ones have a key, and each one's model list,
 	// fetched by serve with the vault key (never the browser).
 	mux.Handle("/api/providers", requireSession(o.Auth, providersRoot(o.Router)))
-	mux.Handle("/api/providers/", requireSession(o.Auth, providerModels(o.Router)))
+	mux.Handle("/api/providers/", requireSession(o.Auth, providerOne(o.Router, o.ProviderKeys, o.PublicURL, rec)))
 	mux.Handle("/api/launch-tokens", requireSession(o.Auth, launchesRoot(o.Launches, providers, o.PublicURL, rec)))
 	mux.Handle("/api/launch-tokens/", requireSession(o.Auth, launchOne(o.Launches, o.PublicURL, rec)))
 	// Audit and traces: reads need a session, and reading a trace or

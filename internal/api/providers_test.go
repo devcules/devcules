@@ -7,8 +7,11 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 
+	"github.com/devcules/devcules/internal/audit"
 	"github.com/devcules/devcules/internal/auth"
 	"github.com/devcules/devcules/internal/launch"
 	"github.com/devcules/devcules/internal/redact"
@@ -84,5 +87,126 @@ func TestProvidersRoutes(t *testing.T) {
 	}
 	if w := get("/api/providers", ""); w.Code != http.StatusUnauthorized {
 		t.Fatalf("no session = %d", w.Code)
+	}
+}
+
+// vaultKeys is a vault stand-in: Get for the router, Put and Delete for
+// Settings.
+type vaultKeys struct {
+	mu sync.Mutex
+	m  map[string][]byte
+}
+
+func (k *vaultKeys) Get(_ context.Context, name string) ([]byte, error) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	v, ok := k.m[name]
+	if !ok {
+		return nil, context.Canceled
+	}
+	return v, nil
+}
+
+func (k *vaultKeys) Put(_ context.Context, name string, v []byte) error {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	k.m[name] = v
+	return nil
+}
+
+func (k *vaultKeys) Delete(_ context.Context, name string) error {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	delete(k.m, name)
+	return nil
+}
+
+func TestProviderKeys(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s, err := sqlite.Open(ctx, filepath.Join(t.TempDir(), "t.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+	var models atomic.Int32
+	var sawKey atomic.Value
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		models.Add(1)
+		sawKey.Store(r.Header.Get("Authorization"))
+		_, _ = w.Write([]byte(`{"data":[{"id":"gpt-x"}]}`))
+	}))
+	t.Cleanup(up.Close)
+	svc := auth.New(s)
+	password, _, _ := svc.EnsureAdmin(ctx)
+	r, _ := redact.New(bytes.Repeat([]byte{7}, 32))
+	settings, _ := redact.LoadSettings(ctx, s.Meta())
+	keys := &vaultKeys{m: map[string][]byte{}}
+	rt, err := router.New(router.Options{Providers: []router.Provider{upProvider{"openai", up.URL}}, Keys: keys, Tokens: launch.New(s), Redactor: r, Settings: settings})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mux := Handler(Options{Store: s, Auth: svc, Web: testWeb(), Router: rt, ProviderKeys: keys, AuditLog: audit.New(s, nil)})
+	session := sessionCookie(t, mux, password)
+	do := func(method, path, body string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, path, strings.NewReader(body))
+		req.AddCookie(&http.Cookie{Name: auth.CookieName, Value: session})
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		return w
+	}
+
+	if w := do(http.MethodGet, "/api/providers", ""); !strings.Contains(w.Body.String(), `{"id":"openai","ready":false}`) {
+		t.Fatalf("before = %s", w.Body)
+	}
+	for body, want := range map[string]int{
+		`{"key":"short"}`:            http.StatusBadRequest,
+		`{"key":"has space inside"}`: http.StatusBadRequest,
+		`nope`:                       http.StatusBadRequest,
+	} {
+		if w := do(http.MethodPut, "/api/providers/openai/key", body); w.Code != want {
+			t.Errorf("PUT %s = %d, want %d", body, w.Code, want)
+		}
+	}
+	if w := do(http.MethodPut, "/api/providers/nope/key", `{"key":"sk-0123456789"}`); w.Code != http.StatusNotFound {
+		t.Fatalf("unknown provider = %d", w.Code)
+	}
+	if w := do(http.MethodPut, "/api/providers/openai/key", `{"key":" sk-first-0123456789 "}`); w.Code != http.StatusNoContent {
+		t.Fatalf("set = %d %s", w.Code, w.Body)
+	}
+	if w := do(http.MethodGet, "/api/providers", ""); !strings.Contains(w.Body.String(), `{"id":"openai","ready":true}`) || strings.Contains(w.Body.String(), "sk-first") {
+		t.Fatalf("after set = %s", w.Body)
+	}
+	if w := do(http.MethodGet, "/api/providers/openai/models", ""); w.Code != http.StatusOK || sawKey.Load() != "Bearer sk-first-0123456789" {
+		t.Fatalf("models = %d with %v", w.Code, sawKey.Load())
+	}
+	// Replacing the key drops the cached list: the next read asks again
+	// with the new key, no restart.
+	if w := do(http.MethodPut, "/api/providers/openai/key", `{"key":"sk-second-0123456789"}`); w.Code != http.StatusNoContent {
+		t.Fatalf("replace = %d", w.Code)
+	}
+	if w := do(http.MethodGet, "/api/providers/openai/models", ""); w.Code != http.StatusOK || models.Load() != 2 || sawKey.Load() != "Bearer sk-second-0123456789" {
+		t.Fatalf("models after replace: %d calls with %v", models.Load(), sawKey.Load())
+	}
+	if w := do(http.MethodDelete, "/api/providers/openai/key", ""); w.Code != http.StatusNoContent {
+		t.Fatalf("remove = %d", w.Code)
+	}
+	if w := do(http.MethodGet, "/api/providers/openai/models", ""); w.Code != http.StatusConflict {
+		t.Fatalf("models after remove = %d, want 409", w.Code)
+	}
+	if w := do(http.MethodPost, "/api/providers/openai/key", ""); w.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("POST = %d", w.Code)
+	}
+	// The audit names the provider, never the key.
+	var actions []string
+	for _, e := range auditActions(t, mux, session) {
+		actions = append(actions, e.Action+":"+e.Target)
+	}
+	got := strings.Join(actions, " ")
+	if !strings.Contains(got, "provider.key.set:openai") || !strings.Contains(got, "provider.key.remove:openai") {
+		t.Fatalf("audit = %s", got)
+	}
+	if w := do(http.MethodGet, "/api/audit", ""); strings.Contains(w.Body.String(), "sk-") {
+		t.Fatal("a key reached the audit log")
 	}
 }

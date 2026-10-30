@@ -12,6 +12,7 @@ import {
 import { credentialToJSON, passkeysUsableHere, toCreationOptions } from '../webauthn';
 import AccessModes from './AccessModes';
 import Notifications from './Notifications';
+import Providers from './Providers';
 import Redaction from './Redaction';
 
 // 'elsewhere': the server has passkeys on, but this page is open at
@@ -293,6 +294,7 @@ export default function Settings({
           </p>
         )}
       </section>
+      <Providers onSessionExpired={onSessionExpired} />
       <Redaction onSessionExpired={onSessionExpired} />
       <Notifications onSessionExpired={onSessionExpired} />
       <AccessModes onSessionExpired={onSessionExpired} />

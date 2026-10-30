@@ -28,6 +28,10 @@ key is in the vault) and fills the model list from
 provider's `GET v1/models` with the vault key (never the browser) and
 reuses for five minutes.
 
+A provider is ready once its key is in the vault: Settings →
+Providers adds, replaces or removes one per provider (`docs/vault.md`),
+and the change applies without a restart.
+
 `POST /api/agents {agent, provider?, model?, project?, name?}` checks
 that the agent speaks the provider (`400` otherwise), the router
 serves it and it has a key (`409` "add its key in Settings"), and

@@ -29,6 +29,19 @@ it, and stores the wrap. A set `META_API_KEY` is then stored as
 the environment. Redaction (M2.2) then mints its 32-byte placeholder
 key as `redact/hmac_key` (see `docs/redact.md`).
 
+## Provider keys from Settings
+
+Settings → Providers stores each model vendor's API key under
+`provider/<id>/api_key` (`router.KeySecret`): `PUT
+/api/providers/{id}/key {"key"}` and `DELETE /api/providers/{id}/key`,
+session plus CSRF, for the providers the router serves (`meta`,
+`anthropic`, `openai`). The key is sealed like every other secret and
+is never sent back, not even in part: `GET /api/providers` only says
+`ready`. The router reads the key on every call, so a change applies at
+once; it also drops that provider's cached model list. Audit records
+`provider.key.set` and `provider.key.remove` with the provider id only.
+`META_API_KEY` in serve's environment still seeds the Meta key on start.
+
 ## Wrong key
 
 If the configured key does not open the stored data key, serve stops

@@ -52,10 +52,13 @@ const (
 	MachineEnrol     = "machine.enrol"
 	MachineRemove    = "machine.remove"
 	// Projects: adding and forgetting one.
-	ProjectAdd     = "project.add"
-	ProjectRemove  = "project.remove"
-	maxField       = 200
-	maxDetailItems = 16
+	ProjectAdd    = "project.add"
+	ProjectRemove = "project.remove"
+	// Provider keys set or removed in Settings (target: the provider).
+	ProviderKeySet    = "provider.key.set"
+	ProviderKeyRemove = "provider.key.remove"
+	maxField          = 200
+	maxDetailItems    = 16
 )
 
 // Event is what a caller records. Actor is a username, or "system" or

@@ -4,6 +4,15 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-30, project remote icons)
+
+- The Projects list and the folder picker show a repository's host icon
+  (GitHub, GitLab or Azure DevOps) next to its name. `term.browse`
+  classifies each repository's origin host live on the runner; the
+  project list resolves `remote` per git project through the same link
+  (no schema change), so a moved origin updates the icon on the next
+  read.
+
 ### Fixed (2026-10-30, agent leftovers)
 
 - Codex 0.165 started a shared `codex app-server` daemon from the

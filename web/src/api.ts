@@ -498,6 +498,9 @@ export type Project = {
   dir: string;
   repo?: string;
   git?: boolean;
+  // remote is the repository's host: "github" | "gitlab" | "azure",
+  // resolved live over the link; absent for plain git or a folder.
+  remote?: string;
   createdAt: string;
 };
 export type ProjectList = { projects: Project[]; runners: string[]; machines: string[] };
@@ -584,7 +587,7 @@ export type Browsed = {
   workspace: string;
   home?: string;
   git?: boolean;
-  entries: Array<{ name: string; git?: boolean; hidden?: boolean }>;
+  entries: Array<{ name: string; git?: boolean; hidden?: boolean; remote?: string }>;
   truncated?: boolean;
 };
 

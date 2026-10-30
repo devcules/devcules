@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { browse, type Browsed, type Where } from '../api';
+import RemoteIcon from './RemoteIcon';
 
 // DirPicker browses folders on a runner or machine so a project can be
 // picked instead of typed. A tap selects a folder; Open goes into it.
@@ -138,7 +139,7 @@ export default function DirPicker({
                   selected === path ? 'bg-text text-base' : 'text-text'
                 }`}
               >
-                <span aria-hidden="true">{e.git ? '⎇' : '▸'}</span>
+                <span aria-hidden="true">{e.git ? <RemoteIcon remote={e.remote} size={12} /> : '▸'}</span>
                 <span className="truncate">{e.name}</span>
                 {e.git && <span className="rounded bg-surface px-1.5 text-body text-muted">git</span>}
               </button>

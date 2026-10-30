@@ -3,6 +3,7 @@ package pty
 import (
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -32,7 +33,7 @@ func (m *Manager) Browse(dir string) (terminals.Browsed, error) {
 	if err != nil {
 		return terminals.Browsed{}, errors.New("directory not found")
 	}
-	out := terminals.Browsed{Path: path, Workspace: m.workspace, Git: isRepo(path), Entries: []terminals.DirEntry{}}
+	out := terminals.Browsed{Path: path, Workspace: m.workspace, Git: isRepo(path), Remote: remoteOf(path), Entries: []terminals.DirEntry{}}
 	if parent := filepath.Dir(path); parent != path {
 		out.Parent = parent
 	}
@@ -48,10 +49,12 @@ func (m *Manager) Browse(dir string) (terminals.Browsed, error) {
 			break
 		}
 		name := e.Name()
+		sub := filepath.Join(path, name)
 		out.Entries = append(out.Entries, terminals.DirEntry{
 			Name:   name,
-			Git:    isRepo(filepath.Join(path, name)),
+			Git:    isRepo(sub),
 			Hidden: strings.HasPrefix(name, "."),
+			Remote: remoteOf(sub),
 		})
 	}
 	sort.Slice(out.Entries, func(i, j int) bool {
@@ -77,4 +80,16 @@ func isDir(parent string, e os.DirEntry) bool {
 func isRepo(dir string) bool {
 	_, err := os.Stat(filepath.Join(dir, ".git"))
 	return err == nil
+}
+
+// remoteOf reads origin's URL and classifies its host (github, gitlab,
+// azure). A repo without an origin, or on a host we don't recognise,
+// stays empty. Cheap enough to run per folder: one short-lived git
+// child, no daemon.
+func remoteOf(dir string) string {
+	out, err := exec.Command("git", "-C", dir, "remote", "get-url", "origin").Output()
+	if err != nil {
+		return ""
+	}
+	return terminals.DetectRemote(strings.TrimSpace(string(out)))
 }

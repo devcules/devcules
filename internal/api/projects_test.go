@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -251,10 +252,19 @@ func TestBrowseRoute(t *testing.T) {
 	pty.Serve(ctx, c, m, nil)
 
 	root := t.TempDir()
-	for _, d := range []string{"shop/.git", "notes"} {
+	for _, d := range []string{"shop", "notes"} {
 		if err := os.MkdirAll(filepath.Join(root, d), 0o755); err != nil {
 			t.Fatal(err)
 		}
+	}
+	// shop is a real repo on github, so remoteOf reads its origin URL.
+	// notes stays a plain folder.
+	initCmd := exec.Command("git", "init", "-q", filepath.Join(root, "shop"))
+	if out, err := initCmd.CombinedOutput(); err != nil {
+		t.Skipf("git unavailable: %v: %s", err, out)
+	}
+	if out, err := exec.Command("git", "-C", filepath.Join(root, "shop"), "remote", "add", "origin", "git@github.com:acme/shop.git").CombinedOutput(); err != nil {
+		t.Fatalf("git remote add: %v: %s", err, out)
 	}
 	w := projectRequest(t, mux, http.MethodGet, "/api/browse?path="+root, session, "")
 	if w.Code != http.StatusOK {
@@ -264,12 +274,16 @@ func TestBrowseRoute(t *testing.T) {
 		Path    string `json:"path"`
 		Parent  string `json:"parent"`
 		Entries []struct {
-			Name string `json:"name"`
-			Git  bool   `json:"git"`
+			Name   string `json:"name"`
+			Git    bool   `json:"git"`
+			Remote string `json:"remote"`
 		} `json:"entries"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil || len(got.Entries) != 2 || got.Entries[1].Name != "shop" || !got.Entries[1].Git || got.Entries[0].Git {
 		t.Fatalf("browse body = %q", w.Body.String())
+	}
+	if got.Entries[1].Remote != "github" || got.Entries[0].Remote != "" {
+		t.Fatalf("remote codes = %q", w.Body.String())
 	}
 	if w := projectRequest(t, mux, http.MethodGet, "/api/browse?path="+filepath.Join(root, "missing"), session, ""); w.Code != http.StatusNotFound {
 		t.Fatalf("missing = %d", w.Code)

@@ -55,3 +55,11 @@ off under reduced motion. */
     animation: none !important;
   }
 }
+
+/* GitHub's brand mark is near-black; on the default dark background
+invert it to a light tone. Light mode (OS follows) keeps it as-is. */
+@media (prefers-color-scheme: dark) {
+  .remote-tint {
+    filter: invert(0.85) brightness(1.1);
+  }
+}

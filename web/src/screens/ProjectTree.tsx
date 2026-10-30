@@ -9,6 +9,7 @@ import {
   type TerminalSummary,
   type Where,
 } from '../api';
+import RemoteIcon from './RemoteIcon';
 
 // ProjectTree lists the projects, each folding open to its own
 // terminals: the sidebar shows it on desktop and the Projects tab on
@@ -143,8 +144,8 @@ export default function ProjectTree({
                 <span aria-hidden="true" className="w-3 text-muted">
                   {isOpen ? '▾' : '▸'}
                 </span>
-                <span aria-hidden="true" className={up ? 'text-text' : 'text-muted'} title={p.git ? 'git repo' : 'folder'}>
-                  {p.git ? '⎇' : '▢'}
+                <span aria-hidden="true" className={up ? 'text-text' : 'text-muted'}>
+                  {p.git ? <RemoteIcon remote={p.remote} size={13} /> : '▢'}
                 </span>
                 <span className="min-w-0 flex-1 truncate">{p.name}</span>
                 <span className="text-body text-muted">{list.length}</span>

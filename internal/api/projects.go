@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"errors"
@@ -42,7 +43,9 @@ func projectTarget(p store.Project) string {
 
 var projectNameRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._ -]{0,63}$`)
 
-// projectJSON is a project as the Projects tab sees it.
+// projectJSON is a project as the Projects tab sees it. Remote is the
+// repository's host (github, gitlab, azure) resolved live over the
+// link, so a moved origin shows without a migration.
 type projectJSON struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
@@ -51,11 +54,44 @@ type projectJSON struct {
 	Dir       string `json:"dir"`
 	Repo      string `json:"repo,omitempty"`
 	Git       bool   `json:"git,omitempty"`
+	Remote    string `json:"remote,omitempty"`
 	CreatedAt string `json:"createdAt"`
 }
 
 func toProjectJSON(p store.Project) projectJSON {
 	return projectJSON{ID: p.ID, Name: p.Name, Kind: p.Kind, Target: p.Target, Dir: p.Dir, Repo: p.Repo, Git: p.Git, CreatedAt: p.CreatedAt.UTC().Format(time.RFC3339)}
+}
+
+// projectRemotes resolves each git project's host (github/gitlab/azure)
+// through one browse of its parent directory per link: the runner reads
+// each subdir's origin URL in one round trip. Offline links and
+// unclassified hosts are simply absent from the map — the list cannot
+// fail over an icon.
+func projectRemotes(ctx context.Context, rl *relay.Relay, list []store.Project) map[string]string {
+	out := map[string]string{}
+	if rl == nil {
+		return out
+	}
+	for _, p := range list {
+		if !p.Git {
+			continue
+		}
+		parent, base := path.Split(strings.TrimSuffix(p.Dir, "/"))
+		if base == "" {
+			continue
+		}
+		b, rerr := rl.Browse(ctx, projectTarget(p), strings.TrimSuffix(parent, "/"))
+		if rerr != nil {
+			continue
+		}
+		for _, e := range b.Entries {
+			if e.Name == base && e.Remote != "" {
+				out[p.ID] = e.Remote
+				break
+			}
+		}
+	}
+	return out
 }
 
 // newProjectID is "p_" plus 20 lowercase base36 characters.
@@ -100,9 +136,12 @@ func projectsRoot(repo store.ProjectsRepo, rl *relay.Relay, publicURL string, re
 				writeAuthError(w, http.StatusInternalServerError, "project list failed")
 				return
 			}
+			remotes := projectRemotes(r.Context(), rl, list)
 			out := []projectJSON{}
 			for _, p := range list {
-				out = append(out, toProjectJSON(p))
+				j := toProjectJSON(p)
+				j.Remote = remotes[p.ID]
+				out = append(out, j)
 			}
 			// The live runners and machines ride along so the add form
 			// can offer them.
@@ -189,7 +228,9 @@ func addProject(w http.ResponseWriter, r *http.Request, repo store.ProjectsRepo,
 		return
 	}
 	rec.record(r, audit.ProjectAdd, p.ID, map[string]string{"name": p.Name, "kind": p.Kind, "target": p.Target, "dir": p.Dir, "repo": p.Repo})
-	writeJSON(w, http.StatusCreated, map[string]any{"project": toProjectJSON(p), "terminal": termID})
+	j := toProjectJSON(p)
+	j.Remote = projectRemotes(r.Context(), rl, []store.Project{p})[p.ID]
+	writeJSON(w, http.StatusCreated, map[string]any{"project": j, "terminal": termID})
 }
 
 // projectOne serves /api/projects/{id}: DELETE forgets the project

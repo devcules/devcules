@@ -50,11 +50,13 @@ new terminal on that router provider (`docs/agents.md`), and a place:
   `name` in `term.listed`.
 
 `term.browse {path}` answers `term.browsed {path, parent, workspace,
-home, git, entries:[{name, git, hidden}], truncated}`: the
-subdirectories of one directory (absolute, or relative to the
+home, git, remote?, entries:[{name, git, hidden, remote?}], truncated}`:
+the subdirectories of one directory (absolute, or relative to the
 workspace; empty is the workspace), sorted, at most 500, symlinks to
-folders followed. `git` marks a folder holding `.git`. Names only:
-no file is read. It backs the folder picker that adds a project.
+folders followed. `git` marks a folder holding `.git`; `remote` is that
+repository's host when it is known (`github`, `gitlab` or `azure`, from
+`git remote get-url origin`), empty otherwise. Names only: no file is
+read. It backs the folder picker that adds a project.
 
 Machines answer the same frames: `devcules machine` serves tmux
 terminals over its own link (unless `DEVCULES_MACHINE_SHELL=off`), so
@@ -182,4 +184,7 @@ same tree on phones. Adding a project uses a folder picker over
 `GET /api/browse` that marks repositories (a picked repo is stored with
 `git`), and a project's + opens one form: an optional name, then a
 shell or an installed agent with its provider and model
-(`docs/agents.md`).
+(`docs/agents.md`). The list and the picker show each repository's host
+icon (github, gitlab or azure) from the live browse: `GET /api/projects`
+resolves `remote` per git project through one round trip per link, so a
+moved origin updates the icon with no migration.

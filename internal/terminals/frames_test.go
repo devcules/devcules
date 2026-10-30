@@ -191,3 +191,22 @@ func TestValidName(t *testing.T) {
 		t.Error("CheckOpen accepted a bad name")
 	}
 }
+
+func TestDetectRemote(t *testing.T) {
+	for url, want := range map[string]string{
+		"https://github.com/acme/shop.git":      "github",
+		"git@github.com:acme/shop.git":          "github",
+		"https://gitlab.com/acme/shop.git":      "gitlab",
+		"ssh://git@gitlab.acme.internal/group":  "gitlab",
+		"https://dev.azure.com/acme/team/_git/x": "azure",
+		"git@ssh.dev.azure.com:v3/acme/team/x":  "azure",
+		"https://acme.visualstudio.com/x":       "azure",
+		"https://codeberg.org/acme/shop":        "",
+		"git@host:acme/plain.git":               "",
+		"":                                      "",
+	} {
+		if got := DetectRemote(url); got != want {
+			t.Errorf("DetectRemote(%q) = %q, want %q", url, got, want)
+		}
+	}
+}

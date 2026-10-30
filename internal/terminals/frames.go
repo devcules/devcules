@@ -49,10 +49,29 @@ type Browse struct {
 
 // DirEntry is one subdirectory. Git marks a repository (it holds .git);
 // Hidden marks a dot-name, which the picker folds away by default.
+// Remote is the repository's host when known: "github", "gitlab" or
+// "azure"; empty for anything else (plain git, no origin).
 type DirEntry struct {
 	Name   string `json:"name"`
 	Git    bool   `json:"git,omitempty"`
 	Hidden bool   `json:"hidden,omitempty"`
+	Remote string `json:"remote,omitempty"`
+}
+
+// DetectRemote classifies a git remote URL to a known host: "github",
+// "gitlab" or "azure"; "" for anything else (plain git, no origin,
+// unrecognised self-hosted).
+func DetectRemote(remote string) string {
+	r := strings.ToLower(remote)
+	switch {
+	case strings.Contains(r, "github.com"):
+		return "github"
+	case strings.Contains(r, "gitlab"):
+		return "gitlab"
+	case strings.Contains(r, "dev.azure.com") || strings.Contains(r, "visualstudio.com"):
+		return "azure"
+	}
+	return ""
 }
 
 // Browsed answers term.browse: the resolved absolute path, its parent
@@ -65,6 +84,7 @@ type Browsed struct {
 	Workspace string     `json:"workspace"`
 	Home      string     `json:"home,omitempty"`
 	Git       bool       `json:"git,omitempty"`
+	Remote    string     `json:"remote,omitempty"`
 	Entries   []DirEntry `json:"entries"`
 	Truncated bool       `json:"truncated,omitempty"`
 }

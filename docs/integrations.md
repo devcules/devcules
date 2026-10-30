@@ -25,7 +25,10 @@ Checked 2026-10-29 at <https://dev.meta.ai/docs>. Used by
 | Rate limits | `x-ratelimit-*` headers; `Retry-After` on `429` and `503` |
 
 The router forwards both API styles unchanged apart from redaction, so
-an OpenAI SDK and an Anthropic SDK can both use the same key.
+an OpenAI SDK and an Anthropic SDK can both use the same key. That is
+what lets Claude Code (Anthropic Messages, base `/llm/meta`) and Codex
+(Responses, base `/llm/meta/v1`) run on a Meta key with a Meta model
+picked from `GET /v1/models` (`docs/agents.md`, Choosing a provider).
 
 ## Model Context Protocol
 

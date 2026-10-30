@@ -4,6 +4,17 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-30, pick the provider for an agent)
+
+- Claude Code and Codex can run on Meta (its Anthropic Messages and
+  Responses APIs) as well as their own vendor; Muse Code stays on
+  Meta. `POST /api/agents` takes `provider` and `name`, the launch
+  token is minted for that provider, and the adapters build the router
+  path from it and refuse a provider they cannot speak.
+- `GET /api/providers` (which have a key) and
+  `GET /api/providers/{id}/models` (the provider's own list, read by
+  serve with the vault key, cached five minutes).
+
 ### Added (2026-10-30, folder picker and terminal names)
 
 - `term.browse` on runners and machines and `GET /api/browse`: list a

@@ -27,6 +27,10 @@ type Launch struct {
 	Token string
 	// Model is the model to start with; "" is the adapter's default.
 	Model string
+	// Provider is the router provider to call, one of the agent's
+	// Providers(); "" is its own. The router path is
+	// ServeURL + "/llm/" + provider.
+	Provider string
 	// Dir is the launch's private dir (0700, removed with the
 	// terminal). Spec.Files paths are relative to it.
 	Dir string
@@ -71,7 +75,11 @@ type Reply struct {
 type Agent interface {
 	ID() string       // "musecode"
 	Name() string     // "Muse Code"
-	Provider() string // the router provider it calls: "meta"
+	Provider() string // its own router provider: "meta"
+	// Providers lists every router provider it can speak to, its own
+	// first: Claude Code speaks Anthropic Messages, which Meta serves
+	// too, so ["anthropic", "meta"].
+	Providers() []string
 	// Detect reports the installed version, if any.
 	Detect(ctx context.Context) (version string, ok bool)
 	// InstallHint is the documented install command, shown to the
@@ -82,6 +90,21 @@ type Agent interface {
 	HookCall(stdin []byte) (Call, error)
 	// HookAnswer turns the outcome into the agent's hook reply.
 	HookAnswer(a Answer) Reply
+}
+
+// ProviderFor resolves the provider a launch calls: p, or the agent's
+// own when p is empty. A provider the agent cannot speak is an error,
+// so an adapter never points a CLI at a wire format it does not use.
+func ProviderFor(a Agent, p string) (string, error) {
+	if p == "" {
+		return a.Provider(), nil
+	}
+	for _, q := range a.Providers() {
+		if q == p {
+			return p, nil
+		}
+	}
+	return "", fmt.Errorf("%s: cannot use provider %q (it speaks %s)", a.ID(), p, strings.Join(a.Providers(), ", "))
 }
 
 // Registry holds the adapters a runner offers.
@@ -122,7 +145,7 @@ func (r *Registry) Agents(ctx context.Context) []terminals.AgentInfo {
 			defer func() { done <- struct{}{} }()
 			v, ok := a.Detect(ctx)
 			out[i] = terminals.AgentInfo{ID: a.ID(), Name: a.Name(), Provider: a.Provider(),
-				Installed: ok, Version: v, Install: a.InstallHint()}
+				Providers: a.Providers(), Installed: ok, Version: v, Install: a.InstallHint()}
 		}()
 	}
 	for range r.agents {
@@ -138,7 +161,7 @@ func (r *Registry) Spec(a terminals.AgentLaunch, dir string) (Spec, error) {
 	if !ok {
 		return Spec{}, fmt.Errorf("unknown agent %q", a.ID)
 	}
-	l := Launch{ServeURL: r.serveURL, Token: a.Token, Model: a.Model, Dir: dir,
+	l := Launch{ServeURL: r.serveURL, Token: a.Token, Model: a.Model, Provider: a.Provider, Dir: dir,
 		Hook: HookCommand(r.serveURL, filepath.Join(dir, TokenFile), r.exe, r.home, a.ID)}
 	spec, err := ag.LaunchSpec(l)
 	if err != nil {

@@ -16,15 +16,16 @@ const (
 	// hookTimeout is the hook's limit in seconds: longer than an
 	// approval's 10 minutes plus the hook's retries.
 	hookTimeout = 960
-	// routerPath is the provider's base_url. Codex's own OpenAI base
-	// ends in /v1 and it adds /responses, so the base carries the
-	// router's /v1.
-	routerPath = "/llm/openai/v1"
 	// Env vars the config names: the provider key and the MCP bearer
 	// token, both the launch token.
 	keyEnv = "DEVCULES_LLM_KEY"
 	mcpEnv = "DEVCULES_MCP_TOKEN"
 )
+
+// routerPath is the provider's base_url for router provider p. Codex's
+// own OpenAI base ends in /v1 and it adds /responses, so the base
+// carries the router's /v1; Meta serves v1/responses as well.
+func routerPath(p string) string { return "/llm/" + p + "/v1" }
 
 // Agent is the Codex adapter.
 type Agent struct{}
@@ -41,6 +42,10 @@ func (Agent) Name() string { return "Codex" }
 // Provider is "openai": Codex calls the router's OpenAI provider
 // through the Responses API.
 func (Agent) Provider() string { return "openai" }
+
+// Providers: OpenAI, and Meta, which serves the Responses API
+// (v1/responses) too.
+func (Agent) Providers() []string { return []string{"openai", "meta"} }
 
 // InstallHint is the documented installer.
 func (Agent) InstallHint() string { return installHint }
@@ -95,6 +100,10 @@ func (Agent) LaunchSpec(l agents.Launch) (agents.Spec, error) {
 	if l.ServeURL == "" || l.Token == "" || l.Dir == "" || l.Hook == "" {
 		return agents.Spec{}, fmt.Errorf("codex: incomplete launch")
 	}
+	provider, err := agents.ProviderFor(Agent{}, l.Provider)
+	if err != nil {
+		return agents.Spec{}, err
+	}
 	var lines []string
 	if l.Model != "" {
 		lines = append(lines, "model = "+tomlString(l.Model))
@@ -104,7 +113,7 @@ func (Agent) LaunchSpec(l agents.Launch) (agents.Spec, error) {
 		"",
 		"[model_providers.devcules]",
 		`name = "Devcules"`,
-		"base_url = "+tomlString(l.ServeURL+routerPath),
+		"base_url = "+tomlString(l.ServeURL+routerPath(provider)),
 		"env_key = "+tomlString(keyEnv),
 		`wire_api = "responses"`,
 		"",

@@ -16,10 +16,11 @@ const (
 	// approval's 10 minutes plus the hook's retries, because Claude
 	// Code runs a call whose hook timed out.
 	hookTimeout = 960
-	// routerPath is ANTHROPIC_BASE_URL: Claude Code appends
-	// /v1/messages itself.
-	routerPath = "/llm/anthropic"
 )
+
+// routerPath is ANTHROPIC_BASE_URL for provider p: Claude Code appends
+// /v1/messages itself, which both Anthropic and Meta serve.
+func routerPath(p string) string { return "/llm/" + p }
 
 // Agent is the Claude Code adapter.
 type Agent struct{}
@@ -35,6 +36,10 @@ func (Agent) Name() string { return "Claude Code" }
 
 // Provider is "anthropic": the router's Anthropic provider.
 func (Agent) Provider() string { return "anthropic" }
+
+// Providers: Anthropic, and Meta, which serves the Anthropic Messages
+// API (v1/messages) too.
+func (Agent) Providers() []string { return []string{"anthropic", "meta"} }
 
 // InstallHint is the documented installer.
 func (Agent) InstallHint() string { return installHint }
@@ -83,6 +88,10 @@ func (Agent) LaunchSpec(l agents.Launch) (agents.Spec, error) {
 	if l.ServeURL == "" || l.Token == "" || l.Dir == "" || l.Hook == "" {
 		return agents.Spec{}, fmt.Errorf("claudecode: incomplete launch")
 	}
+	provider, err := agents.ProviderFor(Agent{}, l.Provider)
+	if err != nil {
+		return agents.Spec{}, err
+	}
 	s, err := json.MarshalIndent(settings{Hooks: map[string][]matcher{"PreToolUse": {{Matcher: "*", Hooks: []handler{{
 		Type: "command", Command: l.Hook, Timeout: hookTimeout, StatusMessage: "Checking with Devcules"}}}}}}, "", "  ")
 	if err != nil {
@@ -96,7 +105,7 @@ func (Agent) LaunchSpec(l agents.Launch) (agents.Spec, error) {
 	cmd := []string{"claude"}
 	env := map[string]string{
 		"CLAUDE_CONFIG_DIR":                        filepath.Join(l.Dir, "claude"),
-		"ANTHROPIC_BASE_URL":                       l.ServeURL + routerPath,
+		"ANTHROPIC_BASE_URL":                       l.ServeURL + routerPath(provider),
 		"ANTHROPIC_AUTH_TOKEN":                     l.Token,
 		"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
 	}

@@ -16,12 +16,16 @@ type toy struct{}
 func (toy) ID() string                            { return "toy" }
 func (toy) Name() string                          { return "Toy" }
 func (toy) Provider() string                      { return "meta" }
+func (toy) Providers() []string                   { return []string{"meta"} }
 func (toy) Detect(context.Context) (string, bool) { return "", false }
 func (toy) InstallHint() string                   { return "install toy" }
 
 func (toy) LaunchSpec(l agents.Launch) (agents.Spec, error) {
 	if l.ServeURL == "" || l.Token == "" || l.Hook == "" {
 		return agents.Spec{}, errors.New("incomplete launch")
+	}
+	if _, err := agents.ProviderFor(toy{}, l.Provider); err != nil {
+		return agents.Spec{}, err
 	}
 	cfg, _ := json.Marshal(map[string]string{
 		"base": l.ServeURL + "/llm/meta/v1", "mcp": l.ServeURL + "/mcp", "model": l.Model, "hook": l.Hook,

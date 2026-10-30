@@ -32,7 +32,7 @@ type fakeAgents struct{}
 
 func (fakeAgents) Agents(context.Context) []terminals.AgentInfo {
 	return []terminals.AgentInfo{
-		{ID: "fake", Name: "Fake", Provider: "meta", Installed: true, Version: "1.0.0"},
+		{ID: "fake", Name: "Fake", Provider: "meta", Providers: []string{"meta", "openai"}, Installed: true, Version: "1.0.0"},
 		{ID: "absent", Name: "Absent", Provider: "meta", Install: "curl -fsSL https://example.com/install.sh | sh"},
 		{ID: "other", Name: "Other", Provider: "nope", Installed: true},
 		{ID: "broken", Name: "Broken", Provider: "meta", Installed: true},
@@ -47,6 +47,17 @@ func (fakeAgents) Launch(_ context.Context, a terminals.AgentLaunch, _ string) (
 		Cmd: []string{"sh", "-c", `echo "started-$((6*7)) model-$FAKE_MODEL token-${FAKE_TOKEN:+set}"`},
 		Env: map[string]string{"FAKE_TOKEN": a.Token, "FAKE_MODEL": a.Model},
 	}, nil
+}
+
+// metaKey holds a key for the meta provider only: openai is served
+// but has no key yet.
+type metaKey struct{}
+
+func (metaKey) Get(_ context.Context, name string) ([]byte, error) {
+	if name == router.KeySecret("meta") {
+		return []byte("meta-test-key"), nil
+	}
+	return nil, context.Canceled
 }
 
 type agentFix struct {
@@ -74,7 +85,7 @@ func agentFixture(t *testing.T) agentFix {
 	r, _ := redact.New(bytes.Repeat([]byte{7}, 32))
 	settings, _ := redact.LoadSettings(ctx, s.Meta())
 	tokens := launch.New(s)
-	rt, err := router.New(router.Options{Providers: []router.Provider{namedProvider("meta")}, Keys: noKeys{}, Tokens: tokens, Redactor: r, Settings: settings})
+	rt, err := router.New(router.Options{Providers: []router.Provider{namedProvider("meta"), namedProvider("openai")}, Keys: metaKey{}, Tokens: tokens, Redactor: r, Settings: settings})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,6 +144,10 @@ func TestAgentsAPI(t *testing.T) {
 		`{"agent":"fake","model":"a b"}`:     http.StatusBadRequest,
 		`nope`:                               http.StatusBadRequest,
 		`{"agent":"broken","model":"m-1.0"}`: http.StatusBadGateway,
+		// Provider choice: one it cannot speak, one with no key yet.
+		`{"agent":"fake","provider":"anthropic","model":"x"}`: http.StatusBadRequest,
+		`{"agent":"fake","provider":"openai","model":"x"}`:    http.StatusConflict,
+		`{"agent":"fake","name":"bad\tname"}`:                 http.StatusBadRequest,
 	} {
 		if w := doJSON(f.mux, http.MethodPost, "/api/agents", body, f.session); w.Code != want {
 			t.Errorf("POST %s = %d %s, want %d", body, w.Code, w.Body, want)
@@ -149,7 +164,11 @@ func TestAgentsAPI(t *testing.T) {
 		t.Fatalf("tokens after a failed launch = %+v", list)
 	}
 
-	w = doJSON(f.mux, http.MethodPost, "/api/agents", `{"agent":"fake","model":"m-1.0"}`, f.session)
+	w = doJSON(f.mux, http.MethodPost, "/api/agents", `{"agent":"fake","provider":"openai","model":"x"}`, f.session)
+	if !strings.Contains(w.Body.String(), "add its key in Settings") {
+		t.Errorf("no key = %s, want the next step", w.Body)
+	}
+	w = doJSON(f.mux, http.MethodPost, "/api/agents", `{"agent":"fake","model":"m-1.0","provider":"meta","name":"review bot"}`, f.session)
 	var started struct {
 		ID     string
 		Launch launch.Launch
@@ -161,7 +180,7 @@ func TestAgentsAPI(t *testing.T) {
 	}
 
 	w = terminalRequest(t, f.mux, http.MethodGet, "/api/terminals", f.session)
-	if !strings.Contains(w.Body.String(), `"agent":"fake"`) {
+	if !strings.Contains(w.Body.String(), `"agent":"fake"`) || !strings.Contains(w.Body.String(), `"name":"review bot"`) {
 		t.Fatalf("terminals = %s, want the agent label", w.Body)
 	}
 	conn := dialTerminalStream(t, f.pipe, ctx, f.session, "/api/terminals/"+started.ID+"/stream?cols=80&rows=24", nil)

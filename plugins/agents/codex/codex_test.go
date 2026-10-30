@@ -88,3 +88,17 @@ func TestLaunchWithoutModel(t *testing.T) {
 		t.Fatalf("no model asked, yet cmd %v config %s", spec.Cmd, spec.Files["codex/config.toml"])
 	}
 }
+
+// TestLaunchOnMeta points Codex at Meta's Responses API.
+func TestLaunchOnMeta(t *testing.T) {
+	spec, err := New().LaunchSpec(agents.Launch{ServeURL: "http://serve:7659", Token: "tok", Dir: "/run/l", Hook: "HOOK", Model: "muse-spark-1.3", Provider: "meta"})
+	if err != nil {
+		t.Fatalf("LaunchSpec: %s", err)
+	}
+	if !strings.Contains(string(spec.Files["codex/config.toml"]), `base_url = "http://serve:7659/llm/meta/v1"`) {
+		t.Fatalf("config.toml = %s", spec.Files["codex/config.toml"])
+	}
+	if _, err := New().LaunchSpec(agents.Launch{ServeURL: "http://s", Token: "t", Dir: "/d", Hook: "h", Provider: "anthropic"}); err == nil {
+		t.Fatal("Codex accepted the Anthropic provider")
+	}
+}

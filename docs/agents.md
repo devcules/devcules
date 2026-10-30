@@ -10,11 +10,34 @@ runner role owns them; serve only relays the launch. `internal` never
 imports them: `cmd/devcules` passes them to the runner's terminal
 manager behind the small `pty.Launcher` interface.
 
-| Agent | Package | Provider | Since |
-|---|---|---|---|
-| Muse Code | `plugins/agents/musecode` | `meta` | M3.3 |
-| Claude Code | `plugins/agents/claudecode` | `anthropic` | M3.4 |
-| Codex | `plugins/agents/codex` | `openai` | M3.4 |
+| Agent | Package | Providers (own first) | Router path | Since |
+|---|---|---|---|---|
+| Muse Code | `plugins/agents/musecode` | `meta` | `/llm/meta/v1` | M3.3 |
+| Claude Code | `plugins/agents/claudecode` | `anthropic`, `meta` | `/llm/<p>` (it adds `/v1/messages`) | M3.4 |
+| Codex | `plugins/agents/codex` | `openai`, `meta` | `/llm/<p>/v1` (it adds `/responses`) | M3.4 |
+
+## Choosing a provider
+
+An agent can run on any provider it speaks (`Agent.Providers()`, its
+own first): Meta serves both the Anthropic Messages API and the
+OpenAI Responses API (`docs/integrations.md`), so Claude Code and
+Codex can run on a Meta key. The new-terminal form lists the agent's
+providers from `GET /api/providers` (`[{id, ready}]`: ready means a
+key is in the vault) and fills the model list from
+`GET /api/providers/{id}/models`, which serve reads from the
+provider's `GET v1/models` with the vault key (never the browser) and
+reuses for five minutes.
+
+`POST /api/agents {agent, provider?, model?, project?, name?}` checks
+that the agent speaks the provider (`400` otherwise), the router
+serves it and it has a key (`409` "add its key in Settings"), and
+that a model is given when the provider is not the agent's own
+(another vendor has no model by the agent's default name). The launch
+token is minted for the chosen provider, so the router refuses any
+other (`launch.Launch.Allows`), `term.open` carries
+`agent.provider`, and the adapter builds its router path from it; an
+adapter refuses a provider it cannot speak. `agent.launch` audits the
+provider.
 
 ## A launch
 
@@ -23,7 +46,8 @@ manager behind the small `pty.Launcher` interface.
 2. Serve asks the runner which agents it offers (`term.agents`), and
    refuses with `404` when the runner has no such adapter, or `409`
    when the CLI is not installed there (the answer carries the
-   documented install command) or the router lacks its provider.
+   documented install command), or the provider is not served or has
+   no key (see Choosing a provider).
 3. Serve mints a launch token tied to that runner and provider
    (audited `launch.mint`), and sends `term.open` with
    `{agent: {id, token, model}}`.

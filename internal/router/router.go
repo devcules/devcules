@@ -54,6 +54,7 @@ type Options struct {
 type Router struct {
 	providers map[string]Provider
 	o         Options
+	models    modelCache
 }
 
 // New builds a Router. Providers with a duplicate id are a wiring bug.

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/devcules/devcules/internal/approvals"
@@ -20,7 +21,7 @@ import (
 // runner's access mode; POST {"agent", "model"} starts one in a new
 // terminal with a fresh launch token tied to that runner. POST adds
 // the CSRF check.
-func agentsRoot(rl *relay.Relay, tokens *launch.Tokens, queue *approvals.Service, projects store.ProjectsRepo, providers func() []string, publicURL string, rec auditor) http.Handler {
+func agentsRoot(rl *relay.Relay, tokens *launch.Tokens, queue *approvals.Service, projects store.ProjectsRepo, providers func() []string, ready func(context.Context, string) bool, publicURL string, rec auditor) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if rl == nil {
 			writeAuthError(w, http.StatusServiceUnavailable, "no runner linked")
@@ -49,7 +50,7 @@ func agentsRoot(rl *relay.Relay, tokens *launch.Tokens, queue *approvals.Service
 			}{runner, mode, list})
 		case http.MethodPost:
 			csrf(publicURL, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				startAgent(w, r, rl, tokens, projects, providers, rec)
+				startAgent(w, r, rl, tokens, projects, providers, ready, rec)
 			})).ServeHTTP(w, r)
 		default:
 			w.Header().Set("Allow", "GET, POST")
@@ -60,20 +61,24 @@ func agentsRoot(rl *relay.Relay, tokens *launch.Tokens, queue *approvals.Service
 
 // startAgent mints the launch token, then opens the agent terminal;
 // a failed open revokes the token again.
-func startAgent(w http.ResponseWriter, r *http.Request, rl *relay.Relay, tokens *launch.Tokens, projects store.ProjectsRepo, providers func() []string, rec auditor) {
+func startAgent(w http.ResponseWriter, r *http.Request, rl *relay.Relay, tokens *launch.Tokens, projects store.ProjectsRepo, providers func() []string, ready func(context.Context, string) bool, rec auditor) {
 	if tokens == nil {
 		writeAuthError(w, http.StatusServiceUnavailable, "launch tokens not configured")
 		return
 	}
 	var body struct {
-		Agent   string `json:"agent"`
-		Model   string `json:"model"`
-		Project string `json:"project"`
+		Agent    string `json:"agent"`
+		Model    string `json:"model"`
+		Project  string `json:"project"`
+		Provider string `json:"provider"`
+		Name     string `json:"name"`
 	}
 	if json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&body) != nil ||
 		!terminals.ValidAgentID(body.Agent) || (body.Model != "" && !terminals.ValidModel(body.Model)) ||
-		(body.Project != "" && !terminals.ValidProject(body.Project)) {
-		writeAuthError(w, http.StatusBadRequest, `body must be {"agent": "musecode", "model": "<optional model id>", "project": "<optional project id>"}`)
+		(body.Project != "" && !terminals.ValidProject(body.Project)) ||
+		(body.Provider != "" && !terminals.ValidAgentID(body.Provider)) ||
+		(body.Name != "" && !terminals.ValidName(body.Name)) {
+		writeAuthError(w, http.StatusBadRequest, `body must be {"agent": "musecode", "model", "project", "provider", "name": all but agent optional}`)
 		return
 	}
 	// A project picks the runner and the directory: the agent starts
@@ -104,25 +109,47 @@ func startAgent(w http.ResponseWriter, r *http.Request, rl *relay.Relay, tokens 
 		return
 	}
 	i := slices.IndexFunc(list, func(a terminals.AgentInfo) bool { return a.ID == body.Agent })
-	switch {
-	case i < 0:
+	if i < 0 {
 		writeAuthError(w, http.StatusNotFound, "runner "+runner+" offers no agent "+body.Agent)
-		return
-	case !list[i].Installed:
-		writeAuthError(w, http.StatusConflict, list[i].Name+" is not installed on "+runner+": install it there with "+list[i].Install)
-		return
-	case !slices.Contains(providers(), list[i].Provider):
-		writeAuthError(w, http.StatusConflict, list[i].Name+" needs the "+list[i].Provider+" provider, which the router does not serve")
 		return
 	}
 	info := list[i]
-	token, l, err := tokens.MintOn(r.Context(), runner, info.Name+" on "+runner, info.Provider, launch.DefaultTTL)
+	// The provider: the agent's own unless the owner picked another it
+	// speaks (Claude Code and Codex speak Meta's APIs too).
+	speaks := info.Providers
+	if len(speaks) == 0 {
+		speaks = []string{info.Provider}
+	}
+	provider := body.Provider
+	if provider == "" {
+		provider = info.Provider
+	}
+	switch {
+	case !info.Installed:
+		writeAuthError(w, http.StatusConflict, info.Name+" is not installed on "+runner+": install it there with "+info.Install)
+		return
+	case !slices.Contains(speaks, provider):
+		writeAuthError(w, http.StatusBadRequest, info.Name+" cannot use the "+provider+" provider (it speaks "+strings.Join(speaks, ", ")+")")
+		return
+	case !slices.Contains(providers(), provider):
+		writeAuthError(w, http.StatusConflict, info.Name+" needs the "+provider+" provider, which the router does not serve")
+		return
+	case ready != nil && !ready(r.Context(), provider):
+		writeAuthError(w, http.StatusConflict, "the "+provider+" provider has no API key yet: add its key in Settings")
+		return
+	case provider != info.Provider && body.Model == "":
+		// Another vendor's default model name would not exist there.
+		writeAuthError(w, http.StatusBadRequest, "pick a model: "+info.Name+" on "+provider+" has no default model")
+		return
+	}
+	place.Name = body.Name
+	token, l, err := tokens.MintOn(r.Context(), runner, info.Name+" on "+runner, provider, launch.DefaultTTL)
 	if err != nil {
 		writeAuthError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	rec.record(r, audit.LaunchMint, l.ID, map[string]string{"label": l.Label, "provider": l.Provider, "runner": runner, "expires": l.Expires.Format(time.RFC3339)})
-	id, rerr := rl.OpenAgentAt(r.Context(), runner, terminals.AgentLaunch{ID: info.ID, Token: token, Model: body.Model}, place)
+	id, rerr := rl.OpenAgentAt(r.Context(), runner, terminals.AgentLaunch{ID: info.ID, Token: token, Model: body.Model, Provider: provider}, place)
 	if rerr != nil {
 		// Detached from the request: a client that gave up must not
 		// leave a live token behind.
@@ -134,7 +161,7 @@ func startAgent(w http.ResponseWriter, r *http.Request, rl *relay.Relay, tokens 
 		writeAuthError(w, rerr.Status, rerr.Msg)
 		return
 	}
-	detail := map[string]string{"agent": info.ID, "runner": runner, "launch": l.ID}
+	detail := map[string]string{"agent": info.ID, "runner": runner, "launch": l.ID, "provider": provider}
 	if body.Model != "" {
 		detail["model"] = body.Model
 	}

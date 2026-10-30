@@ -20,6 +20,7 @@ type fake struct {
 func (f fake) ID() string                            { return f.id }
 func (f fake) Name() string                          { return strings.ToUpper(f.id) }
 func (f fake) Provider() string                      { return "meta" }
+func (f fake) Providers() []string                   { return []string{"meta", "openai"} }
 func (f fake) InstallHint() string                   { return "install " + f.id }
 func (f fake) HookCall([]byte) (Call, error)         { return Call{}, nil }
 func (f fake) HookAnswer(Answer) Reply               { return Reply{} }

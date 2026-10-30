@@ -43,6 +43,9 @@ func (Agent) Name() string { return "Muse Code" }
 // Provider is "meta": Muse Code only speaks the Meta Model API.
 func (Agent) Provider() string { return "meta" }
 
+// Providers: Muse Code only speaks to Meta.
+func (Agent) Providers() []string { return []string{"meta"} }
+
 // InstallHint is the documented installer.
 func (Agent) InstallHint() string { return installHint }
 
@@ -104,6 +107,9 @@ type handler struct {
 func (Agent) LaunchSpec(l agents.Launch) (agents.Spec, error) {
 	if l.ServeURL == "" || l.Token == "" || l.Dir == "" || l.Hook == "" {
 		return agents.Spec{}, fmt.Errorf("musecode: incomplete launch")
+	}
+	if _, err := agents.ProviderFor(Agent{}, l.Provider); err != nil {
+		return agents.Spec{}, err
 	}
 	model := l.Model
 	if model == "" {

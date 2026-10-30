@@ -76,3 +76,20 @@ func TestHookAnswer(t *testing.T) {
 		t.Fatalf("deny = %+v", r)
 	}
 }
+
+// TestLaunchOnMeta points Claude Code at Meta's Anthropic-style API.
+func TestLaunchOnMeta(t *testing.T) {
+	spec, err := New().LaunchSpec(agents.Launch{ServeURL: "http://serve:7659", Token: "tok", Dir: "/run/l", Hook: "HOOK", Model: "muse-spark-1.3", Provider: "meta"})
+	if err != nil {
+		t.Fatalf("LaunchSpec: %s", err)
+	}
+	if got := spec.Env["ANTHROPIC_BASE_URL"]; got != "http://serve:7659/llm/meta" {
+		t.Fatalf("ANTHROPIC_BASE_URL = %q, want the router's meta path", got)
+	}
+	if spec.Env["ANTHROPIC_MODEL"] != "muse-spark-1.3" {
+		t.Fatalf("model = %q", spec.Env["ANTHROPIC_MODEL"])
+	}
+	if _, err := New().LaunchSpec(agents.Launch{ServeURL: "http://s", Token: "t", Dir: "/d", Hook: "h", Provider: "openai"}); err == nil {
+		t.Fatal("Claude Code accepted the OpenAI provider")
+	}
+}

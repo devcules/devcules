@@ -25,14 +25,14 @@ cols, rows}`, `term.detach {stream}`, `term.close {term}`,
 `term.list`, `term.agents`. runner → serve: `term.ok` /
 `term.error {reason}` (same id as the request), `term.output
 {stream, b64}`, `term.exit {stream}`, `term.listed {terms:[{term,
-created, agent}]}`, `term.agentlist {agents:[{id, name, provider,
-installed, version, install}]}`.
+created, agent, project, dir, name}]}`, `term.agentlist {agents:[{id,
+name, provider, providers, installed, version, install}]}`.
 
 `term.open`, `term.attach`, `term.close` and `term.detach` answer
 `term.ok` or `term.error`; `term.list` answers `term.listed` and
 `term.agents` answers `term.agentlist`. `term.open` may carry
-`agent: {id, token, model}` to start a coding agent in the new
-terminal (`docs/agents.md`), and a place:
+`agent: {id, token, model, provider}` to start a coding agent in the
+new terminal on that router provider (`docs/agents.md`), and a place:
 
 - `dir`: start in this directory, absolute or relative to the
   runner's workspace; clean paths only, never `..`. A missing

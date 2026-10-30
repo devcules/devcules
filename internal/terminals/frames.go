@@ -131,17 +131,23 @@ type AgentLaunch struct {
 	ID    string `json:"id"`
 	Token string `json:"token"`
 	Model string `json:"model,omitempty"`
+	// Provider is the router provider the agent calls; empty is its
+	// own. The launch token is minted for this provider.
+	Provider string `json:"provider,omitempty"`
 }
 
 // AgentInfo describes one agent CLI as the runner sees it. Install is
 // the documented install command, shown to the owner, never run.
 type AgentInfo struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Provider  string `json:"provider"`
-	Installed bool   `json:"installed"`
-	Version   string `json:"version,omitempty"`
-	Install   string `json:"install,omitempty"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Provider string `json:"provider"`
+	// Providers are the router providers the agent can speak to, its
+	// own (Provider) first.
+	Providers []string `json:"providers,omitempty"`
+	Installed bool     `json:"installed"`
+	Version   string   `json:"version,omitempty"`
+	Install   string   `json:"install,omitempty"`
 }
 
 // AgentList answers term.agents.
@@ -295,6 +301,9 @@ func CheckOpen(o Open) error {
 		}
 		if a.Model != "" && !ValidModel(a.Model) {
 			return fmt.Errorf("agent: bad model id")
+		}
+		if a.Provider != "" && !ValidAgentID(a.Provider) {
+			return fmt.Errorf("agent: bad provider id")
 		}
 	}
 	return nil

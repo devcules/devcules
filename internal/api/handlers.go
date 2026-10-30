@@ -170,7 +170,15 @@ func Handler(o Options) http.Handler {
 	if o.Router != nil {
 		providers = o.Router.Providers
 	}
-	mux.Handle("/api/agents", requireSession(o.Auth, agentsRoot(o.Terminals, o.Launches, o.ApprovalQueue, o.Projects, providers, o.PublicURL, rec)))
+	var ready func(context.Context, string) bool
+	if o.Router != nil {
+		ready = func(ctx context.Context, id string) bool { ok, _ := o.Router.Ready(ctx, id); return ok }
+	}
+	mux.Handle("/api/agents", requireSession(o.Auth, agentsRoot(o.Terminals, o.Launches, o.ApprovalQueue, o.Projects, providers, ready, o.PublicURL, rec)))
+	// Providers: which ones have a key, and each one's model list,
+	// fetched by serve with the vault key (never the browser).
+	mux.Handle("/api/providers", requireSession(o.Auth, providersRoot(o.Router)))
+	mux.Handle("/api/providers/", requireSession(o.Auth, providerModels(o.Router)))
 	mux.Handle("/api/launch-tokens", requireSession(o.Auth, launchesRoot(o.Launches, providers, o.PublicURL, rec)))
 	mux.Handle("/api/launch-tokens/", requireSession(o.Auth, launchOne(o.Launches, o.PublicURL, rec)))
 	// Audit and traces: reads need a session, and reading a trace or

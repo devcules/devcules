@@ -62,7 +62,7 @@ func (m *Manager) OpenAgentIn(ctx context.Context, id, agent string, l Launch, p
 	if !terminals.ValidAgentID(agent) || len(l.Cmd) == 0 || l.Cmd[0] == "" {
 		return time.Time{}, fmt.Errorf("agent: bad launch")
 	}
-	if p.Project != "" && !terminals.ValidProject(p.Project) {
+	if (p.Project != "" && !terminals.ValidProject(p.Project)) || (p.Name != "" && !terminals.ValidName(p.Name)) {
 		return time.Time{}, fmt.Errorf("bad project")
 	}
 	start, _, err := m.resolve(Place{Dir: p.Dir})
@@ -94,7 +94,7 @@ func (m *Manager) OpenAgentIn(ctx context.Context, id, agent string, l Launch, p
 	}
 	// The tag only labels the list; a failure leaves a working terminal.
 	_, _ = m.run(ctx, "set-option", "-t", name, agentOption, agent)
-	m.tagProject(ctx, name, p.Project)
+	m.tag(ctx, name, p)
 	return time.Now(), nil
 }
 

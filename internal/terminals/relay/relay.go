@@ -80,6 +80,7 @@ func (r *Relay) Run() {
 	r.hub.On(terminals.TypeError, r.onReply)
 	r.hub.On(terminals.TypeListed, r.onReply)
 	r.hub.On(terminals.TypeAgentList, r.onReply)
+	r.hub.On(terminals.TypeBrowsed, r.onReply)
 	r.hub.On(terminals.TypeOutput, r.onOutput)
 	r.hub.On(terminals.TypeExit, r.onExit)
 	r.hub.OnChange(r.onChange)
@@ -267,6 +268,7 @@ type Place struct {
 	Dir     string
 	Project string
 	Clone   string
+	Name    string
 }
 
 // Open mints a terminal id and asks the runner to create its session.
@@ -280,7 +282,7 @@ func (r *Relay) OpenAt(ctx context.Context, runner string, p Place) (string, *Er
 	if aerr != nil {
 		return "", aerr
 	}
-	o := terminals.Open{Term: terminals.NewID(), Dir: p.Dir, Project: p.Project, Clone: p.Clone}
+	o := terminals.Open{Term: terminals.NewID(), Dir: p.Dir, Project: p.Project, Clone: p.Clone, Name: p.Name}
 	if err := terminals.CheckOpen(o); err != nil {
 		return "", &Error{Status: 400, Msg: err.Error()}
 	}
@@ -303,7 +305,7 @@ func (r *Relay) OpenAgentAt(ctx context.Context, runner string, a terminals.Agen
 	if aerr != nil {
 		return "", aerr
 	}
-	o := terminals.Open{Term: terminals.NewID(), Agent: &a, Dir: p.Dir, Project: p.Project}
+	o := terminals.Open{Term: terminals.NewID(), Agent: &a, Dir: p.Dir, Project: p.Project, Name: p.Name}
 	if err := terminals.CheckOpen(o); err != nil {
 		return "", &Error{Status: 400, Msg: err.Error()}
 	}
@@ -336,6 +338,41 @@ func (r *Relay) Agents(ctx context.Context, runner string) ([]terminals.AgentInf
 		list.Agents = []terminals.AgentInfo{}
 	}
 	return list.Agents, nil
+}
+
+// Browse lists a directory's subdirectories on the runner or machine,
+// for the project folder picker. Fresh every call.
+func (r *Relay) Browse(ctx context.Context, runner, dir string) (terminals.Browsed, *Error) {
+	if dir != "" && !terminals.ValidDir(dir) {
+		return terminals.Browsed{}, &Error{Status: 400, Msg: "dir: want a clean absolute or workspace-relative path"}
+	}
+	name, aerr := r.PickRunner(runner)
+	if aerr != nil {
+		return terminals.Browsed{}, aerr
+	}
+	reply, err := r.request(ctx, name, terminals.TypeBrowse, terminals.Browse{Path: dir})
+	if err != nil {
+		return terminals.Browsed{}, &Error{Status: 504, Msg: err.Error()}
+	}
+	if reply.Type == terminals.TypeError {
+		var e terminals.Failure
+		_ = json.Unmarshal(reply.Data, &e)
+		if e.Reason == "directory not found" {
+			return terminals.Browsed{}, &Error{Status: 404, Msg: e.Reason}
+		}
+		return terminals.Browsed{}, &Error{Status: 502, Msg: e.Reason}
+	}
+	if reply.Type != terminals.TypeBrowsed {
+		return terminals.Browsed{}, &Error{Status: 502, Msg: fmt.Sprintf("runner answered %s", reply.Type)}
+	}
+	var list terminals.Browsed
+	if err := strictDecode(reply.Data).Decode(&list); err != nil {
+		return terminals.Browsed{}, &Error{Status: 502, Msg: "runner sent a bad listing"}
+	}
+	if list.Entries == nil {
+		list.Entries = []terminals.DirEntry{}
+	}
+	return list, nil
 }
 
 // Delete kills the terminal's session. The runner treats missing

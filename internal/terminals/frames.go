@@ -22,6 +22,9 @@ const (
 	TypeClose  = "term.close"
 	TypeList   = "term.list"
 	TypeAgents = "term.agents"
+	// TypeBrowse asks for the subdirectories of one directory, for the
+	// folder picker that adds a project.
+	TypeBrowse = "term.browse"
 
 	TypeOK     = "term.ok"
 	TypeError  = "term.error"
@@ -30,7 +33,41 @@ const (
 	TypeListed = "term.listed"
 	// TypeAgentList answers term.agents: the agent CLIs on the runner.
 	TypeAgentList = "term.agentlist"
+	// TypeBrowsed answers term.browse.
+	TypeBrowsed = "term.browsed"
 )
+
+// MaxDirEntries bounds one directory listing: a picker never needs a
+// page of thousands, and the frame stays small.
+const MaxDirEntries = 500
+
+// Browse asks for the subdirectories of Path: absolute, or relative to
+// the runner's workspace; empty means the workspace itself.
+type Browse struct {
+	Path string `json:"path,omitempty"`
+}
+
+// DirEntry is one subdirectory. Git marks a repository (it holds .git);
+// Hidden marks a dot-name, which the picker folds away by default.
+type DirEntry struct {
+	Name   string `json:"name"`
+	Git    bool   `json:"git,omitempty"`
+	Hidden bool   `json:"hidden,omitempty"`
+}
+
+// Browsed answers term.browse: the resolved absolute path, its parent
+// (empty at the root), the workspace and home for shortcuts, whether
+// the directory is itself a repository, and its subdirectories sorted
+// by name. Truncated says the listing stopped at MaxDirEntries.
+type Browsed struct {
+	Path      string     `json:"path"`
+	Parent    string     `json:"parent,omitempty"`
+	Workspace string     `json:"workspace"`
+	Home      string     `json:"home,omitempty"`
+	Git       bool       `json:"git,omitempty"`
+	Entries   []DirEntry `json:"entries"`
+	Truncated bool       `json:"truncated,omitempty"`
+}
 
 // Limits. MaxTerminals bounds tmux sessions per runner; dimensions
 // keep one attach from requesting an absurd window; MaxInputBytes
@@ -81,6 +118,9 @@ type Open struct {
 	Dir     string       `json:"dir,omitempty"`
 	Project string       `json:"project,omitempty"`
 	Clone   string       `json:"clone,omitempty"`
+	// Name labels the terminal in lists ("api server"); empty shows
+	// the agent or the short id.
+	Name string `json:"name,omitempty"`
 }
 
 // AgentLaunch names the agent to start and carries its per-launch
@@ -173,6 +213,7 @@ type TermInfo struct {
 	Agent   string `json:"agent,omitempty"`
 	Project string `json:"project,omitempty"`
 	Dir     string `json:"dir,omitempty"`
+	Name    string `json:"name,omitempty"`
 }
 
 // Listed answers term.list from the runner's live tmux: serve keeps
@@ -198,6 +239,16 @@ func ValidAgentID(id string) bool { return agentIDRE.MatchString(id) }
 // ValidModel reports a well-formed model id: it lands in a config
 // file and a command line, so it is a plain token.
 func ValidModel(m string) bool { return modelRE.MatchString(m) }
+
+// ValidName reports a terminal label: 1-40 characters, no control
+// characters, no surrounding space, and no tab (the runner's list
+// separates fields with tabs).
+func ValidName(name string) bool {
+	if name == "" || len(name) > 40 || strings.TrimSpace(name) != name {
+		return false
+	}
+	return !strings.ContainsFunc(name, func(r rune) bool { return r < 0x20 || r == 0x7f })
+}
 
 // ValidProject reports a project id ("p_" plus lowercase base36).
 func ValidProject(id string) bool { return projectRE.MatchString(id) }
@@ -228,6 +279,9 @@ func CheckOpen(o Open) error {
 	}
 	if o.Project != "" && !ValidProject(o.Project) {
 		return fmt.Errorf("project: want p_ and lowercase letters or digits")
+	}
+	if o.Name != "" && !ValidName(o.Name) {
+		return fmt.Errorf("name: want 1-40 characters with no control characters")
 	}
 	if o.Clone != "" && (o.Dir == "" || !ValidCloneURL(o.Clone)) {
 		return fmt.Errorf("clone: want an https, ssh or git@ URL and a dir")

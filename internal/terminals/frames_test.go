@@ -175,3 +175,19 @@ func TestCheckOpenPlace(t *testing.T) {
 		}
 	}
 }
+
+func TestValidName(t *testing.T) {
+	for _, n := range []string{"api server", "Muse · shop", "x"} {
+		if !ValidName(n) {
+			t.Errorf("ValidName(%q) = false", n)
+		}
+	}
+	for _, n := range []string{"", " lead", "trail ", "tab\there", "nl\n", strings.Repeat("a", 41)} {
+		if ValidName(n) {
+			t.Errorf("ValidName(%q) = true", n)
+		}
+	}
+	if err := CheckOpen(Open{Term: "0123456789abcdef", Name: "bad\tname"}); err == nil {
+		t.Error("CheckOpen accepted a bad name")
+	}
+}

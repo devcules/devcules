@@ -233,9 +233,13 @@ func projectOne(repo store.ProjectsRepo, rl *relay.Relay, rec auditor) http.Hand
 			writeAuthError(w, http.StatusServiceUnavailable, "no runner linked")
 			return
 		}
+		name, ok := openName(w, r)
+		if !ok {
+			return
+		}
 		// Reopening a cloned project whose checkout went missing clones
 		// again; the runner skips the clone when the directory exists.
-		termID, rerr := rl.OpenAt(r.Context(), projectTarget(p), relay.Place{Dir: p.Dir, Project: p.ID, Clone: p.Repo})
+		termID, rerr := rl.OpenAt(r.Context(), projectTarget(p), relay.Place{Dir: p.Dir, Project: p.ID, Clone: p.Repo, Name: name})
 		if rerr != nil {
 			writeAuthError(w, rerr.Status, rerr.Msg)
 			return
@@ -243,4 +247,46 @@ func projectOne(repo store.ProjectsRepo, rl *relay.Relay, rec auditor) http.Hand
 		rec.record(r, audit.TerminalOpen, termID, map[string]string{"project": p.ID})
 		writeJSON(w, http.StatusCreated, map[string]string{"id": termID})
 	})
+}
+
+// browseRoot serves GET /api/browse?runner=|machine=&path=: one
+// directory's subdirectories on that runner or machine, repositories
+// marked, for the folder picker that adds a project.
+func browseRoot(rl *relay.Relay) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if rl == nil {
+			writeAuthError(w, http.StatusServiceUnavailable, "no runner linked")
+			return
+		}
+		if !requireMethod(w, r, http.MethodGet) {
+			return
+		}
+		list, rerr := rl.Browse(r.Context(), linkTarget(r), r.URL.Query().Get("path"))
+		if rerr != nil {
+			writeAuthError(w, rerr.Status, rerr.Msg)
+			return
+		}
+		writeJSON(w, http.StatusOK, list)
+	})
+}
+
+// openName reads the optional {"name"} body of a terminal open. An
+// empty body is no name; a bad one is reported, never dropped.
+func openName(w http.ResponseWriter, r *http.Request) (string, bool) {
+	if r.ContentLength == 0 {
+		return "", true
+	}
+	var body struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&body); err != nil {
+		writeAuthError(w, http.StatusBadRequest, `body must be {"name": "<optional label>"}`)
+		return "", false
+	}
+	body.Name = strings.TrimSpace(body.Name)
+	if body.Name != "" && !terminals.ValidName(body.Name) {
+		writeAuthError(w, http.StatusBadRequest, "name: 1-40 characters, no control characters")
+		return "", false
+	}
+	return body.Name, true
 }

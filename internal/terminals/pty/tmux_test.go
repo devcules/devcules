@@ -237,7 +237,7 @@ func TestTmuxOpenInProject(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := "00000000000000aa"
-	if _, err := m.OpenIn(ctx, id, pty.Place{Dir: dir, Project: "p_shop1"}); err != nil {
+	if _, err := m.OpenIn(ctx, id, pty.Place{Dir: dir, Project: "p_shop1", Name: "api server"}); err != nil {
 		t.Fatalf("OpenIn: %s", err)
 	}
 	t.Cleanup(func() { _ = m.Close(ctx, id) })
@@ -250,8 +250,8 @@ func TestTmuxOpenInProject(t *testing.T) {
 	for _, ti := range terms {
 		if ti.Term == id {
 			found = true
-			if ti.Project != "p_shop1" || ti.Dir == "" {
-				t.Fatalf("listed = %+v, want project p_shop1 with its dir", ti)
+			if ti.Project != "p_shop1" || ti.Dir == "" || ti.Name != "api server" {
+				t.Fatalf("listed = %+v, want project p_shop1, its dir and its name", ti)
 			}
 		}
 	}

@@ -15,15 +15,15 @@ import (
 // terminalsRoot serves the /api/terminals collection: GET lists the
 // runner's terminals, POST opens one. Reads need a session; writes
 // need a session plus the CSRF origin check.
-func terminalsRoot(relay *relay.Relay, publicURL string, rec auditor) http.Handler {
+func terminalsRoot(rl *relay.Relay, publicURL string, rec auditor) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if relay == nil {
+		if rl == nil {
 			writeAuthError(w, http.StatusServiceUnavailable, "no runner linked")
 			return
 		}
 		switch r.Method {
 		case http.MethodGet:
-			list, rerr := relay.List(r.Context(), linkTarget(r))
+			list, rerr := rl.List(r.Context(), linkTarget(r))
 			if rerr != nil {
 				writeAuthError(w, rerr.Status, rerr.Msg)
 				return
@@ -37,7 +37,11 @@ func terminalsRoot(relay *relay.Relay, publicURL string, rec auditor) http.Handl
 			}{Terminals: list})
 		case http.MethodPost:
 			csrf(publicURL, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				id, rerr := relay.Open(r.Context(), linkTarget(r))
+				name, ok := openName(w, r)
+				if !ok {
+					return
+				}
+				id, rerr := rl.OpenAt(r.Context(), linkTarget(r), relay.Place{Name: name})
 				if rerr != nil {
 					writeAuthError(w, rerr.Status, rerr.Msg)
 					return

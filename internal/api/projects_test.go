@@ -206,7 +206,7 @@ func TestMachineProjectTerminal(t *testing.T) {
 	if added.Project.Name != "shop" {
 		t.Fatalf("default name = %q, want the dir's base name", added.Project.Name)
 	}
-	w = projectRequest(t, mux, http.MethodPost, "/api/projects/"+added.Project.ID+"/terminals", session, "")
+	w = projectRequest(t, mux, http.MethodPost, "/api/projects/"+added.Project.ID+"/terminals", session, `{"name":"build"}`)
 	if w.Code != http.StatusCreated {
 		t.Fatalf("project terminal = %d %q", w.Code, w.Body.String())
 	}
@@ -216,7 +216,7 @@ func TestMachineProjectTerminal(t *testing.T) {
 	_ = json.Unmarshal(w.Body.Bytes(), &opened)
 
 	w = projectRequest(t, mux, http.MethodGet, "/api/terminals?machine=studio-mac", session, "")
-	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"term":"`+opened.ID+`"`) || !strings.Contains(w.Body.String(), `"project":"`+added.Project.ID+`"`) {
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"term":"`+opened.ID+`"`) || !strings.Contains(w.Body.String(), `"project":"`+added.Project.ID+`"`) || !strings.Contains(w.Body.String(), `"name":"build"`) {
 		t.Fatalf("machine list = %d %q", w.Code, w.Body.String())
 	}
 
@@ -231,5 +231,59 @@ func TestMachineProjectTerminal(t *testing.T) {
 	}
 	if w := projectRequest(t, mux, http.MethodGet, "/api/terminals?machine=nobody", session, ""); w.Code != http.StatusServiceUnavailable {
 		t.Fatalf("unknown machine = %d, want 503", w.Code)
+	}
+}
+
+// TestBrowseRoute lists folders on a runner for the project picker. It
+// needs no tmux: the listing is plain directory reads.
+func TestBrowseRoute(t *testing.T) {
+	t.Parallel()
+	ctx, stop := context.WithCancel(context.Background())
+	defer stop()
+	mux, pipe, h, session := projectsFixture(t)
+	m, err := pty.NewForTest(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { m.Shutdown(context.Background()) })
+	c, stopDial := terminalDialer(t, pipe, h, ctx, "box")
+	defer stopDial()
+	pty.Serve(ctx, c, m, nil)
+
+	root := t.TempDir()
+	for _, d := range []string{"shop/.git", "notes"} {
+		if err := os.MkdirAll(filepath.Join(root, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	w := projectRequest(t, mux, http.MethodGet, "/api/browse?path="+root, session, "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("browse = %d %q", w.Code, w.Body.String())
+	}
+	var got struct {
+		Path    string `json:"path"`
+		Parent  string `json:"parent"`
+		Entries []struct {
+			Name string `json:"name"`
+			Git  bool   `json:"git"`
+		} `json:"entries"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil || len(got.Entries) != 2 || got.Entries[1].Name != "shop" || !got.Entries[1].Git || got.Entries[0].Git {
+		t.Fatalf("browse body = %q", w.Body.String())
+	}
+	if w := projectRequest(t, mux, http.MethodGet, "/api/browse?path="+filepath.Join(root, "missing"), session, ""); w.Code != http.StatusNotFound {
+		t.Fatalf("missing = %d", w.Code)
+	}
+	if w := projectRequest(t, mux, http.MethodGet, "/api/browse?path=../etc", session, ""); w.Code != http.StatusBadRequest {
+		t.Fatalf("escaping = %d", w.Code)
+	}
+	if w := projectRequest(t, mux, http.MethodGet, "/api/browse?machine=nobody", session, ""); w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("unlinked machine = %d", w.Code)
+	}
+	if w := projectRequest(t, mux, http.MethodGet, "/api/browse", "", ""); w.Code != http.StatusUnauthorized {
+		t.Fatalf("no session = %d", w.Code)
+	}
+	if w := projectRequest(t, mux, http.MethodPost, "/api/terminals", session, `{"name":"bad\tname"}`); w.Code != http.StatusBadRequest {
+		t.Fatalf("bad name = %d", w.Code)
 	}
 }

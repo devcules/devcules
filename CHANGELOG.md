@@ -4,6 +4,14 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-30, folder picker and terminal names)
+
+- `term.browse` on runners and machines and `GET /api/browse`: list a
+  directory's subfolders, repositories marked, for picking a project's
+  folder instead of typing it.
+- Terminals take an optional name (`@devcules_name` in tmux, `name` in
+  the list), set when opening one.
+
 ### Fixed (2026-10-29, runner workspace, Mac screen)
 
 - The runner ignored `DEVCULES_WORKSPACE`: shells (and now project

@@ -45,6 +45,16 @@ terminal (`docs/agents.md`), and a place:
   <dir>` from the parent directory and then changes into the checkout,
   so progress and any credential prompt are visible. An existing
   `dir` skips the clone. Agents never clone.
+- `name`: a label for lists (1-40 characters, no control characters),
+  stored as the tmux user option `@devcules_name` and reported as
+  `name` in `term.listed`.
+
+`term.browse {path}` answers `term.browsed {path, parent, workspace,
+home, git, entries:[{name, git, hidden}], truncated}`: the
+subdirectories of one directory (absolute, or relative to the
+workspace; empty is the workspace), sorted, at most 500, symlinks to
+folders followed. `git` marks a folder holding `.git`. Names only:
+no file is read. It backs the folder picker that adds a project.
 
 Machines answer the same frames: `devcules machine` serves tmux
 terminals over its own link (unless `DEVCULES_MACHINE_SHELL=off`), so
@@ -115,7 +125,9 @@ read `/link/runner.token`. Separate uids come later; the file stays
   `?runner=<name>` → 400; unknown name → 404. Every terminal route
   takes `?machine=<name>` instead to reach a machine's shell; a
   machine is never the default, and an unlinked one is 503.
-- `POST /api/terminals` → `201 {"id"}` (CSRF-checked).
+- `POST /api/terminals [{name}]` → `201 {"id"}` (CSRF-checked).
+- `GET /api/browse?path=` (and `?runner=` or `?machine=`): the
+  `term.browsed` listing, for the project folder picker.
 - `DELETE /api/terminals/{id}` → 204, idempotent (CSRF-checked).
 - `GET` and `POST /api/agents`: the runner's coding agents, and
   starting one (`docs/agents.md`).
@@ -156,8 +168,9 @@ opens terminals and agents in its directory, tagged with its id.
   repository's name inside the workspace. Without it, `dir` names an
   existing directory. `name` defaults to the directory's base name and
   must be unique (409).
-- `POST /api/projects/{id}/terminals` → `201 {"id"}`: a shell in the
-  project (a missing checkout of a cloned project clones again).
+- `POST /api/projects/{id}/terminals [{name}]` → `201 {"id"}`: a
+  shell in the project (a missing checkout of a cloned project clones
+  again).
 - `POST /api/agents {agent, model?, project?}`: with a project, the
   agent starts in its directory on its target.
 - `DELETE /api/projects/{id}` → 204 (audited `project.remove`). Files

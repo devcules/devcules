@@ -48,6 +48,7 @@ func Serve(ctx context.Context, d *dial.Client, m *Manager, agents Launcher) {
 	d.On(terminals.TypeClose, h.async(h.close))
 	d.On(terminals.TypeList, h.async(h.list))
 	d.On(terminals.TypeAgents, h.async(h.agentList))
+	d.On(terminals.TypeBrowse, h.async(h.browse))
 	go func() {
 		h.watchSession(ctx)
 		m.dropStreams()
@@ -133,7 +134,7 @@ func (h *linkRunner) open(ctx context.Context, req link.Frame) {
 		h.openAgent(ctx, req, o)
 		return
 	}
-	if _, err := h.m.OpenIn(ctx, o.Term, Place{Dir: o.Dir, Project: o.Project, Clone: o.Clone}); err != nil {
+	if _, err := h.m.OpenIn(ctx, o.Term, Place{Dir: o.Dir, Project: o.Project, Clone: o.Clone, Name: o.Name}); err != nil {
 		h.reply(req, false, reasonFor(err))
 		return
 	}
@@ -153,11 +154,27 @@ func (h *linkRunner) openAgent(ctx context.Context, req link.Frame, o terminals.
 		h.reply(req, false, "agent unavailable")
 		return
 	}
-	if _, err := h.m.OpenAgentIn(ctx, o.Term, o.Agent.ID, l, Place{Dir: o.Dir, Project: o.Project}); err != nil {
+	if _, err := h.m.OpenAgentIn(ctx, o.Term, o.Agent.ID, l, Place{Dir: o.Dir, Project: o.Project, Name: o.Name}); err != nil {
 		h.reply(req, false, reasonFor(err))
 		return
 	}
 	h.reply(req, true, "")
+}
+
+// browse answers term.browse with a folder listing for the project
+// picker.
+func (h *linkRunner) browse(_ context.Context, req link.Frame) {
+	var b terminals.Browse
+	if !h.decode(req, &b) {
+		return
+	}
+	list, err := h.m.Browse(b.Path)
+	if err != nil {
+		h.reply(req, false, reasonFor(err))
+		return
+	}
+	data, _ := json.Marshal(list)
+	_ = h.sendFrame(link.Frame{V: link.Version, Type: terminals.TypeBrowsed, ID: req.ID, Data: data})
 }
 
 // agentList answers term.agents with the agents this runner knows and

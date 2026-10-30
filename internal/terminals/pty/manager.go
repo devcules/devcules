@@ -273,10 +273,15 @@ type Place struct {
 	Dir     string
 	Project string
 	Clone   string
+	Name    string
 }
 
-// projectOption tags a session with its project id for the list.
-const projectOption = "@devcules_project"
+// projectOption tags a session with its project id for the list, and
+// nameOption with the label the owner gave it.
+const (
+	projectOption = "@devcules_project"
+	nameOption    = "@devcules_name"
+)
 
 // resolve turns p into the start directory and the shell command. A
 // clone runs in the parent directory and then changes into the
@@ -318,7 +323,7 @@ func (m *Manager) OpenIn(ctx context.Context, id string, p Place) (time.Time, er
 	if !terminals.ValidID(id) {
 		return time.Time{}, fmt.Errorf("term: want 16 hex chars")
 	}
-	if p.Project != "" && !terminals.ValidProject(p.Project) {
+	if (p.Project != "" && !terminals.ValidProject(p.Project)) || (p.Name != "" && !terminals.ValidName(p.Name)) {
 		return time.Time{}, fmt.Errorf("bad project")
 	}
 	dir, shell, err := m.resolve(p)
@@ -343,15 +348,18 @@ func (m *Manager) OpenIn(ctx context.Context, id string, p Place) (time.Time, er
 		}
 		return time.Time{}, fmt.Errorf("tmux failed to open the terminal")
 	}
-	m.tagProject(ctx, name, p.Project)
+	m.tag(ctx, name, p)
 	return time.Now(), nil
 }
 
-// tagProject labels the session for the list; a failure leaves a
-// working terminal.
-func (m *Manager) tagProject(ctx context.Context, session, project string) {
-	if project != "" {
-		_, _ = m.run(ctx, "set-option", "-t", session, projectOption, project)
+// tag labels the session with its project and name for the list; a
+// failure leaves a working terminal.
+func (m *Manager) tag(ctx context.Context, session string, p Place) {
+	if p.Project != "" {
+		_, _ = m.run(ctx, "set-option", "-t", session, projectOption, p.Project)
+	}
+	if p.Name != "" {
+		_, _ = m.run(ctx, "set-option", "-t", session, nameOption, p.Name)
 	}
 }
 
@@ -547,7 +555,7 @@ func (m *Manager) List(ctx context.Context) ([]terminals.TermInfo, error) {
 	defer stop()
 	// Tabs separate the fields: tags may be empty and the path may
 	// hold spaces, so whitespace splitting would shift columns.
-	out, err := m.tmux(ctx, "list-sessions", "-F", "#{session_name}\t#{session_created}\t#{"+agentOption+"}\t#{"+projectOption+"}\t#{session_path}").CombinedOutput()
+	out, err := m.tmux(ctx, "list-sessions", "-F", "#{session_name}\t#{session_created}\t#{"+agentOption+"}\t#{"+projectOption+"}\t#{session_path}\t#{"+nameOption+"}").CombinedOutput()
 	if err != nil {
 		text := string(out)
 		if strings.Contains(text, "no server running") ||
@@ -581,6 +589,9 @@ func (m *Manager) List(ctx context.Context) ([]terminals.TermInfo, error) {
 		}
 		if len(fields) > 4 && filepath.IsAbs(fields[4]) {
 			info.Dir = fields[4]
+		}
+		if len(fields) > 5 && terminals.ValidName(fields[5]) {
+			info.Name = fields[5]
 		}
 		terms = append(terms, info)
 	}

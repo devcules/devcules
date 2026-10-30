@@ -20,3 +20,7 @@ paths = [
 [[allowlists]]
 description = "Serve test fixture: base64 of TOPSECRET-VAULT-KEY-32-BYTES-!!!, a made-up vault key the tests assert never reaches a log."
 regexes = ['''^VE9QU0VDUkVULVZBVUxULUtFWS0zMi1CWVRFUy0hISE=$''']
+
+[[allowlists]]
+description = "Provider key tests: made-up sk-… values the Settings key tests store, replace and assert never come back."
+regexes = ['''^sk-(first-|second-|ant-)?0123456789$''']

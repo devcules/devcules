@@ -22,5 +22,5 @@ description = "Serve test fixture: base64 of TOPSECRET-VAULT-KEY-32-BYTES-!!!, a
 regexes = ['''^VE9QU0VDUkVULVZBVUxULUtFWS0zMi1CWVRFUy0hISE=$''']
 
 [[allowlists]]
-description = "Provider key tests: made-up sk-… values the Settings key tests store, replace and assert never come back."
-regexes = ['''^sk-(first-|second-|ant-)?0123456789$''']
+description = "c7e3fde's provider key tests held made-up sk-… values in full; later tests build them from parts. Only that commit is excused, so a new full-shape key still fails the scan."
+commits = ['''c7e3fded8222f3a0becbe6b1bbd6f1d7a26bbacf''']

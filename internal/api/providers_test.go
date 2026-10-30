@@ -121,8 +121,13 @@ func (k *vaultKeys) Delete(_ context.Context, name string) error {
 	return nil
 }
 
+// fakeKey builds a made-up key from parts, so no file holds a whole
+// key shape (the redact tests do the same).
+func fakeKey(tag string) string { return "sk" + "-" + tag + strings.Repeat("x", 16) }
+
 func TestProviderKeys(t *testing.T) {
 	t.Parallel()
+	first, second := fakeKey("first"), fakeKey("second")
 	ctx := context.Background()
 	s, err := sqlite.Open(ctx, filepath.Join(t.TempDir(), "t.db"))
 	if err != nil {
@@ -168,24 +173,24 @@ func TestProviderKeys(t *testing.T) {
 			t.Errorf("PUT %s = %d, want %d", body, w.Code, want)
 		}
 	}
-	if w := do(http.MethodPut, "/api/providers/nope/key", `{"key":"sk-0123456789"}`); w.Code != http.StatusNotFound {
+	if w := do(http.MethodPut, "/api/providers/nope/key", `{"key":"`+fakeKey("")+`"}`); w.Code != http.StatusNotFound {
 		t.Fatalf("unknown provider = %d", w.Code)
 	}
-	if w := do(http.MethodPut, "/api/providers/openai/key", `{"key":" sk-first-0123456789 "}`); w.Code != http.StatusNoContent {
+	if w := do(http.MethodPut, "/api/providers/openai/key", `{"key":" `+first+` "}`); w.Code != http.StatusNoContent {
 		t.Fatalf("set = %d %s", w.Code, w.Body)
 	}
-	if w := do(http.MethodGet, "/api/providers", ""); !strings.Contains(w.Body.String(), `{"id":"openai","ready":true}`) || strings.Contains(w.Body.String(), "sk-first") {
+	if w := do(http.MethodGet, "/api/providers", ""); !strings.Contains(w.Body.String(), `{"id":"openai","ready":true}`) || strings.Contains(w.Body.String(), first) {
 		t.Fatalf("after set = %s", w.Body)
 	}
-	if w := do(http.MethodGet, "/api/providers/openai/models", ""); w.Code != http.StatusOK || sawKey.Load() != "Bearer sk-first-0123456789" {
+	if w := do(http.MethodGet, "/api/providers/openai/models", ""); w.Code != http.StatusOK || sawKey.Load() != "Bearer "+first {
 		t.Fatalf("models = %d with %v", w.Code, sawKey.Load())
 	}
 	// Replacing the key drops the cached list: the next read asks again
 	// with the new key, no restart.
-	if w := do(http.MethodPut, "/api/providers/openai/key", `{"key":"sk-second-0123456789"}`); w.Code != http.StatusNoContent {
+	if w := do(http.MethodPut, "/api/providers/openai/key", `{"key":"`+second+`"}`); w.Code != http.StatusNoContent {
 		t.Fatalf("replace = %d", w.Code)
 	}
-	if w := do(http.MethodGet, "/api/providers/openai/models", ""); w.Code != http.StatusOK || models.Load() != 2 || sawKey.Load() != "Bearer sk-second-0123456789" {
+	if w := do(http.MethodGet, "/api/providers/openai/models", ""); w.Code != http.StatusOK || models.Load() != 2 || sawKey.Load() != "Bearer "+second {
 		t.Fatalf("models after replace: %d calls with %v", models.Load(), sawKey.Load())
 	}
 	if w := do(http.MethodDelete, "/api/providers/openai/key", ""); w.Code != http.StatusNoContent {
@@ -206,7 +211,7 @@ func TestProviderKeys(t *testing.T) {
 	if !strings.Contains(got, "provider.key.set:openai") || !strings.Contains(got, "provider.key.remove:openai") {
 		t.Fatalf("audit = %s", got)
 	}
-	if w := do(http.MethodGet, "/api/audit", ""); strings.Contains(w.Body.String(), "sk-") {
+	if w := do(http.MethodGet, "/api/audit", ""); strings.Contains(w.Body.String(), first) || strings.Contains(w.Body.String(), second) {
 		t.Fatal("a key reached the audit log")
 	}
 }

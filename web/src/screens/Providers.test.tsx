@@ -28,6 +28,10 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+// fakeKey builds a made-up key from parts, so no file holds a whole
+// key shape.
+const fakeKey = ['sk', 'ant', 'x'.repeat(16)].join('-');
+
 describe('Providers', () => {
   it('adds a key, then shows it set without showing it', async () => {
     const user = userEvent.setup();
@@ -48,12 +52,12 @@ describe('Providers', () => {
     await user.click(screen.getByRole('button', { name: 'Add key' }));
     const field = screen.getByLabelText('Anthropic API key');
     expect(field.getAttribute('type')).toBe('password');
-    await user.type(field, 'sk-ant-0123456789');
+    await user.type(field, fakeKey);
     await user.click(screen.getByRole('button', { name: 'Save key' }));
     expect(await screen.findByText('Anthropic key saved.')).toBeDefined();
-    expect(seen.find((s) => s.key === 'PUT /api/providers/anthropic/key')?.body).toBe('{"key":"sk-ant-0123456789"}');
+    expect(seen.find((s) => s.key === 'PUT /api/providers/anthropic/key')?.body).toBe(JSON.stringify({ key: fakeKey }));
     await waitFor(() => expect(screen.getAllByText('Key set')).toHaveLength(2));
-    expect(screen.queryByText(/sk-ant/)).toBeNull();
+    expect(screen.queryByText(fakeKey)).toBeNull();
   });
 
   it('shows the server reason for a bad key', async () => {

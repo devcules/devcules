@@ -28,6 +28,12 @@ All notable changes to Devcules, newest first.
   offered every Anthropic-format profile and Meta; Codex every
   OpenAI-format profile serving `/v1/responses`; Muse Code only Meta. A
   profile's default model fills a blank model.
+- Settings → Providers shows the profiles as cards (format chip, key
+  set, base URL and default model; Make default, Edit, ✕) above an
+  add/edit form with presets (Meta, Anthropic, OpenAI,
+  OpenAI-compatible), the format, base URL, API key (write-only),
+  which OpenAI API agents use, and a default model with Load models.
+  The new-terminal form lists profiles by name with their format.
 
 ### Added (2026-10-30, admin password reset)
 

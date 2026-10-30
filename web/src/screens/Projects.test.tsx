@@ -138,6 +138,52 @@ describe('Projects', () => {
     });
   });
 
+  it('starts Codex on a saved profile with its default model, no model picked', async () => {
+    const user = userEvent.setup();
+    const seen = serve((key) => {
+      if (key === 'GET /api/projects') return { status: 200, body: listed };
+      if (key.startsWith('GET /api/terminals')) return { status: 200, body: { terminals: [] } };
+      if (key === 'GET /api/agents') {
+        return {
+          status: 200,
+          body: { ...agents, agents: [{ id: 'codex', name: 'Codex', provider: 'openai', providers: ['nebius', 'meta'], installed: true }] },
+        };
+      }
+      if (key === 'GET /api/providers') {
+        return {
+          status: 200,
+          body: {
+            providers: [
+              { id: 'meta', name: 'Meta', format: 'openai', ready: true },
+              { id: 'nebius', name: 'Nebius', format: 'openai', model: 'gpt-oss-120b', default: true, ready: true },
+            ],
+          },
+        };
+      }
+      if (key === 'GET /api/providers/nebius/models') return { status: 200, body: { models: ['gpt-oss-120b'] } };
+      if (key === 'POST /api/agents') return { status: 201, body: { id: 'abababab00000000' } };
+      return undefined;
+    });
+    render(<Projects onSessionExpired={vi.fn()} />);
+    await user.click(await screen.findByRole('button', { name: 'New terminal in api' }));
+    const runs = await screen.findByLabelText('Runs');
+    await waitFor(() => expect(within(runs).getByRole('option', { name: 'Codex' })).toBeDefined());
+    await user.selectOptions(runs, 'codex');
+    // Profiles show by name with their format; the default is marked.
+    const nebius = screen.getByRole('button', { name: /Nebius · default/ });
+    expect(nebius.getAttribute('aria-pressed')).toBe('true');
+    expect(within(nebius).getByText('OpenAI-compatible')).toBeDefined();
+    expect(await screen.findByLabelText('Model (optional)')).toBeDefined();
+    expect(screen.getByRole('option', { name: "gpt-oss-120b (the provider's default)" })).toBeDefined();
+    await user.click(screen.getByRole('button', { name: 'Start Codex' }));
+    expect(await screen.findByText('terminal abababab00000000 on runner')).toBeDefined();
+    expect(JSON.parse(seen.find((s) => s.key === 'POST /api/agents')?.body ?? '{}')).toEqual({
+      agent: 'codex',
+      project: 'p_api',
+      provider: 'nebius',
+    });
+  });
+
   it('adds a project by picking a git folder, then asks what to run', async () => {
     const user = userEvent.setup();
     const seen = serve((key) => {

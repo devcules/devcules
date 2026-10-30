@@ -617,8 +617,100 @@ export async function browse(
   return 'unreachable';
 }
 
-// Providers: the router's model vendors, and whether each has a key.
-export type ProviderState = { id: string; ready: boolean };
+// Providers: the saved provider profiles the router serves, and
+// whether each has a key. The key itself never comes back.
+export type ProviderFormat = 'openai' | 'anthropic';
+export type ProviderAPI = 'auto' | 'chat' | 'responses';
+export type ProviderState = {
+  id: string;
+  ready: boolean;
+  name?: string;
+  format?: ProviderFormat;
+  alsoAnthropic?: boolean;
+  baseUrl?: string;
+  api?: ProviderAPI;
+  model?: string;
+  default?: boolean;
+};
+
+// ProviderDraft is the add/edit form. key is write-only: blank on an
+// edit keeps the saved one.
+export type ProviderDraft = {
+  name: string;
+  format: ProviderFormat;
+  alsoAnthropic: boolean;
+  baseUrl: string;
+  api: ProviderAPI;
+  model: string;
+  default: boolean;
+  key: string;
+};
+
+type Written<T> = T | 'unauthorized' | 'unreachable' | { refused: string };
+
+async function providerWrite(path: string, method: string, body?: unknown): Promise<Written<ProviderState | true>> {
+  const res = await terminalFetch(path, {
+    method,
+    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (typeof res === 'string') {
+    return res === 'unauthorized' ? res : 'unreachable';
+  }
+  if (res.status === 204) {
+    return true;
+  }
+  const data: unknown = await res.json().catch(() => null);
+  if (res.ok && isObject(data) && isObject(data.provider) && typeof data.provider.id === 'string') {
+    return data.provider as unknown as ProviderState;
+  }
+  if (isObject(data) && typeof data.error === 'string') {
+    return { refused: data.error };
+  }
+  return 'unreachable';
+}
+
+// addProvider saves a new profile (and its key, when typed).
+export function addProvider(d: ProviderDraft): Promise<Written<ProviderState | true>> {
+  return providerWrite('/api/providers', 'POST', d);
+}
+
+// editProvider saves new fields for a profile; a blank key keeps the
+// saved one while the base URL stays on its host.
+export function editProvider(id: string, d: ProviderDraft): Promise<Written<ProviderState | true>> {
+  return providerWrite(`/api/providers/${encodeURIComponent(id)}`, 'PUT', d);
+}
+
+// removeProvider deletes a profile and its key.
+export function removeProvider(id: string): Promise<Written<ProviderState | true>> {
+  return providerWrite(`/api/providers/${encodeURIComponent(id)}`, 'DELETE');
+}
+
+// makeDefaultProvider moves the default to id.
+export function makeDefaultProvider(id: string): Promise<Written<ProviderState | true>> {
+  return providerWrite(`/api/providers/${encodeURIComponent(id)}/default`, 'PUT');
+}
+
+// probeModels lists the models of a form not saved yet: with the
+// typed key, or with profile id's saved key on its saved host.
+export async function probeModels(p: { format: ProviderFormat; baseUrl: string; key?: string; id?: string }): Promise<Written<string[]>> {
+  const res = await terminalFetch('/api/providers/probe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(p),
+  });
+  if (typeof res === 'string') {
+    return res === 'unauthorized' ? res : 'unreachable';
+  }
+  const data: unknown = await res.json().catch(() => null);
+  if (res.ok && isObject(data) && Array.isArray(data.models)) {
+    return strings(data.models);
+  }
+  if (isObject(data) && typeof data.error === 'string') {
+    return { refused: data.error };
+  }
+  return 'unreachable';
+}
 
 export async function listProviders(): Promise<ProviderState[] | 'unauthorized' | 'unreachable'> {
   const res = await terminalFetch('/api/providers');

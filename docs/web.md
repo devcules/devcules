@@ -104,6 +104,19 @@ nothing. `main.tsx` registers it in secure contexts. CSP is unchanged:
 the answer); the flow specs wait for the nav, not Home's text, so a
 waiting approval from a parallel spec can't break them.
 
+Settings → Providers (`web/src/screens/Providers.tsx`) lists the
+provider profiles as cards: the name, a format chip, whether a key is
+set, the base URL and default model, with Make default, Edit and ✕
+(with a confirm). Below them the add/edit form: presets for Meta,
+Anthropic, OpenAI and any OpenAI-compatible endpoint (vLLM, Nebius…),
+name, format, base URL, Authentication (API key only for now), which
+OpenAI API agents use, "also serves Anthropic's /v1/messages", the key
+(a password field, blank on an edit to keep the saved one), and the
+default model with **Load models**, which asks serve to probe the
+unsaved form (`docs/providers.md`). The new-terminal form shows each
+profile an agent can use by name, with its format, the default marked,
+and the profile's default model as the blank choice.
+
 ## Building
 
 ```sh

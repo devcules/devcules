@@ -102,13 +102,13 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 		return exitError
 	}
 	llm, err := router.New(router.Options{
-		Tracer:    traces,
-		Catalog:   profiles,
-		Keys:      v,
-		Tokens:    launches,
-		Redactor:  redactor,
-		Settings:  redactSettings,
-		Log:       log,
+		Tracer:   traces,
+		Catalog:  profiles,
+		Keys:     v,
+		Tokens:   launches,
+		Redactor: redactor,
+		Settings: redactSettings,
+		Log:      log,
 	})
 	if err != nil {
 		fmt.Fprintln(stderr, err.Error())

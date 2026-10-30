@@ -11,11 +11,7 @@ import {
   type ProviderState,
   type Where,
 } from '../api';
-
-// providerLabel names a router provider for people.
-export function providerLabel(id: string): string {
-  return { meta: 'Meta', anthropic: 'Anthropic', openai: 'OpenAI' }[id] ?? id;
-}
+import { formatLabel, providerLabel } from './providerNames';
 
 const otherModel = '__other__';
 
@@ -72,6 +68,7 @@ export default function NewTerminal({
   const agent = agents.find((a) => a.id === run);
   const speaks = agent ? (agent.providers?.length ? agent.providers : [agent.provider]) : [];
   const served = (id: string) => providers.find((p) => p.id === id);
+  const labelOf = (id: string) => served(id)?.name ?? providerLabel(id);
 
   // pickProvider changes the provider and forgets the old one's model.
   function pickProvider(p: string): void {
@@ -125,11 +122,14 @@ export default function NewTerminal({
 
   const chosenModel = model === otherModel || (models !== null && models.length === 0) ? typedModel.trim() : model;
   const foreign = agent !== undefined && provider !== agent.provider;
+  // A profile's default model stands in when none is picked.
+  const fallback = served(provider)?.model ?? '';
+  const needsModel = foreign && fallback === '';
 
   async function create(): Promise<void> {
     setError(null);
-    if (agent && foreign && chosenModel === '') {
-      setError(`Pick a model: ${agent.name} on ${providerLabel(provider)} has no default.`);
+    if (agent && needsModel && chosenModel === '') {
+      setError(`Pick a model: ${agent.name} on ${labelOf(provider)} has no default.`);
       return;
     }
     setBusy(true);
@@ -202,11 +202,15 @@ export default function NewTerminal({
                   disabled={!ok}
                   aria-pressed={provider === p}
                   onClick={() => pickProvider(p)}
-                  className={`min-h-11 rounded-md px-4 text-body disabled:opacity-50 ${provider === p ? 'bg-text text-base' : 'bg-base text-text'}`}
+                  className={`flex min-h-11 flex-col items-start justify-center rounded-md px-4 py-1 text-left text-body disabled:opacity-50 ${provider === p ? 'bg-text text-base' : 'bg-base text-text'}`}
                 >
-                  {providerLabel(p)}
-                  {p === agent.provider ? ' (its own)' : ''}
-                  {!state ? ' · not served' : !ok ? ' · no key' : ''}
+                  <span>
+                    {labelOf(p)}
+                    {p === agent.provider ? ' (its own)' : ''}
+                    {state?.default ? ' · default' : ''}
+                    {!state ? ' · not served' : !ok ? ' · no key' : ''}
+                  </span>
+                  {state?.format && <span className="text-body opacity-75">{formatLabel(state.format)}</span>}
                 </button>
               );
             })}
@@ -218,14 +222,14 @@ export default function NewTerminal({
       )}
       {agent && provider !== '' && served(provider)?.ready && (
         <label className="flex flex-col gap-1 text-body text-text">
-          Model{foreign ? '' : ' (optional)'}
+          Model{needsModel ? '' : ' (optional)'}
           {models === null ? (
             <span className="text-body text-muted" aria-busy="true">
-              Loading {providerLabel(provider)} models…
+              Loading {labelOf(provider)} models…
             </span>
           ) : models.length > 0 ? (
             <select value={model} onChange={(e) => setModel(e.target.value)} className="min-h-11 rounded-md bg-base px-3 font-mono text-body text-text">
-              <option value="">{foreign ? 'Pick a model' : `${agent.name}'s default`}</option>
+              <option value="">{needsModel ? 'Pick a model' : fallback !== '' ? `${fallback} (the provider's default)` : `${agent.name}'s default`}</option>
               {models.map((m) => (
                 <option key={m} value={m}>
                   {m}

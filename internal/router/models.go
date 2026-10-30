@@ -37,7 +37,7 @@ type modelCache struct {
 // Ready reports whether provider id has a key in the vault, so a
 // launch on it can work. The key itself never leaves the router.
 func (rt *Router) Ready(ctx context.Context, id string) (bool, error) {
-	if _, ok := rt.providers[id]; !ok {
+	if _, ok := rt.catalog.Lookup(ctx, id); !ok {
 		return false, ErrUnknownProvider
 	}
 	key, err := rt.o.Keys.Get(ctx, KeySecret(id))
@@ -48,7 +48,7 @@ func (rt *Router) Ready(ctx context.Context, id string) (bool, error) {
 // with the vault key, sorted. Serve makes this call, never the browser,
 // and a list is reused for five minutes.
 func (rt *Router) Models(ctx context.Context, id string) ([]string, error) {
-	p, ok := rt.providers[id]
+	p, ok := rt.catalog.Lookup(ctx, id)
 	if !ok {
 		return nil, ErrUnknownProvider
 	}
@@ -64,7 +64,37 @@ func (rt *Router) Models(ctx context.Context, id string) ([]string, error) {
 	if err != nil || len(key) == 0 {
 		return nil, ErrNoKey
 	}
-	ctx, stop := context.WithTimeout(ctx, 15*time.Second)
+	list, err := rt.listModels(ctx, p, string(key), 15*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	rt.models.mu.Lock()
+	if rt.models.at == nil {
+		rt.models.at, rt.models.list = map[string]time.Time{}, map[string][]string{}
+	}
+	rt.models.at[id], rt.models.list[id] = time.Now(), list
+	rt.models.mu.Unlock()
+	return list, nil
+}
+
+// Probe lists the models of a provider that may not be saved yet, for
+// the "load models" button: with key, or with the vault key saved for
+// p's id when key is empty. Nothing is cached and the call gets ten
+// seconds.
+func (rt *Router) Probe(ctx context.Context, p Provider, key string) ([]string, error) {
+	if key == "" {
+		saved, err := rt.o.Keys.Get(ctx, KeySecret(p.ID()))
+		if err != nil || len(saved) == 0 {
+			return nil, ErrNoKey
+		}
+		key = string(saved)
+	}
+	return rt.listModels(ctx, p, key, 10*time.Second)
+}
+
+// listModels reads every page of p's GET v1/models, sorted.
+func (rt *Router) listModels(ctx context.Context, p Provider, key string, timeout time.Duration) ([]string, error) {
+	ctx, stop := context.WithTimeout(ctx, timeout)
 	defer stop()
 	list := []string{}
 	seen := map[string]bool{}
@@ -72,7 +102,7 @@ func (rt *Router) Models(ctx context.Context, id string) ([]string, error) {
 	// OpenAI and Meta answer in one page and never set has_more.
 	after := ""
 	for page := 0; page < maxModelPages; page++ {
-		ids, more, last, err := rt.modelPage(ctx, p, string(key), after)
+		ids, more, last, err := rt.modelPage(ctx, p, key, after)
 		if err != nil {
 			return nil, err
 		}
@@ -88,12 +118,6 @@ func (rt *Router) Models(ctx context.Context, id string) ([]string, error) {
 		after = last
 	}
 	sort.Strings(list)
-	rt.models.mu.Lock()
-	if rt.models.at == nil {
-		rt.models.at, rt.models.list = map[string]time.Time{}, map[string][]string{}
-	}
-	rt.models.at[id], rt.models.list[id] = time.Now(), list
-	rt.models.mu.Unlock()
 	return list, nil
 }
 
@@ -108,9 +132,9 @@ func (rt *Router) modelPage(ctx context.Context, p Provider, key, after string) 
 	if err != nil {
 		return nil, false, "", err
 	}
-	p.Auth(req.Header, key)
 	// Anthropic requires a version on every call; the others ignore it.
 	req.Header.Set("anthropic-version", "2023-06-01")
+	p.Auth(req.Header, key)
 	req.Header.Set("Accept", "application/json")
 	resp, err := rt.o.Client.Do(req)
 	if err != nil {
@@ -148,7 +172,7 @@ func (rt *Router) ForgetModels(id string) {
 }
 
 // Serves reports whether id is a provider the router serves.
-func (rt *Router) Serves(id string) bool {
-	_, ok := rt.providers[id]
+func (rt *Router) Serves(ctx context.Context, id string) bool {
+	_, ok := rt.catalog.Lookup(ctx, id)
 	return ok
 }

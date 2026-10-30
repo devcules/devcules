@@ -11,6 +11,8 @@ import (
 	"github.com/devcules/devcules/internal/approvals"
 	"github.com/devcules/devcules/internal/audit"
 	"github.com/devcules/devcules/internal/launch"
+	"github.com/devcules/devcules/internal/providers"
+	"github.com/devcules/devcules/internal/router"
 	"github.com/devcules/devcules/internal/store"
 	"github.com/devcules/devcules/internal/terminals"
 	"github.com/devcules/devcules/internal/terminals/relay"
@@ -21,7 +23,7 @@ import (
 // runner's access mode; POST {"agent", "model"} starts one in a new
 // terminal with a fresh launch token tied to that runner. POST adds
 // the CSRF check.
-func agentsRoot(rl *relay.Relay, tokens *launch.Tokens, queue *approvals.Service, projects store.ProjectsRepo, providers func() []string, ready func(context.Context, string) bool, publicURL string, rec auditor) http.Handler {
+func agentsRoot(rl *relay.Relay, tokens *launch.Tokens, queue *approvals.Service, projects store.ProjectsRepo, rt *router.Router, profiles *providers.Service, publicURL string, rec auditor) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if rl == nil {
 			writeAuthError(w, http.StatusServiceUnavailable, "no runner linked")
@@ -43,6 +45,10 @@ func agentsRoot(rl *relay.Relay, tokens *launch.Tokens, queue *approvals.Service
 			if queue != nil {
 				mode = queue.Modes()[approvals.Target(runner)]
 			}
+			// Each agent lists the profiles it can use now.
+			for i := range list {
+				list[i].Providers = offers(r.Context(), list[i], rt, profiles)
+			}
 			writeJSON(w, http.StatusOK, struct {
 				Runner string                `json:"runner"`
 				Mode   approvals.Mode        `json:"mode"`
@@ -50,7 +56,7 @@ func agentsRoot(rl *relay.Relay, tokens *launch.Tokens, queue *approvals.Service
 			}{runner, mode, list})
 		case http.MethodPost:
 			csrf(publicURL, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				startAgent(w, r, rl, tokens, projects, providers, ready, rec)
+				startAgent(w, r, rl, tokens, projects, rt, profiles, rec)
 			})).ServeHTTP(w, r)
 		default:
 			w.Header().Set("Allow", "GET, POST")
@@ -61,7 +67,7 @@ func agentsRoot(rl *relay.Relay, tokens *launch.Tokens, queue *approvals.Service
 
 // startAgent mints the launch token, then opens the agent terminal;
 // a failed open revokes the token again.
-func startAgent(w http.ResponseWriter, r *http.Request, rl *relay.Relay, tokens *launch.Tokens, projects store.ProjectsRepo, providers func() []string, ready func(context.Context, string) bool, rec auditor) {
+func startAgent(w http.ResponseWriter, r *http.Request, rl *relay.Relay, tokens *launch.Tokens, projects store.ProjectsRepo, rt *router.Router, profiles *providers.Service, rec auditor) {
 	if tokens == nil {
 		writeAuthError(w, http.StatusServiceUnavailable, "launch tokens not configured")
 		return
@@ -114,32 +120,43 @@ func startAgent(w http.ResponseWriter, r *http.Request, rl *relay.Relay, tokens 
 		return
 	}
 	info := list[i]
-	// The provider: the agent's own unless the owner picked another it
-	// speaks (Claude Code and Codex speak Meta's APIs too).
-	speaks := info.Providers
-	if len(speaks) == 0 {
-		speaks = []string{info.Provider}
-	}
+	// The provider: the one picked, else the agent's own when it can
+	// use it, else the first it can (the default comes first).
+	speaks := offers(r.Context(), info, rt, profiles)
 	provider := body.Provider
 	if provider == "" {
 		provider = info.Provider
+		if !slices.Contains(speaks, provider) && len(speaks) > 0 {
+			provider = speaks[0]
+		}
+	}
+	model := body.Model
+	if model == "" && profiles != nil {
+		if p, err := profiles.Get(r.Context(), provider); err == nil {
+			model = p.Model
+		}
 	}
 	switch {
 	case !info.Installed:
 		writeAuthError(w, http.StatusConflict, info.Name+" is not installed on "+runner+": install it there with "+info.Install)
 		return
 	case !slices.Contains(speaks, provider):
-		writeAuthError(w, http.StatusBadRequest, info.Name+" cannot use the "+provider+" provider (it speaks "+strings.Join(speaks, ", ")+")")
+		served := rt != nil && rt.Serves(r.Context(), provider)
+		switch {
+		case !served && body.Provider == "":
+			writeAuthError(w, http.StatusConflict, info.Name+" needs the "+provider+" provider, which the router does not serve: add one it can use in Settings → Providers")
+		case !served:
+			writeAuthError(w, http.StatusBadRequest, "no provider "+provider+": add it in Settings → Providers")
+		default:
+			writeAuthError(w, http.StatusBadRequest, info.Name+" cannot use the "+provider+" provider ("+wireNeed(info)+")")
+		}
 		return
-	case !slices.Contains(providers(), provider):
-		writeAuthError(w, http.StatusConflict, info.Name+" needs the "+provider+" provider, which the router does not serve")
-		return
-	case ready != nil && !ready(r.Context(), provider):
+	case !ready(r.Context(), rt, provider):
 		writeAuthError(w, http.StatusConflict, "the "+provider+" provider has no API key yet: add its key in Settings")
 		return
-	case provider != info.Provider && body.Model == "":
+	case provider != info.Provider && model == "":
 		// Another vendor's default model name would not exist there.
-		writeAuthError(w, http.StatusBadRequest, "pick a model: "+info.Name+" on "+provider+" has no default model")
+		writeAuthError(w, http.StatusBadRequest, "pick a model: "+info.Name+" on "+provider+" has no default model (or set one on the provider in Settings)")
 		return
 	}
 	place.Name = body.Name
@@ -149,7 +166,7 @@ func startAgent(w http.ResponseWriter, r *http.Request, rl *relay.Relay, tokens 
 		return
 	}
 	rec.record(r, audit.LaunchMint, l.ID, map[string]string{"label": l.Label, "provider": l.Provider, "runner": runner, "expires": l.Expires.Format(time.RFC3339)})
-	id, rerr := rl.OpenAgentAt(r.Context(), runner, terminals.AgentLaunch{ID: info.ID, Token: token, Model: body.Model, Provider: provider}, place)
+	id, rerr := rl.OpenAgentAt(r.Context(), runner, terminals.AgentLaunch{ID: info.ID, Token: token, Model: model, Provider: provider}, place)
 	if rerr != nil {
 		// Detached from the request: a client that gave up must not
 		// leave a live token behind.
@@ -162,12 +179,31 @@ func startAgent(w http.ResponseWriter, r *http.Request, rl *relay.Relay, tokens 
 		return
 	}
 	detail := map[string]string{"agent": info.ID, "runner": runner, "launch": l.ID, "provider": provider}
-	if body.Model != "" {
-		detail["model"] = body.Model
+	if model != "" {
+		detail["model"] = model
 	}
 	rec.record(r, audit.AgentLaunch, id, detail)
 	writeJSON(w, http.StatusCreated, struct {
 		ID     string        `json:"id"`
 		Launch launch.Launch `json:"launch"`
 	}{id, l})
+}
+
+// ready reports whether provider id has its key saved.
+func ready(ctx context.Context, rt *router.Router, id string) bool {
+	ok, _ := rt.Ready(ctx, id)
+	return ok
+}
+
+// wireNeed says which providers an agent can use, for a refusal.
+func wireNeed(info terminals.AgentInfo) string {
+	switch {
+	case len(info.Only) > 0:
+		return "it only speaks to " + strings.Join(info.Only, ", ")
+	case info.Wire == terminals.WireMessages:
+		return "it needs an Anthropic-format provider, or Meta"
+	case info.Wire == terminals.WireResponses:
+		return "it needs an OpenAI-format provider that serves /v1/responses"
+	}
+	return "it speaks " + strings.Join(info.Providers, ", ")
 }

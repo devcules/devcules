@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/devcules/devcules/internal/terminals"
 	"github.com/devcules/devcules/plugins/agents"
 )
 
@@ -24,7 +25,7 @@ const (
 
 // routerPath is the provider's base_url for router provider p. Codex's
 // own OpenAI base ends in /v1 and it adds /responses, so the base
-// carries the router's /v1; Meta serves v1/responses as well.
+// carries the router's /v1.
 func routerPath(p string) string { return "/llm/" + p + "/v1" }
 
 // Agent is the Codex adapter.
@@ -43,9 +44,12 @@ func (Agent) Name() string { return "Codex" }
 // through the Responses API.
 func (Agent) Provider() string { return "openai" }
 
-// Providers: OpenAI, and Meta, which serves the Responses API
-// (v1/responses) too.
-func (Agent) Providers() []string { return []string{"openai", "meta"} }
+// Wire: Codex only calls the Responses API (wire_api = "responses"),
+// so it runs on OpenAI-format profiles not set to chat only.
+func (Agent) Wire() string { return terminals.WireResponses }
+
+// Only is empty: any profile serving Responses will do.
+func (Agent) Only() []string { return nil }
 
 // InstallHint is the documented installer.
 func (Agent) InstallHint() string { return installHint }

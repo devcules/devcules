@@ -33,8 +33,13 @@ type KeySource interface {
 	Get(ctx context.Context, name string) ([]byte, error)
 }
 
-// Options wires a Router. Every field but Client and Log is required.
+// Options wires a Router. Every field but Client, Log and Tracer is
+// required, and one of Catalog and Providers.
 type Options struct {
+	// Catalog resolves providers per call; serve's is the store of
+	// provider profiles.
+	Catalog Catalog
+	// Providers is a fixed list, used when Catalog is nil.
 	Providers []Provider
 	Keys      KeySource
 	Tokens    *launch.Tokens
@@ -42,7 +47,8 @@ type Options struct {
 	Settings  *redact.Settings
 	// Client reaches the providers. Nil uses a client with no overall
 	// timeout (replies stream for minutes) but a bounded wait for
-	// response headers.
+	// response headers, which never follows a redirect: a key header
+	// must not travel to an address the owner did not save.
 	Client *http.Client
 	Log    *slog.Logger
 	// Tracer, when set, receives a record of every call that passed
@@ -52,27 +58,32 @@ type Options struct {
 
 // Router serves /llm/{provider}/... .
 type Router struct {
-	providers map[string]Provider
-	o         Options
-	models    modelCache
+	catalog Catalog
+	o       Options
+	models  modelCache
 }
 
-// New builds a Router. Providers with a duplicate id are a wiring bug.
+// New builds a Router. Fixed providers with a duplicate id are a
+// wiring bug.
 func New(o Options) (*Router, error) {
 	if o.Keys == nil || o.Tokens == nil || o.Redactor == nil || o.Settings == nil {
 		return nil, errors.New("router: keys, tokens, redactor and settings are required")
 	}
-	rt := &Router{providers: map[string]Provider{}, o: o}
-	for _, p := range o.Providers {
-		if _, dup := rt.providers[p.ID()]; dup {
-			return nil, fmt.Errorf("router: provider %q registered twice", p.ID())
+	rt := &Router{catalog: o.Catalog, o: o}
+	if rt.catalog == nil {
+		seen := map[string]bool{}
+		for _, p := range o.Providers {
+			if seen[p.ID()] {
+				return nil, fmt.Errorf("router: provider %q registered twice", p.ID())
+			}
+			seen[p.ID()] = true
 		}
-		rt.providers[p.ID()] = p
+		rt.catalog = Fixed(o.Providers...)
 	}
 	if rt.o.Client == nil {
 		t := http.DefaultTransport.(*http.Transport).Clone()
 		t.ResponseHeaderTimeout = 10 * time.Minute
-		rt.o.Client = &http.Client{Transport: t}
+		rt.o.Client = &http.Client{Transport: t, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	}
 	if rt.o.Log == nil {
 		rt.o.Log = slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -80,13 +91,9 @@ func New(o Options) (*Router, error) {
 	return rt, nil
 }
 
-// Providers lists the registered provider ids.
-func (rt *Router) Providers() []string {
-	out := make([]string, 0, len(rt.providers))
-	for id := range rt.providers {
-		out = append(out, id)
-	}
-	return out
+// Providers lists the provider ids served now, sorted.
+func (rt *Router) Providers(ctx context.Context) []string {
+	return rt.catalog.IDs(ctx)
 }
 
 // routed reports whether method and path (after /llm/{provider}/) are
@@ -165,9 +172,9 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeError(w, anthropic, status, kind, msg)
 	}
 
-	p, ok := rt.providers[id]
+	p, ok := rt.catalog.Lookup(r.Context(), id)
 	if !ok {
-		fail(http.StatusNotFound, "not_found_error", fmt.Sprintf("unknown provider %q (routed: %s)", id, strings.Join(rt.Providers(), ", ")))
+		fail(http.StatusNotFound, "not_found_error", fmt.Sprintf("unknown provider %q (routed: %s)", id, strings.Join(rt.Providers(r.Context()), ", ")))
 		return
 	}
 	known, methodOK := routed(r.Method, path)
@@ -226,7 +233,7 @@ func (rt *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	key, err := rt.o.Keys.Get(r.Context(), KeySecret(id))
 	if err != nil || len(key) == 0 {
-		fail(http.StatusServiceUnavailable, "api_error", fmt.Sprintf("no API key stored for provider %q: set its key (for meta, META_API_KEY) and restart serve", id))
+		fail(http.StatusServiceUnavailable, "api_error", fmt.Sprintf("no API key stored for provider %q: add its key in Settings → Providers", id))
 		return
 	}
 

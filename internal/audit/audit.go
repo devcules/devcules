@@ -58,8 +58,14 @@ const (
 	// Provider keys set or removed in Settings (target: the provider).
 	ProviderKeySet    = "provider.key.set"
 	ProviderKeyRemove = "provider.key.remove"
-	maxField          = 200
-	maxDetailItems    = 16
+	// Provider profiles added, edited, removed or made the default
+	// (target: the profile id). Never the key.
+	ProviderAdd     = "provider.add"
+	ProviderEdit    = "provider.edit"
+	ProviderRemove  = "provider.remove"
+	ProviderDefault = "provider.default"
+	maxField        = 200
+	maxDetailItems  = 16
 )
 
 // Event is what a caller records. Actor is a username, or "system" or

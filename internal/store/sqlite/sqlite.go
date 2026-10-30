@@ -159,6 +159,9 @@ func (s *sqliteStore) EnrolCodes() store.EnrolCodesRepo { return enrolCodesRepo{
 // Projects returns the project repo.
 func (s *sqliteStore) Projects() store.ProjectsRepo { return projectsRepo{db: s.db} }
 
+// Providers returns the provider profile repo.
+func (s *sqliteStore) Providers() store.ProvidersRepo { return providersRepo{db: s.db} }
+
 // Audit returns audit's append-only repo.
 func (s *sqliteStore) Audit() store.AuditRepo {
 	return auditRepo{db: s.db}

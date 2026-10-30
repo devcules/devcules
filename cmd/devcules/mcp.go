@@ -29,7 +29,7 @@ func setupMCP(cfg config.Config, h *hub.Hub, terms *relay.Relay, llm *router.Rou
 	err := reg.Register(mcp.Builtins(mcp.BuiltinOptions{
 		Version:    version,
 		Runners:    h.Runners,
-		Providers:  llm.Providers,
+		Providers:  func() []string { return llm.Providers(context.Background()) },
 		Launches:   launches,
 		TraceStore: traces,
 		Terminals: func(ctx context.Context, runner string) ([]terminals.TermInfo, error) {

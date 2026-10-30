@@ -454,7 +454,7 @@ func TestTooLargeAndUnreachable(t *testing.T) {
 	if w := f.do("POST", "/llm/mock/v1/chat/completions", big, nil); w.Code != 413 {
 		t.Fatalf("too large: %d", w.Code)
 	}
-	f.router.providers["mock"] = testProvider{base: "http://127.0.0.1:1"}
+	f.router.catalog.(fixed)["mock"] = testProvider{base: "http://127.0.0.1:1"}
 	if w := f.do("POST", "/llm/mock/v1/chat/completions", `{}`, nil); w.Code != 502 || !strings.Contains(w.Body.String(), "unreachable") {
 		t.Fatalf("unreachable: %d %s", w.Code, w.Body)
 	}

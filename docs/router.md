@@ -12,9 +12,13 @@ a per-launch token that works only here, and the router:
 4. forwards the call and restores this exchange's placeholders in the
    reply, streamed replies included.
 
-`internal/router` holds the router, `internal/launch` the tokens, and
-`plugins/providers/meta` the Meta Model API provider. The router never
-imports a provider; serve hands them in.
+`internal/router` holds the router and `internal/launch` the tokens.
+The providers are saved profiles (`docs/providers.md`): the router asks
+its `Catalog` (`internal/providers`) for `{provider}` on every call, so
+a profile added or edited in Settings serves at once. The profile's
+format sets the auth header (`Bearer`, or `x-api-key` with
+`anthropic-version`). The router never follows a redirect: a key header
+must not travel to an address the owner did not save.
 
 ## Routes
 

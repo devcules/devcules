@@ -68,6 +68,10 @@ type Store interface {
 	// Projects returns the project repo: named directories on a runner
 	// or machine that terminals and agents open in.
 	Projects() ProjectsRepo
+	// Providers returns the model provider profile repo. It is the
+	// provider service's repo: only internal/providers and the store
+	// backends may use it.
+	Providers() ProvidersRepo
 
 	// PushSubscriptions returns the Web Push subscription repo. It is
 	// push's repo: only internal/push and the store backends may use
@@ -438,5 +442,45 @@ type ProjectsRepo interface {
 	Create(ctx context.Context, p Project) error
 	Get(ctx context.Context, id string) (Project, error)
 	List(ctx context.Context) ([]Project, error)
+	Delete(ctx context.Context, id string) error
+}
+
+// ProviderProfile is one model provider the router serves at
+// /llm/<ID>/...: an endpoint, the API format it speaks, and an
+// optional default model. Its key is a vault secret
+// (provider/<ID>/api_key), never a column here.
+type ProviderProfile struct {
+	ID   string
+	Name string
+	// Format is "openai" (Bearer auth, v1/chat/completions and
+	// v1/responses) or "anthropic" (x-api-key, v1/messages).
+	Format string
+	// AlsoAnthropic marks an OpenAI-format endpoint that serves
+	// v1/messages too, as Meta's does.
+	AlsoAnthropic bool
+	// BaseURL is the address as the owner typed it, trimmed; a
+	// trailing /v1 is allowed.
+	BaseURL string
+	// API is which OpenAI API agents use: "auto", "chat" or
+	// "responses". Anthropic profiles keep "auto".
+	API string
+	// Model is the default model; "" means the agent picks.
+	Model string
+	// Default marks the one profile picked first. Create honours it;
+	// Update leaves it alone and SetDefault moves it.
+	Default   bool
+	CreatedAt time.Time
+}
+
+// ProvidersRepo stores provider profiles. Create wraps ErrExists for a
+// taken id; Get, Update and SetDefault wrap ErrNotFound; Delete of a
+// missing id is a no-op. At most one profile is the default.
+type ProvidersRepo interface {
+	Create(ctx context.Context, p ProviderProfile) error
+	Get(ctx context.Context, id string) (ProviderProfile, error)
+	// List is sorted by name, then id.
+	List(ctx context.Context) ([]ProviderProfile, error)
+	Update(ctx context.Context, p ProviderProfile) error
+	SetDefault(ctx context.Context, id string) error
 	Delete(ctx context.Context, id string) error
 }

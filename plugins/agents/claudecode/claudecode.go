@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/devcules/devcules/internal/terminals"
 	"github.com/devcules/devcules/plugins/agents"
 )
 
@@ -19,7 +20,8 @@ const (
 )
 
 // routerPath is ANTHROPIC_BASE_URL for provider p: Claude Code appends
-// /v1/messages itself, which both Anthropic and Meta serve.
+// /v1/messages itself, which every Anthropic-format profile (and Meta)
+// serves.
 func routerPath(p string) string { return "/llm/" + p }
 
 // Agent is the Claude Code adapter.
@@ -37,9 +39,12 @@ func (Agent) Name() string { return "Claude Code" }
 // Provider is "anthropic": the router's Anthropic provider.
 func (Agent) Provider() string { return "anthropic" }
 
-// Providers: Anthropic, and Meta, which serves the Anthropic Messages
-// API (v1/messages) too.
-func (Agent) Providers() []string { return []string{"anthropic", "meta"} }
+// Wire: Claude Code speaks the Anthropic Messages API, so it runs on
+// any Anthropic-format profile, and on Meta, which serves it too.
+func (Agent) Wire() string { return terminals.WireMessages }
+
+// Only is empty: any profile serving Messages will do.
+func (Agent) Only() []string { return nil }
 
 // InstallHint is the documented installer.
 func (Agent) InstallHint() string { return installHint }

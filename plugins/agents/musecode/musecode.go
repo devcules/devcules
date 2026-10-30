@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/devcules/devcules/internal/terminals"
 	"github.com/devcules/devcules/plugins/agents"
 )
 
@@ -43,8 +44,11 @@ func (Agent) Name() string { return "Muse Code" }
 // Provider is "meta": Muse Code only speaks the Meta Model API.
 func (Agent) Provider() string { return "meta" }
 
-// Providers: Muse Code only speaks to Meta.
-func (Agent) Providers() []string { return []string{"meta"} }
+// Wire: Muse calls the Responses API.
+func (Agent) Wire() string { return terminals.WireResponses }
+
+// Only: Muse Code only speaks to Meta.
+func (Agent) Only() []string { return []string{"meta"} }
 
 // InstallHint is the documented installer.
 func (Agent) InstallHint() string { return installHint }

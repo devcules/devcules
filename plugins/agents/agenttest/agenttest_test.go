@@ -6,6 +6,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/devcules/devcules/internal/terminals"
 	"github.com/devcules/devcules/plugins/agents"
 )
 
@@ -16,7 +17,8 @@ type toy struct{}
 func (toy) ID() string                            { return "toy" }
 func (toy) Name() string                          { return "Toy" }
 func (toy) Provider() string                      { return "meta" }
-func (toy) Providers() []string                   { return []string{"meta"} }
+func (toy) Wire() string                          { return terminals.WireResponses }
+func (toy) Only() []string                        { return []string{"meta"} }
 func (toy) Detect(context.Context) (string, bool) { return "", false }
 func (toy) InstallHint() string                   { return "install toy" }
 

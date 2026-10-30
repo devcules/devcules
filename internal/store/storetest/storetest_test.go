@@ -36,6 +36,7 @@ type memDB struct {
 	machines  map[string]store.Machine
 	enrol     map[string]store.EnrolCode
 	projects  map[string]store.Project
+	providers map[string]store.ProviderProfile
 	closed    map[*memStore]bool
 }
 
@@ -50,17 +51,18 @@ type memMeta struct {
 
 func newMemDB() *memDB {
 	return &memDB{
-		data:     map[string]string{},
-		users:    map[string]string{},
-		handles:  map[string][]byte{},
-		sessions: map[string]store.Session{},
-		passkeys: map[string]store.Passkey{},
-		secrets:  map[string][]byte{},
-		launches: map[string]store.LaunchToken{},
-		machines: map[string]store.Machine{},
-		enrol:    map[string]store.EnrolCode{},
-		projects: map[string]store.Project{},
-		closed:   map[*memStore]bool{},
+		data:      map[string]string{},
+		users:     map[string]string{},
+		handles:   map[string][]byte{},
+		sessions:  map[string]store.Session{},
+		passkeys:  map[string]store.Passkey{},
+		secrets:   map[string][]byte{},
+		launches:  map[string]store.LaunchToken{},
+		machines:  map[string]store.Machine{},
+		enrol:     map[string]store.EnrolCode{},
+		projects:  map[string]store.Project{},
+		providers: map[string]store.ProviderProfile{},
+		closed:    map[*memStore]bool{},
 	}
 }
 
@@ -103,7 +105,109 @@ func (s *memStore) Machines() store.MachinesRepo     { return memMachines{memLau
 func (s *memStore) EnrolCodes() store.EnrolCodesRepo { return memEnrol{memLaunches{db: s.db, s: s}} }
 func (s *memStore) Projects() store.ProjectsRepo     { return memProjects{memLaunches{db: s.db, s: s}} }
 
+func (s *memStore) Providers() store.ProvidersRepo { return memProviders{memLaunches{db: s.db, s: s}} }
+
 type memProjects struct{ memLaunches }
+
+type memProviders struct{ memLaunches }
+
+func (r memProviders) Create(ctx context.Context, p store.ProviderProfile) error {
+	if p.ID == "" || p.Name == "" || p.Format == "" || p.BaseURL == "" {
+		return fmt.Errorf("store: provider id/name/format/base_url must not be empty")
+	}
+	if err := r.lock(ctx); err != nil {
+		return err
+	}
+	defer r.db.mu.Unlock()
+	if _, ok := r.db.providers[p.ID]; ok {
+		return fmt.Errorf("store: provider exists: %w", store.ErrExists)
+	}
+	if p.API == "" {
+		p.API = "auto"
+	}
+	if p.Default {
+		for id, o := range r.db.providers {
+			o.Default = false
+			r.db.providers[id] = o
+		}
+	}
+	r.db.providers[p.ID] = p
+	return nil
+}
+
+func (r memProviders) Get(ctx context.Context, id string) (store.ProviderProfile, error) {
+	if err := r.lock(ctx); err != nil {
+		return store.ProviderProfile{}, err
+	}
+	defer r.db.mu.Unlock()
+	p, ok := r.db.providers[id]
+	if !ok {
+		return store.ProviderProfile{}, fmt.Errorf("store: provider not found: %w", store.ErrNotFound)
+	}
+	return p, nil
+}
+
+func (r memProviders) List(ctx context.Context) ([]store.ProviderProfile, error) {
+	if err := r.lock(ctx); err != nil {
+		return nil, err
+	}
+	defer r.db.mu.Unlock()
+	var out []store.ProviderProfile
+	for _, p := range r.db.providers {
+		out = append(out, p)
+	}
+	slices.SortFunc(out, func(a, b store.ProviderProfile) int {
+		if c := strings.Compare(a.Name, b.Name); c != 0 {
+			return c
+		}
+		return strings.Compare(a.ID, b.ID)
+	})
+	return out, nil
+}
+
+func (r memProviders) Update(ctx context.Context, p store.ProviderProfile) error {
+	if p.ID == "" || p.Name == "" || p.Format == "" || p.BaseURL == "" {
+		return fmt.Errorf("store: provider id/name/format/base_url must not be empty")
+	}
+	if err := r.lock(ctx); err != nil {
+		return err
+	}
+	defer r.db.mu.Unlock()
+	o, ok := r.db.providers[p.ID]
+	if !ok {
+		return fmt.Errorf("store: provider not found: %w", store.ErrNotFound)
+	}
+	if p.API == "" {
+		p.API = "auto"
+	}
+	p.Default, p.CreatedAt = o.Default, o.CreatedAt
+	r.db.providers[p.ID] = p
+	return nil
+}
+
+func (r memProviders) SetDefault(ctx context.Context, id string) error {
+	if err := r.lock(ctx); err != nil {
+		return err
+	}
+	defer r.db.mu.Unlock()
+	if _, ok := r.db.providers[id]; !ok {
+		return fmt.Errorf("store: provider not found: %w", store.ErrNotFound)
+	}
+	for k, o := range r.db.providers {
+		o.Default = k == id
+		r.db.providers[k] = o
+	}
+	return nil
+}
+
+func (r memProviders) Delete(ctx context.Context, id string) error {
+	if err := r.lock(ctx); err != nil {
+		return err
+	}
+	defer r.db.mu.Unlock()
+	delete(r.db.providers, id)
+	return nil
+}
 
 func (r memProjects) Create(ctx context.Context, p store.Project) error {
 	if p.ID == "" || p.Name == "" || p.Target == "" || p.Dir == "" {

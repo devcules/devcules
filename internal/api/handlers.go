@@ -18,6 +18,7 @@ import (
 	"github.com/devcules/devcules/internal/link/hub"
 	"github.com/devcules/devcules/internal/machines"
 	machrelay "github.com/devcules/devcules/internal/machines/relay"
+	"github.com/devcules/devcules/internal/providers"
 	"github.com/devcules/devcules/internal/push"
 	"github.com/devcules/devcules/internal/redact"
 	"github.com/devcules/devcules/internal/router"
@@ -75,6 +76,9 @@ type Options struct {
 	Projects store.ProjectsRepo
 	// ProviderKeys stores provider API keys from Settings (the vault).
 	ProviderKeys KeyWriter
+	// Profiles stores the model provider profiles the router serves;
+	// nil lists the router's fixed providers and refuses edits.
+	Profiles *providers.Service
 	// Machines relays the machine task view (screen, input, tree,
 	// grounding, done-verify) to the linked machine helpers. Nil
 	// answers those routes with 503; serve always passes a real one.
@@ -168,20 +172,17 @@ func Handler(o Options) http.Handler {
 	mux.Handle("/hook/approvals/", hookApprovals(o.ApprovalQueue, o.Launches))
 	mux.Handle("/api/push", requireSession(o.Auth, pushRoot(o.Push)))
 	mux.Handle("/api/push/", requireSession(o.Auth, pushOne(o.Push, o.PublicURL, rec)))
-	providers := func() []string { return nil }
+	providerIDs := func() []string { return nil }
 	if o.Router != nil {
-		providers = o.Router.Providers
+		providerIDs = func() []string { return o.Router.Providers(context.Background()) }
 	}
-	var ready func(context.Context, string) bool
-	if o.Router != nil {
-		ready = func(ctx context.Context, id string) bool { ok, _ := o.Router.Ready(ctx, id); return ok }
-	}
-	mux.Handle("/api/agents", requireSession(o.Auth, agentsRoot(o.Terminals, o.Launches, o.ApprovalQueue, o.Projects, providers, ready, o.PublicURL, rec)))
-	// Providers: which ones have a key, and each one's model list,
-	// fetched by serve with the vault key (never the browser).
-	mux.Handle("/api/providers", requireSession(o.Auth, providersRoot(o.Router)))
-	mux.Handle("/api/providers/", requireSession(o.Auth, providerOne(o.Router, o.ProviderKeys, o.PublicURL, rec)))
-	mux.Handle("/api/launch-tokens", requireSession(o.Auth, launchesRoot(o.Launches, providers, o.PublicURL, rec)))
+	mux.Handle("/api/agents", requireSession(o.Auth, agentsRoot(o.Terminals, o.Launches, o.ApprovalQueue, o.Projects, o.Router, o.Profiles, o.PublicURL, rec)))
+	// Provider profiles: each one's fields and whether its key is
+	// saved, its model list (fetched by serve with the vault key,
+	// never the browser), and the Settings writes.
+	mux.Handle("/api/providers", requireSession(o.Auth, providersRoot(o.Router, o.Profiles, o.ProviderKeys, o.PublicURL, rec)))
+	mux.Handle("/api/providers/", requireSession(o.Auth, providerOne(o.Router, o.Profiles, o.ProviderKeys, o.PublicURL, rec)))
+	mux.Handle("/api/launch-tokens", requireSession(o.Auth, launchesRoot(o.Launches, providerIDs, o.PublicURL, rec)))
 	mux.Handle("/api/launch-tokens/", requireSession(o.Auth, launchOne(o.Launches, o.PublicURL, rec)))
 	// Audit and traces: reads need a session, and reading a trace or
 	// exporting the log is itself audited.

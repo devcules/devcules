@@ -11,7 +11,7 @@ Checked 2026-10-29 at <https://dev.meta.ai/docs>. Used by
 
 | Fact | Value |
 |---|---|
-| Base URL | `https://api.meta.ai` (`DEVCULES_META_BASE_URL` overrides it) |
+| Base URL | `https://api.meta.ai` (the built-in `meta` profile; `DEVCULES_META_BASE_URL` or Settings → Providers changes it) |
 | Auth | `Authorization: Bearer <key>`; keys look like `LLM_<id>_<secret>` |
 | OpenAI-style | `POST /v1/chat/completions`, `POST /v1/responses`, `GET /v1/models` (optional `?client=`) |
 | Anthropic-style | `POST /v1/messages`, `POST /v1/messages/count_tokens` |
@@ -29,6 +29,17 @@ an OpenAI SDK and an Anthropic SDK can both use the same key. That is
 what lets Claude Code (Anthropic Messages, base `/llm/meta`) and Codex
 (Responses, base `/llm/meta/v1`) run on a Meta key with a Meta model
 picked from `GET /v1/models` (`docs/agents.md`, Choosing a provider).
+
+## Other OpenAI-compatible and Anthropic endpoints
+
+Any endpoint can be a provider profile (`docs/providers.md`). This is
+what Devcules expects of one, not a fact about a given vendor: check
+the vendor's own docs for what it serves.
+
+| Format | Devcules sends | Needs, for each use |
+|---|---|---|
+| OpenAI-compatible | `Authorization: Bearer <key>` to `<base>/v1/...` | `GET v1/models` for "load models"; `POST v1/responses` for Codex (set the profile's API to `chat` if the endpoint has only `v1/chat/completions`) |
+| Anthropic | `x-api-key: <key>` and `anthropic-version: 2023-06-01` unless the client sent one | `POST v1/messages` for Claude Code; `GET v1/models` (paged with `has_more`, `last_id`, `after_id`) for "load models" |
 
 ## Model Context Protocol
 

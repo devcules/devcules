@@ -34,8 +34,9 @@ key as `redact/hmac_key` (see `docs/redact.md`).
 Settings → Providers stores each model vendor's API key under
 `provider/<id>/api_key` (`router.KeySecret`): `PUT
 /api/providers/{id}/key {"key"}` and `DELETE /api/providers/{id}/key`,
-session plus CSRF, for the providers the router serves (`meta`,
-`anthropic`, `openai`). The key is sealed like every other secret and
+session plus CSRF, for any saved provider profile
+(`docs/providers.md`). Adding or editing a profile can carry its key
+too, and removing a profile removes its key. The key is sealed like every other secret and
 is never sent back, not even in part: `GET /api/providers` only says
 `ready`. The router reads the key on every call, so a change applies at
 once; it also drops that provider's cached model list. Audit records

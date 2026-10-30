@@ -24,9 +24,9 @@ forms are set, the direct value wins and the file is ignored entirely.
 | `DEVCULES_PUBLIC_URL` | empty | External URL for push and links, e.g. the Tailscale HTTPS name. Must be an `http(s)` URL with a host when set. Also the WebAuthn relying party (M1.5): passkeys work on `http://localhost:7659` and https names, and stay off without it or on an IP host (see `docs/auth.md`). |
 | `META_API_KEY` / `_FILE` | empty | Moved into the vault (`provider/meta/api_key`) on start; once logged as stored, it can leave the environment. A single whitespace-free string. Serve-only, like the vault keys. |
 | `DEVCULES_TRACE_DAYS` | `30` | How many days model call traces are kept (0 to 3650; `0` keeps them forever). Serve prunes at start and once a day. The audit log is never pruned. See `docs/audit.md`. |
-| `DEVCULES_ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | Anthropic origin the router forwards to (same rules as above). |
-| `DEVCULES_OPENAI_BASE_URL` | `https://api.openai.com` | OpenAI origin (same rules; Responses/Chat/Messages route there). |
-| `DEVCULES_META_BASE_URL` | `https://api.meta.ai` | Meta Model API origin the router forwards to, without `/v1`. Must be an `http(s)` URL with a host; a trailing slash is dropped. Point it at a compatible endpoint or a test fake. See `docs/router.md`. |
+| `DEVCULES_ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | Base URL of the built-in `anthropic` provider profile (same rules as below). |
+| `DEVCULES_OPENAI_BASE_URL` | `https://api.openai.com` | Base URL of the built-in `openai` profile (same rules). |
+| `DEVCULES_META_BASE_URL` | `https://api.meta.ai` | Base URL of the built-in `meta` profile, without `/v1`. Must be an `http(s)` URL with a host; a trailing slash is dropped. It seeds the profile on the first start; set to another address than the vendor's, it moves the profile there on every start (a test fake). Other providers are added in Settings → Providers. See `docs/providers.md`. |
 | `DEVCULES_PUSH_CONTACT` | the public URL when it is https, else the project page | The contact push services see in the VAPID token (RFC 8292 `sub`): a `mailto:` or `https:` URL. See `docs/approvals.md`. |
 | `DEVCULES_LAUNCH_TOKEN` / `_FILE` | empty | The launch token `devcules hook` sends with each tool call. Devcules sets it when it launches an agent; only the hook reads it. See `docs/approvals.md`. |
 

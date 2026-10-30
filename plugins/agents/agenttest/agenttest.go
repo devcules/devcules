@@ -46,17 +46,20 @@ func Run(t *testing.T, a agents.Agent, f Fixture) {
 	})
 
 	t.Run("providers", func(t *testing.T) {
-		// Its own provider comes first, every one is a usable lowercase
-		// id, and one it cannot speak is refused, never silently swapped.
-		ps := a.Providers()
-		bad := len(ps) == 0 || ps[0] != a.Provider()
-		for _, p := range ps {
-			_, err := agents.ProviderFor(a, p)
-			bad = bad || !terminals.ValidAgentID(p) || err != nil
+		// It names the API it speaks; a malformed provider id is
+		// refused; any other profile is routed to by id unless the
+		// agent is limited to its Only list, which then refuses it.
+		wire, only := a.Wire(), a.Only()
+		bad := wire != terminals.WireMessages && wire != terminals.WireResponses
+		for _, p := range only {
+			bad = bad || !terminals.ValidAgentID(p)
 		}
-		_, err := a.LaunchSpec(agents.Launch{ServeURL: serveURL, Token: token, Dir: dir, Hook: "HOOK", Provider: "nosuchprovider"})
-		if bad || err == nil {
-			t.Fatalf("Providers() = %q: want %q first, lowercase ids, and LaunchSpec refusing others (got %v)", ps, a.Provider(), err)
+		bad = bad || (len(only) > 0 && only[0] != a.Provider())
+		_, malformed := a.LaunchSpec(agents.Launch{ServeURL: serveURL, Token: token, Dir: dir, Hook: "HOOK", Provider: "Not An Id"})
+		spec, other := a.LaunchSpec(agents.Launch{ServeURL: serveURL, Token: token, Dir: dir, Hook: "HOOK", Provider: "otherprofile"})
+		routed := other == nil && strings.Contains(specText(spec), serveURL+"/llm/otherprofile")
+		if bad || malformed == nil || (len(only) == 0) != routed {
+			t.Fatalf("Wire %q, Only %q: want a known wire, Only led by %q, a malformed id refused (got %v), and another profile routed unless Only forbids it (got %v)", wire, only, a.Provider(), malformed, other)
 		}
 	})
 
@@ -84,18 +87,12 @@ func Run(t *testing.T, a agents.Agent, f Fixture) {
 				t.Fatal("the launch token is on the command line, where other processes can read it")
 			}
 		}
-		var all strings.Builder
-		all.WriteString(strings.Join(spec.Cmd, " "))
-		for k, v := range spec.Env {
-			all.WriteString("\n" + k + "=" + v)
-		}
-		for p, data := range spec.Files {
+		for p := range spec.Files {
 			if !filepath.IsLocal(p) {
 				t.Fatalf("file %q escapes the launch dir", p)
 			}
-			all.WriteString("\n" + string(data))
 		}
-		text := all.String()
+		text := specText(spec)
 		tokenFile := filepath.Join(dir, agents.TokenFile)
 		for what, want := range map[string]string{
 			"the model router": serveURL + "/llm/" + a.Provider(),
@@ -164,4 +161,18 @@ func Run(t *testing.T, a agents.Agent, f Fixture) {
 func jsonish(s string) string {
 	r := strings.NewReplacer(`\`, `\\`, `"`, `\"`)
 	return r.Replace(s)
+}
+
+// specText is everything a launch says: its command, environment and
+// files.
+func specText(spec agents.Spec) string {
+	var all strings.Builder
+	all.WriteString(strings.Join(spec.Cmd, " "))
+	for k, v := range spec.Env {
+		all.WriteString("\n" + k + "=" + v)
+	}
+	for _, data := range spec.Files {
+		all.WriteString("\n" + string(data))
+	}
+	return all.String()
 }

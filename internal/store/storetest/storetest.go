@@ -682,6 +682,47 @@ func Run(t *testing.T, newStore func(t *testing.T) store.Store) {
 		mustNotFound(t, err, "Get deleted")
 	})
 
+	t.Run("Providers", func(t *testing.T) {
+		s := newStore(t)
+		defer s.Close()
+		r := s.Providers()
+		at := time.Date(2026, 10, 30, 3, 0, 0, 0, time.UTC)
+		meta := store.ProviderProfile{ID: "meta", Name: "Meta", Format: "openai", AlsoAnthropic: true, BaseURL: "https://api.meta.ai", Default: true, CreatedAt: at}
+		mustf(t, r.Create(ctx, meta), "Create")
+		mustExists(t, r.Create(ctx, store.ProviderProfile{ID: "meta", Name: "Other", Format: "openai", BaseURL: "https://x.test", CreatedAt: at}), "Create a taken id")
+		got, err := r.Get(ctx, "meta")
+		mustf(t, err, "Get")
+		check(t, got.Name == "Meta" && got.Format == "openai" && got.AlsoAnthropic && got.BaseURL == meta.BaseURL && got.API == "auto" && got.Default && got.CreatedAt.Equal(at), fmt.Sprintf("got = %+v", got))
+		_, err = r.Get(ctx, "nope")
+		mustNotFound(t, err, "Get missing")
+
+		// A new default takes over: at most one.
+		vllm := store.ProviderProfile{ID: "vllm", Name: "Local vLLM", Format: "openai", BaseURL: "http://127.0.0.1:8000/v1", API: "chat", Model: "qwen", Default: true, CreatedAt: at}
+		mustf(t, r.Create(ctx, vllm), "Create a second default")
+		list, err := r.List(ctx)
+		mustf(t, err, "List")
+		check(t, len(list) == 2 && list[0].ID == "vllm" && list[1].ID == "meta", fmt.Sprintf("List = %+v, want sorted by name", list))
+		check(t, list[0].Default && !list[1].Default, fmt.Sprintf("defaults = %v %v, want only vllm", list[0].Default, list[1].Default))
+
+		// Update changes the fields but never the default flag.
+		vllm.Name, vllm.Model, vllm.API, vllm.Default = "vLLM", "llama", "responses", false
+		mustf(t, r.Update(ctx, vllm), "Update")
+		got, _ = r.Get(ctx, "vllm")
+		check(t, got.Name == "vLLM" && got.Model == "llama" && got.API == "responses" && got.Default && got.CreatedAt.Equal(at), fmt.Sprintf("updated = %+v", got))
+		mustNotFound(t, r.Update(ctx, store.ProviderProfile{ID: "nope", Name: "n", Format: "openai", BaseURL: "https://x.test"}), "Update missing")
+
+		mustf(t, r.SetDefault(ctx, "meta"), "SetDefault")
+		a, _ := r.Get(ctx, "meta")
+		b, _ := r.Get(ctx, "vllm")
+		check(t, a.Default && !b.Default, "SetDefault did not move the default")
+		mustNotFound(t, r.SetDefault(ctx, "nope"), "SetDefault missing")
+
+		mustf(t, r.Delete(ctx, "vllm"), "Delete")
+		mustf(t, r.Delete(ctx, "vllm"), "Delete missing (must be a no-op)")
+		_, err = r.Get(ctx, "vllm")
+		mustNotFound(t, err, "Get deleted")
+	})
+
 	t.Run("EnrolCodes", func(t *testing.T) {
 		s := newStore(t)
 		defer s.Close()

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/devcules/devcules/internal/terminals"
 	"github.com/devcules/devcules/plugins/agents"
 	"github.com/devcules/devcules/plugins/agents/agenttest"
 )
@@ -98,7 +99,12 @@ func TestLaunchOnMeta(t *testing.T) {
 	if !strings.Contains(string(spec.Files["codex/config.toml"]), `base_url = "http://serve:7659/llm/meta/v1"`) {
 		t.Fatalf("config.toml = %s", spec.Files["codex/config.toml"])
 	}
-	if _, err := New().LaunchSpec(agents.Launch{ServeURL: "http://s", Token: "t", Dir: "/d", Hook: "h", Provider: "anthropic"}); err == nil {
-		t.Fatal("Codex accepted the Anthropic provider")
+	// Any OpenAI-format profile routes by id; serve checks the API.
+	spec, err = New().LaunchSpec(agents.Launch{ServeURL: "http://s", Token: "t", Dir: "/d", Hook: "h", Provider: "nebius"})
+	if err != nil || !strings.Contains(string(spec.Files["codex/config.toml"]), `base_url = "http://s/llm/nebius/v1"`) {
+		t.Fatalf("profile launch = %v, %s", err, spec.Files["codex/config.toml"])
+	}
+	if New().Wire() != terminals.WireResponses || New().Only() != nil {
+		t.Fatal("Codex must speak Responses to any profile")
 	}
 }

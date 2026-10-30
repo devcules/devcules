@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -27,9 +28,9 @@ type Launch struct {
 	Token string
 	// Model is the model to start with; "" is the adapter's default.
 	Model string
-	// Provider is the router provider to call, one of the agent's
-	// Providers(); "" is its own. The router path is
-	// ServeURL + "/llm/" + provider.
+	// Provider is the provider profile to call; "" is its own. Serve
+	// checked that the profile serves the agent's Wire. The router
+	// path is ServeURL + "/llm/" + provider.
 	Provider string
 	// Dir is the launch's private dir (0700, removed with the
 	// terminal). Spec.Files paths are relative to it.
@@ -75,11 +76,14 @@ type Reply struct {
 type Agent interface {
 	ID() string       // "musecode"
 	Name() string     // "Muse Code"
-	Provider() string // its own router provider: "meta"
-	// Providers lists every router provider it can speak to, its own
-	// first: Claude Code speaks Anthropic Messages, which Meta serves
-	// too, so ["anthropic", "meta"].
-	Providers() []string
+	Provider() string // its own provider profile: "meta"
+	// Wire is the model API the CLI speaks (terminals.WireMessages or
+	// terminals.WireResponses): serve offers every provider profile
+	// that serves it.
+	Wire() string
+	// Only, when not empty, limits the agent to these providers
+	// whatever they serve: Muse Code only talks to Meta.
+	Only() []string
 	// Detect reports the installed version, if any.
 	Detect(ctx context.Context) (version string, ok bool)
 	// InstallHint is the documented install command, shown to the
@@ -93,18 +97,20 @@ type Agent interface {
 }
 
 // ProviderFor resolves the provider a launch calls: p, or the agent's
-// own when p is empty. A provider the agent cannot speak is an error,
-// so an adapter never points a CLI at a wire format it does not use.
+// own when p is empty. A malformed id, or one outside the agent's
+// Only list, is an error. Whether the profile serves the agent's Wire
+// is serve's check: only serve holds the profiles.
 func ProviderFor(a Agent, p string) (string, error) {
 	if p == "" {
 		return a.Provider(), nil
 	}
-	for _, q := range a.Providers() {
-		if q == p {
-			return p, nil
-		}
+	if !terminals.ValidAgentID(p) {
+		return "", fmt.Errorf("%s: %q is not a provider id", a.ID(), p)
 	}
-	return "", fmt.Errorf("%s: cannot use provider %q (it speaks %s)", a.ID(), p, strings.Join(a.Providers(), ", "))
+	if only := a.Only(); len(only) > 0 && !slices.Contains(only, p) {
+		return "", fmt.Errorf("%s: cannot use provider %q (it only speaks to %s)", a.ID(), p, strings.Join(only, ", "))
+	}
+	return p, nil
 }
 
 // Registry holds the adapters a runner offers.
@@ -145,7 +151,7 @@ func (r *Registry) Agents(ctx context.Context) []terminals.AgentInfo {
 			defer func() { done <- struct{}{} }()
 			v, ok := a.Detect(ctx)
 			out[i] = terminals.AgentInfo{ID: a.ID(), Name: a.Name(), Provider: a.Provider(),
-				Providers: a.Providers(), Installed: ok, Version: v, Install: a.InstallHint()}
+				Wire: a.Wire(), Only: a.Only(), Installed: ok, Version: v, Install: a.InstallHint()}
 		}()
 	}
 	for range r.agents {

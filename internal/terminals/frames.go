@@ -142,13 +142,29 @@ type AgentInfo struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	Provider string `json:"provider"`
-	// Providers are the router providers the agent can speak to, its
-	// own (Provider) first.
+	// Wire is the model API the CLI speaks (WireMessages or
+	// WireResponses): serve offers it every provider profile that
+	// serves that API.
+	Wire string `json:"wire,omitempty"`
+	// Only, when set, limits it to these providers: Muse Code only
+	// speaks to Meta.
+	Only []string `json:"only,omitempty"`
+	// Providers are the provider profiles it can use now, its own
+	// first. Serve fills it from the saved profiles; a runner from
+	// before profiles sends a fixed list here.
 	Providers []string `json:"providers,omitempty"`
 	Installed bool     `json:"installed"`
 	Version   string   `json:"version,omitempty"`
 	Install   string   `json:"install,omitempty"`
 }
+
+// The model APIs agent CLIs speak.
+const (
+	// WireMessages is Anthropic's v1/messages (Claude Code).
+	WireMessages = "messages"
+	// WireResponses is OpenAI's v1/responses (Codex, Muse Code).
+	WireResponses = "responses"
+)
 
 // AgentList answers term.agents.
 type AgentList struct {

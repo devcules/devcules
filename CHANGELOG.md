@@ -4,6 +4,31 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-30, model provider profiles)
+
+- Providers are saved profiles now: a name, the API format
+  (OpenAI-compatible or Anthropic), a base URL, which OpenAI API agents
+  use (auto, chat or responses) and an optional default model, in the
+  new `providers` table (migration 0011) with the key in the vault. The
+  router resolves `/llm/<id>` per call, so a profile added or edited
+  serves at once. Meta, Anthropic and OpenAI are seeded once with their
+  ids, so saved keys keep working; `DEVCULES_*_BASE_URL` set to another
+  address moves its built-in there on every start.
+- `GET/POST /api/providers`, `PUT/DELETE /api/providers/{id}`,
+  `PUT /api/providers/{id}/default` and `POST /api/providers/probe`
+  ("load models" for a form not saved yet), session plus CSRF, audited
+  as `provider.add/edit/remove/default` without keys.
+- Base URLs must be https, or http only for localhost and private LAN
+  addresses; never userinfo, a query or a link-local address. A saved
+  key is only sent to the host it was saved for: moving a profile to
+  another host needs the key again, and the router follows no
+  redirects.
+- Agents name the API they speak (`Wire`: messages or responses) and,
+  if limited, the providers they may use (`Only`). Claude Code is
+  offered every Anthropic-format profile and Meta; Codex every
+  OpenAI-format profile serving `/v1/responses`; Muse Code only Meta. A
+  profile's default model fills a blank model.
+
 ### Added (2026-10-30, admin password reset)
 
 - `devcules admin reset-password [--user NAME]`: a new random password,

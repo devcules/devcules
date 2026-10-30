@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/devcules/devcules/internal/terminals"
 	"github.com/devcules/devcules/plugins/agents"
 	"github.com/devcules/devcules/plugins/agents/agenttest"
 )
@@ -89,7 +90,12 @@ func TestLaunchOnMeta(t *testing.T) {
 	if spec.Env["ANTHROPIC_MODEL"] != "muse-spark-1.3" {
 		t.Fatalf("model = %q", spec.Env["ANTHROPIC_MODEL"])
 	}
-	if _, err := New().LaunchSpec(agents.Launch{ServeURL: "http://s", Token: "t", Dir: "/d", Hook: "h", Provider: "openai"}); err == nil {
-		t.Fatal("Claude Code accepted the OpenAI provider")
+	// Any Anthropic-format profile routes by id; serve checks the format.
+	spec, err = New().LaunchSpec(agents.Launch{ServeURL: "http://s", Token: "t", Dir: "/d", Hook: "h", Provider: "bedrockproxy"})
+	if err != nil || spec.Env["ANTHROPIC_BASE_URL"] != "http://s/llm/bedrockproxy" {
+		t.Fatalf("profile launch = %v, %q", err, spec.Env["ANTHROPIC_BASE_URL"])
+	}
+	if New().Wire() != terminals.WireMessages || New().Only() != nil {
+		t.Fatal("Claude Code must speak Messages to any profile")
 	}
 }

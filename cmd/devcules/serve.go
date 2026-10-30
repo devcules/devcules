@@ -20,6 +20,7 @@ import (
 	"github.com/devcules/devcules/internal/link/hub"
 	"github.com/devcules/devcules/internal/machines"
 	machrelay "github.com/devcules/devcules/internal/machines/relay"
+	"github.com/devcules/devcules/internal/providers"
 	"github.com/devcules/devcules/internal/router"
 	"github.com/devcules/devcules/internal/store"
 	"github.com/devcules/devcules/internal/store/sqlite"
@@ -90,9 +91,19 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 	pruneCtx, stopPrune := context.WithCancel(context.Background())
 	defer stopPrune()
 	go pruneTracesDaily(pruneCtx, 24*time.Hour, traces, cfg.TraceDays, log)
+	// Provider profiles live in the store; the first start with the
+	// table writes Meta, Anthropic and OpenAI, whose keys (same ids)
+	// keep working.
+	profiles := providers.New(s.Providers(), s.Meta())
+	if err := seedProviders(context.Background(), profiles, cfg, log); err != nil {
+		fmt.Fprintln(stderr, "provider profiles: "+err.Error())
+		b.Close()
+		s.Close()
+		return exitError
+	}
 	llm, err := router.New(router.Options{
 		Tracer:    traces,
-		Providers: []router.Provider{meta.New(cfg.MetaBaseURL), anthropic.New(cfg.AnthropicBaseURL), openai.New(cfg.OpenAIBaseURL)},
+		Catalog:   profiles,
 		Keys:      v,
 		Tokens:    launches,
 		Redactor:  redactor,
@@ -162,7 +173,7 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 	machinesRelay := machrelay.New(h)
 	machinesRelay.Run()
 	srv := &http.Server{
-		Handler:           api.Handler(api.Options{Store: s, Auth: authSvc, Web: web.Embedded(), PublicURL: cfg.PublicURL, Link: h, Terminals: terms, Redact: redactor, RedactSettings: redactSettings, Router: llm, Launches: launches, AuditLog: auditLog, TraceStore: traces, MCP: mcpServer, ApprovalQueue: approvalSvc, Push: pushSvc, Enrol: machines.NewIssuer(s), MachineStore: machineStore, Machines: machinesRelay, Projects: s.Projects(), ProviderKeys: v}),
+		Handler:           api.Handler(api.Options{Store: s, Auth: authSvc, Web: web.Embedded(), PublicURL: cfg.PublicURL, Link: h, Terminals: terms, Redact: redactor, RedactSettings: redactSettings, Router: llm, Launches: launches, AuditLog: auditLog, TraceStore: traces, MCP: mcpServer, ApprovalQueue: approvalSvc, Push: pushSvc, Enrol: machines.NewIssuer(s), MachineStore: machineStore, Machines: machinesRelay, Projects: s.Projects(), ProviderKeys: v, Profiles: profiles}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,
@@ -207,4 +218,39 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 	s.Close()
 	log.Info("serve stopped")
 	return exitOK
+}
+
+// seedProviders writes the built-in profiles once, then pins each
+// built-in whose DEVCULES_*_BASE_URL is set to another address than
+// the vendor's: that setting wins on every start.
+func seedProviders(ctx context.Context, profiles *providers.Service, cfg config.Config, log *slog.Logger) error {
+	builtins := builtinProviders(cfg)
+	if err := profiles.Seed(ctx, builtins); err != nil {
+		return err
+	}
+	vendor := map[string]string{"meta": meta.DefaultBaseURL, "anthropic": anthropic.DefaultBaseURL, "openai": openai.DefaultBaseURL}
+	for _, p := range builtins {
+		if p.BaseURL == vendor[p.ID] {
+			continue
+		}
+		changed, err := profiles.Pin(ctx, p.ID, p.BaseURL)
+		if err != nil {
+			return err
+		}
+		if changed {
+			log.Info("provider base URL set from the environment", "provider", p.ID, "base_url", p.BaseURL)
+		}
+	}
+	return nil
+}
+
+// builtinProviders are the profiles serve seeds once: Meta, Anthropic
+// and OpenAI, at DEVCULES_{META,ANTHROPIC,OPENAI}_BASE_URL or the
+// vendor's address. Meta speaks both formats.
+func builtinProviders(cfg config.Config) []providers.Profile {
+	return []providers.Profile{
+		{ID: meta.New("").ID(), Name: "Meta", Format: providers.FormatOpenAI, AlsoAnthropic: true, BaseURL: meta.New(cfg.MetaBaseURL).BaseURL(), API: providers.APIAuto, Default: true},
+		{ID: anthropic.New("").ID(), Name: "Anthropic", Format: providers.FormatAnthropic, BaseURL: anthropic.New(cfg.AnthropicBaseURL).BaseURL(), API: providers.APIAuto},
+		{ID: openai.New("").ID(), Name: "OpenAI", Format: providers.FormatOpenAI, BaseURL: openai.New(cfg.OpenAIBaseURL).BaseURL(), API: providers.APIAuto},
+	}
 }

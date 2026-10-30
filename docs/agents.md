@@ -10,20 +10,22 @@ runner role owns them; serve only relays the launch. `internal` never
 imports them: `cmd/devcules` passes them to the runner's terminal
 manager behind the small `pty.Launcher` interface.
 
-| Agent | Package | Providers (own first) | Router path | Since |
+| Agent | Package | Own provider · wire | Router path | Since |
 |---|---|---|---|---|
-| Muse Code | `plugins/agents/musecode` | `meta` | `/llm/meta/v1` | M3.3 |
-| Claude Code | `plugins/agents/claudecode` | `anthropic`, `meta` | `/llm/<p>` (it adds `/v1/messages`) | M3.4 |
-| Codex | `plugins/agents/codex` | `openai`, `meta` | `/llm/<p>/v1` (it adds `/responses`) | M3.4 |
+| Muse Code | `plugins/agents/musecode` | `meta` · responses, only `meta` | `/llm/meta/v1` | M3.3 |
+| Claude Code | `plugins/agents/claudecode` | `anthropic` · messages | `/llm/<p>` (it adds `/v1/messages`) | M3.4 |
+| Codex | `plugins/agents/codex` | `openai` · responses | `/llm/<p>/v1` (it adds `/responses`) | M3.4 |
 
 ## Choosing a provider
 
-An agent can run on any provider it speaks (`Agent.Providers()`, its
-own first): Meta serves both the Anthropic Messages API and the
-OpenAI Responses API (`docs/integrations.md`), so Claude Code and
-Codex can run on a Meta key. The new-terminal form lists the agent's
-providers from `GET /api/providers` (`[{id, ready}]`: ready means a
-key is in the vault) and fills the model list from
+An agent can run on any provider profile that serves the API it
+speaks (`Agent.Wire()`, limited by `Agent.Only()`; `docs/providers.md`):
+Claude Code on Anthropic-format profiles and Meta, which serves the
+Anthropic Messages API too, Codex on OpenAI-format profiles that serve
+`/v1/responses`. `GET /api/agents` lists what each agent is offered
+(its own first, then the default). The new-terminal form shows those
+profiles by name from `GET /api/providers` (`ready` means a key is in
+the vault) and fills the model list from
 `GET /api/providers/{id}/models`, which serve reads from the
 provider's `GET v1/models` with the vault key (never the browser) and
 reuses for five minutes.
@@ -33,14 +35,15 @@ Providers adds, replaces or removes one per provider (`docs/vault.md`),
 and the change applies without a restart.
 
 `POST /api/agents {agent, provider?, model?, project?, name?}` checks
-that the agent speaks the provider (`400` otherwise), the router
+that the agent can use the profile (`400` otherwise), the router
 serves it and it has a key (`409` "add its key in Settings"), and
-that a model is given when the provider is not the agent's own
-(another vendor has no model by the agent's default name). The launch
+that a model is given when the provider is not the agent's own, unless
+the profile has a default model (another vendor has no model by the
+agent's default name). The launch
 token is minted for the chosen provider, so the router refuses any
 other (`launch.Launch.Allows`), `term.open` carries
 `agent.provider`, and the adapter builds its router path from it; an
-adapter refuses a provider it cannot speak. `agent.launch` audits the
+adapter refuses a malformed id or one outside its `Only` list. `agent.launch` audits the
 provider.
 
 ## A launch

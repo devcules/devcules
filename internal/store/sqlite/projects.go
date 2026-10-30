@@ -17,8 +17,8 @@ func (r projectsRepo) Create(ctx context.Context, p store.Project) error {
 	if p.ID == "" || p.Name == "" || p.Target == "" || p.Dir == "" {
 		return fmt.Errorf("store: project id/name/target/dir must not be empty")
 	}
-	_, err := r.db.ExecContext(ctx, `INSERT INTO projects (id, name, kind, target, dir, repo, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		p.ID, p.Name, p.Kind, p.Target, p.Dir, p.Repo, p.CreatedAt.UTC().Format(nanoTime))
+	_, err := r.db.ExecContext(ctx, `INSERT INTO projects (id, name, kind, target, dir, repo, git, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.ID, p.Name, p.Kind, p.Target, p.Dir, p.Repo, p.Git, p.CreatedAt.UTC().Format(nanoTime))
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			return fmt.Errorf("store: project %q already exists: %w", p.Name, store.ErrExists)
@@ -31,7 +31,7 @@ func (r projectsRepo) Create(ctx context.Context, p store.Project) error {
 func scanProject(row interface{ Scan(...any) error }) (store.Project, error) {
 	var p store.Project
 	var created string
-	if err := row.Scan(&p.ID, &p.Name, &p.Kind, &p.Target, &p.Dir, &p.Repo, &created); err != nil {
+	if err := row.Scan(&p.ID, &p.Name, &p.Kind, &p.Target, &p.Dir, &p.Repo, &p.Git, &created); err != nil {
 		return store.Project{}, err
 	}
 	p.CreatedAt, _ = time.Parse(nanoTime, created)
@@ -39,7 +39,7 @@ func scanProject(row interface{ Scan(...any) error }) (store.Project, error) {
 }
 
 func (r projectsRepo) Get(ctx context.Context, id string) (store.Project, error) {
-	p, err := scanProject(r.db.QueryRowContext(ctx, `SELECT id, name, kind, target, dir, repo, created_at FROM projects WHERE id = ?`, id))
+	p, err := scanProject(r.db.QueryRowContext(ctx, `SELECT id, name, kind, target, dir, repo, git, created_at FROM projects WHERE id = ?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return store.Project{}, fmt.Errorf("store: project %q not found: %w", id, store.ErrNotFound)
 	}
@@ -50,7 +50,7 @@ func (r projectsRepo) Get(ctx context.Context, id string) (store.Project, error)
 }
 
 func (r projectsRepo) List(ctx context.Context) ([]store.Project, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, name, kind, target, dir, repo, created_at FROM projects ORDER BY name`)
+	rows, err := r.db.QueryContext(ctx, `SELECT id, name, kind, target, dir, repo, git, created_at FROM projects ORDER BY name`)
 	if err != nil {
 		return nil, fmt.Errorf("store: project list failed: %w", err)
 	}

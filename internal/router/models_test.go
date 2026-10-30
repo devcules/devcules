@@ -68,3 +68,30 @@ func TestModelsUpstreamError(t *testing.T) {
 		t.Fatal("a 401 model list returned no error")
 	}
 }
+
+// TestModelsPaged follows Anthropic's has_more / last_id paging.
+func TestModelsPaged(t *testing.T) {
+	f := newFixture(t, 0, nil)
+	var pages []string
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		pages = append(pages, r.URL.RawQuery)
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("after_id") == "" {
+			_, _ = w.Write([]byte(`{"data":[{"id":"claude-b"},{"id":"claude-a"}],"has_more":true,"last_id":"claude-a"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":[{"id":"claude-c"}],"has_more":false,"last_id":"claude-c"}`))
+	}))
+	t.Cleanup(up.Close)
+	f.router.providers["mock"] = testProvider{base: up.URL}
+	list, err := f.router.Models(context.Background(), "mock")
+	if err != nil {
+		t.Fatalf("Models: %s", err)
+	}
+	if len(list) != 3 || list[0] != "claude-a" || list[2] != "claude-c" {
+		t.Fatalf("models = %q, want both pages", list)
+	}
+	if len(pages) != 2 || pages[0] != "" || pages[1] != "limit=1000&after_id=claude-a" {
+		t.Fatalf("queries = %q", pages)
+	}
+}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"sort"
 	"sync"
 	"time"
@@ -16,6 +17,9 @@ import (
 // changes rarely, and the picker should not cost an upstream call per
 // keystroke.
 const modelsTTL = 5 * time.Minute
+
+// maxModelPages bounds how many pages of a paged model list are read.
+const maxModelPages = 10
 
 // ErrUnknownProvider answers Ready and Models for an id the router
 // does not serve.
@@ -62,38 +66,26 @@ func (rt *Router) Models(ctx context.Context, id string) ([]string, error) {
 	}
 	ctx, stop := context.WithTimeout(ctx, 15*time.Second)
 	defer stop()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.BaseURL()+"/v1/models", nil)
-	if err != nil {
-		return nil, err
-	}
-	p.Auth(req.Header, string(key))
-	// Anthropic requires a version on every call; the others ignore it.
-	req.Header.Set("anthropic-version", "2023-06-01")
-	req.Header.Set("Accept", "application/json")
-	resp, err := rt.o.Client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("%s did not answer the model list", id)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%s answered the model list with %d", id, resp.StatusCode)
-	}
-	// OpenAI, Anthropic and Meta all answer {"data": [{"id": ...}]}.
-	var body struct {
-		Data []struct {
-			ID string `json:"id"`
-		} `json:"data"`
-	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(&body); err != nil {
-		return nil, fmt.Errorf("%s sent an unreadable model list", id)
-	}
-	list := make([]string, 0, len(body.Data))
+	list := []string{}
 	seen := map[string]bool{}
-	for _, m := range body.Data {
-		if m.ID != "" && !seen[m.ID] {
-			seen[m.ID] = true
-			list = append(list, m.ID)
+	// Anthropic pages its list (has_more, last_id, then ?after_id=);
+	// OpenAI and Meta answer in one page and never set has_more.
+	after := ""
+	for page := 0; page < maxModelPages; page++ {
+		ids, more, last, err := rt.modelPage(ctx, p, string(key), after)
+		if err != nil {
+			return nil, err
 		}
+		for _, m := range ids {
+			if m != "" && !seen[m] {
+				seen[m] = true
+				list = append(list, m)
+			}
+		}
+		if !more || last == "" || last == after {
+			break
+		}
+		after = last
 	}
 	sort.Strings(list)
 	rt.models.mu.Lock()
@@ -103,4 +95,45 @@ func (rt *Router) Models(ctx context.Context, id string) ([]string, error) {
 	rt.models.at[id], rt.models.list[id] = time.Now(), list
 	rt.models.mu.Unlock()
 	return list, nil
+}
+
+// modelPage reads one page of provider p's GET v1/models: its ids, and
+// whether more follow after last.
+func (rt *Router) modelPage(ctx context.Context, p Provider, key, after string) (ids []string, more bool, last string, err error) {
+	u := p.BaseURL() + "/v1/models"
+	if after != "" {
+		u += "?limit=1000&after_id=" + url.QueryEscape(after)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, false, "", err
+	}
+	p.Auth(req.Header, key)
+	// Anthropic requires a version on every call; the others ignore it.
+	req.Header.Set("anthropic-version", "2023-06-01")
+	req.Header.Set("Accept", "application/json")
+	resp, err := rt.o.Client.Do(req)
+	if err != nil {
+		return nil, false, "", fmt.Errorf("%s did not answer the model list", p.ID())
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, false, "", fmt.Errorf("%s answered the model list with %d", p.ID(), resp.StatusCode)
+	}
+	// OpenAI, Anthropic and Meta all answer {"data": [{"id": ...}]};
+	// Anthropic adds has_more and last_id.
+	var body struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+		HasMore bool   `json:"has_more"`
+		LastID  string `json:"last_id"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(&body); err != nil {
+		return nil, false, "", fmt.Errorf("%s sent an unreadable model list", p.ID())
+	}
+	for _, m := range body.Data {
+		ids = append(ids, m.ID)
+	}
+	return ids, body.HasMore, body.LastID, nil
 }

@@ -46,21 +46,17 @@ func Run(t *testing.T, a agents.Agent, f Fixture) {
 	})
 
 	t.Run("providers", func(t *testing.T) {
+		// Its own provider comes first, every one is a usable lowercase
+		// id, and one it cannot speak is refused, never silently swapped.
 		ps := a.Providers()
-		if len(ps) == 0 || ps[0] != a.Provider() {
-			t.Fatalf("Providers() = %q, want its own provider %q first", ps, a.Provider())
-		}
+		bad := len(ps) == 0 || ps[0] != a.Provider()
 		for _, p := range ps {
-			if !terminals.ValidAgentID(p) {
-				t.Fatalf("provider %q is not a lowercase id", p)
-			}
-			if _, err := agents.ProviderFor(a, p); err != nil {
-				t.Fatalf("ProviderFor(%q): %s", p, err)
-			}
+			_, err := agents.ProviderFor(a, p)
+			bad = bad || !terminals.ValidAgentID(p) || err != nil
 		}
-		// A provider it cannot speak is refused, never silently swapped.
-		if _, err := a.LaunchSpec(agents.Launch{ServeURL: serveURL, Token: token, Dir: dir, Hook: "HOOK", Provider: "nosuchprovider"}); err == nil {
-			t.Fatal("LaunchSpec accepted a provider outside Providers()")
+		_, err := a.LaunchSpec(agents.Launch{ServeURL: serveURL, Token: token, Dir: dir, Hook: "HOOK", Provider: "nosuchprovider"})
+		if bad || err == nil {
+			t.Fatalf("Providers() = %q: want %q first, lowercase ids, and LaunchSpec refusing others (got %v)", ps, a.Provider(), err)
 		}
 	})
 

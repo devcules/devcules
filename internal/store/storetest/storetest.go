@@ -647,12 +647,12 @@ func Run(t *testing.T, newStore func(t *testing.T) store.Store) {
 		defer s.Close()
 		r := s.Projects()
 		at := time.Date(2026, 10, 29, 3, 0, 0, 0, time.UTC)
-		p := store.Project{ID: key(t, "p1"), Name: "shop", Kind: "runner", Target: "laptop", Dir: "shop", Repo: "https://example.com/shop.git", CreatedAt: at}
+		p := store.Project{ID: key(t, "p1"), Name: "shop", Kind: "runner", Target: "laptop", Dir: "shop", Repo: "https://example.com/shop.git", Git: true, CreatedAt: at}
 		mustf(t, r.Create(ctx, p), "Create")
 		mustExists(t, r.Create(ctx, store.Project{ID: key(t, "p2"), Name: "shop", Kind: "machine", Target: "mac", Dir: "/x", CreatedAt: at}), "Create a taken name")
 		got, err := r.Get(ctx, p.ID)
 		mustf(t, err, "Get")
-		check(t, got.Name == p.Name && got.Kind == p.Kind && got.Target == p.Target && got.Dir == p.Dir && got.Repo == p.Repo && got.CreatedAt.Equal(at), fmt.Sprintf("got = %+v", got))
+		check(t, got.Name == p.Name && got.Kind == p.Kind && got.Target == p.Target && got.Dir == p.Dir && got.Repo == p.Repo && got.Git && got.CreatedAt.Equal(at), fmt.Sprintf("got = %+v", got))
 		_, err = r.Get(ctx, key(t, "nope"))
 		mustNotFound(t, err, "Get missing")
 		q := store.Project{ID: key(t, "p3"), Name: "api", Kind: "machine", Target: "mac", Dir: "/Users/k/api", CreatedAt: at}

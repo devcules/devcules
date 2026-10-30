@@ -415,12 +415,14 @@ type EnrolCodesRepo interface {
 // terminals and agents opened from it start in Dir. Repo is the git
 // URL it was cloned from, empty for an existing directory.
 type Project struct {
-	ID        string
-	Name      string
-	Kind      string // "runner" or "machine"
-	Target    string // the runner or machine name
-	Dir       string
-	Repo      string
+	ID     string
+	Name   string
+	Kind   string // "runner" or "machine"
+	Target string // the runner or machine name
+	Dir    string
+	Repo   string
+	// Git marks a repository (cloned, or a picked folder holding .git).
+	Git       bool
 	CreatedAt time.Time
 }
 

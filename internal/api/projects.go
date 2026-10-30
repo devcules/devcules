@@ -50,11 +50,12 @@ type projectJSON struct {
 	Target    string `json:"target"`
 	Dir       string `json:"dir"`
 	Repo      string `json:"repo,omitempty"`
+	Git       bool   `json:"git,omitempty"`
 	CreatedAt string `json:"createdAt"`
 }
 
 func toProjectJSON(p store.Project) projectJSON {
-	return projectJSON{ID: p.ID, Name: p.Name, Kind: p.Kind, Target: p.Target, Dir: p.Dir, Repo: p.Repo, CreatedAt: p.CreatedAt.UTC().Format(time.RFC3339)}
+	return projectJSON{ID: p.ID, Name: p.Name, Kind: p.Kind, Target: p.Target, Dir: p.Dir, Repo: p.Repo, Git: p.Git, CreatedAt: p.CreatedAt.UTC().Format(time.RFC3339)}
 }
 
 // newProjectID is "p_" plus 20 lowercase base36 characters.
@@ -128,6 +129,7 @@ func addProject(w http.ResponseWriter, r *http.Request, repo store.ProjectsRepo,
 		Target string `json:"target"`
 		Dir    string `json:"dir"`
 		Repo   string `json:"repo"`
+		Git    bool   `json:"git"`
 	}
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10))
 	dec.DisallowUnknownFields()
@@ -161,7 +163,7 @@ func addProject(w http.ResponseWriter, r *http.Request, repo store.ProjectsRepo,
 		writeAuthError(w, http.StatusBadRequest, "dir: want an absolute path, or one inside the workspace")
 		return
 	}
-	p := store.Project{ID: newProjectID(), Name: body.Name, Kind: body.Kind, Target: body.Target, Dir: body.Dir, Repo: body.Repo, CreatedAt: time.Now().UTC()}
+	p := store.Project{ID: newProjectID(), Name: body.Name, Kind: body.Kind, Target: body.Target, Dir: body.Dir, Repo: body.Repo, Git: body.Git || body.Repo != "", CreatedAt: time.Now().UTC()}
 	// A clone needs the target online, and an open that fails should
 	// not leave a half-made project behind: open first, record second.
 	termID := ""

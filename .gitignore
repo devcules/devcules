@@ -30,3 +30,4 @@ internal/web/dist/*
 !internal/web/dist/.gitkeep
 e2e/test-results/
 /devcules
+/machine-dist/

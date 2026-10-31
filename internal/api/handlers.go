@@ -108,6 +108,11 @@ func Handler(o Options) http.Handler {
 	rec := auditor{o.AuditLog}
 	mux.HandleFunc("/healthz", healthz)
 	mux.HandleFunc("/readyz", readyz(o.Store, o.Link))
+	// The machine helper and its installer: public, like /healthz, so a
+	// fresh computer can bootstrap itself from this box (each route is
+	// a static file or a rendered script; the enrol code gates what
+	// comes after).
+	registerMachineDist(mux, o.PublicURL)
 	if o.Link != nil {
 		mux.Handle("/link", o.Link.Handler())
 	} else {

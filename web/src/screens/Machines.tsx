@@ -348,8 +348,10 @@ function AddComputer({
   }
 
   const serve = window.location.origin;
-  const enrol = code ? `DEVCULES_SERVE_URL=${serve} devcules machine enrol ${code.code}` : '';
-  const run = 'devcules machine';
+  // One pasted line installs the helper from this box, checks its
+  // SHA-256, enrols with the one-time code and starts it at sign-in.
+  const enrol = code ? `curl -fsSL ${serve}/install/machine.sh | sh -s -- --code ${code.code}` : '';
+  const manual = code ? `DEVCULES_SERVE_URL=${serve} devcules machine enrol ${code.code}` : '';
   const left = code ? Math.max(0, Math.round((code.until - now) / 1000)) : 0;
 
   function copy(text: string): void {
@@ -374,8 +376,9 @@ function AddComputer({
       ) : code === null ? (
         <>
           <p className="text-body text-muted">
-            You get a one-time code to type on that computer. It needs the devcules binary, and tmux for the terminal. Nothing on
-            it listens for connections: it dials this server.
+            You get a one-time code to paste on that computer. The one-liner downloads devcules from this box, checks its
+            SHA-256, enrols and starts it at sign-in — nothing fetches from elsewhere, and nothing on the computer listens
+            for connections: it dials this server. (It also needs tmux, for a terminal.)
           </p>
           <form
             className="flex flex-col gap-2 sm:flex-row"
@@ -412,14 +415,14 @@ function AddComputer({
               {left > 0 ? `· works once, for ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : '· expired, get a new one'}
             </span>
           </p>
-          <p className="text-body text-muted">On that computer, run:</p>
-          {[enrol, run].map((cmd) => (
+          <p className="text-body text-muted">On that computer, paste this one line:</p>
+          {[{ cmd: enrol, label: 'the install command' }, { cmd: manual, label: 'the enrol command (if you already have devcules)' }].map(({ cmd, label }) => (
             <div key={cmd} className="flex items-start gap-2">
               <code className="min-w-0 flex-1 break-all rounded bg-base px-2 py-2 font-mono text-body text-text">{cmd}</code>
               <button
                 type="button"
                 onClick={() => copy(cmd)}
-                aria-label={`Copy ${cmd === run ? 'the run command' : 'the enrol command'}`}
+                aria-label={`Copy ${label}`}
                 className="min-h-11 rounded-md px-3 text-body text-text"
               >
                 {copied === cmd ? 'Copied' : 'Copy'}
@@ -427,7 +430,8 @@ function AddComputer({
             </div>
           ))}
           <p className="text-body text-muted">
-            Use an address that computer can reach in DEVCULES_SERVE_URL (your Tailscale name, for one). Waiting for it to link…
+            The install line uses the address of this box at the moment the code is made — one every machine can reach (your
+            Tailscale name, for one), or set DEVCULES_PUBLIC_URL first. Waiting for it to link…
           </p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setCode(null)} className="min-h-11 rounded-md px-4 text-body text-text">

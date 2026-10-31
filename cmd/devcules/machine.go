@@ -14,8 +14,10 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -54,6 +56,10 @@ func runMachine(cfg config.Config, args []string, stdout, stderr io.Writer, sigs
 			return usage(stderr, "%s", err)
 		}
 		return runMachineEnrol(cfg, code, name, stdout, stderr, client)
+	case args[0] == "install":
+		return installMachineService(cfg, stdout, stderr)
+	case args[0] == "uninstall":
+		return uninstallMachineService(cfg, stdout, stderr)
 	default:
 		return usage(stderr, "machine takes no arguments, or: enrol <code> [--name <name>]")
 	}
@@ -290,4 +296,151 @@ func machineTerminals(cfg config.Config, log *slog.Logger) (*pty.Manager, error)
 		}
 	}
 	return pty.New(socketDir, workspace, log)
+}
+
+// installMachineService starts `devcules machine` on every sign-in:
+// Linux with systemd user units when systemctl is there, macOS with
+// launchd. Any other Unix gets a clear "not built yet" so the install
+// script can say "add your own startup entry" instead of silently
+// doing nothing.
+func installMachineService(cfg config.Config, stdout, stderr io.Writer) int {
+	self, err := os.Executable()
+	if err != nil {
+		fmt.Fprintf(stderr, "devcules machine install: %s\n", err)
+		return exitError
+	}
+	switch runtime.GOOS {
+	case "linux":
+		if _, err := exec.LookPath("systemctl"); err != nil {
+			fmt.Fprintln(stderr, "devcules machine install: systemd is not on this machine (look for `systemctl --user`); start devcules machine yourself for now")
+			return exitError
+		}
+		dir := filepath.Join(mustHome(), ".config", "systemd", "user")
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			fmt.Fprintf(stderr, "devcules machine install: %s\n", err)
+			return exitError
+		}
+		unit := fmt.Sprintf(`[Unit]
+Description=Devcules machine
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%s machine
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+`, shellQuote(self))
+		path := filepath.Join(dir, "devcules-machine.service")
+		if err := os.WriteFile(path, []byte(unit), 0o644); err != nil {
+			fmt.Fprintf(stderr, "devcules machine install: %s\n", err)
+			return exitError
+		}
+		for _, a := range [][]string{{"daemon-reload"}, {"enable", "devcules-machine.service"}, {"start", "devcules-machine.service"}} {
+			cmd := exec.Command("systemctl", append([]string{"--user"}, a...)...)
+			cmd.Env = os.Environ()
+			if out, err := cmd.CombinedOutput(); err != nil {
+				fmt.Fprintf(stderr, "devcules machine install: systemctl --user %s: %s (%s)\n", strings.Join(a, " "), err, strings.TrimSpace(string(out)))
+				return exitError
+			}
+		}
+		fmt.Fprintf(stdout, "devcules machine starts at every sign-in (systemd --user devcules-machine.service)\n")
+		return exitOK
+	case "darwin":
+		dir := filepath.Join(mustHome(), "Library", "LaunchAgents")
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			fmt.Fprintf(stderr, "devcules machine install: %s\n", err)
+			return exitError
+		}
+		plist := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>dev.devcules.machine</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>%s</string>
+    <string>machine</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>%s</string>
+  <key>StandardErrorPath</key><string>%s</string>
+</dict></plist>
+`, escapeXML(self), escapeXML(filepath.Join(cfg.DataDir, "machine.log")), escapeXML(filepath.Join(cfg.DataDir, "machine.log")))
+		path := filepath.Join(dir, "dev.devcules.machine.plist")
+		if err := os.WriteFile(path, []byte(plist), 0o644); err != nil {
+			fmt.Fprintf(stderr, "devcules machine install: %s\n", err)
+			return exitError
+		}
+		out, err := exec.Command("launchctl", "load", "-w", path).CombinedOutput()
+		if err != nil {
+			fmt.Fprintf(stderr, "devcules machine install: launchctl load %s: %s (%s)\n", path, err, strings.TrimSpace(string(out)))
+			return exitError
+		}
+		fmt.Fprintf(stdout, "devcules machine starts at every sign-in (launchd dev.devcules.machine)\n")
+		return exitOK
+	default:
+		fmt.Fprintf(stderr, "devcules machine install: no at-sign-in start on %s yet; run `%s machine` from your own startup\n", runtime.GOOS, self)
+		return exitError
+	}
+}
+
+// uninstallMachineService stops the sign-in start installMachineService
+// set up.
+func uninstallMachineService(cfg config.Config, stdout, stderr io.Writer) int {
+	switch runtime.GOOS {
+	case "linux":
+		if _, err := exec.LookPath("systemctl"); err != nil {
+			fmt.Fprintln(stderr, "devcules machine uninstall: systemd is not on this machine")
+			return exitError
+		}
+		path := filepath.Join(mustHome(), ".config", "systemd", "user", "devcules-machine.service")
+		for _, a := range [][]string{{"stop", "devcules-machine.service"}, {"disable", "devcules-machine.service"}} {
+			_ = exec.Command("systemctl", append([]string{"--user"}, a...)...).Run()
+		}
+		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+			fmt.Fprintf(stderr, "devcules machine uninstall: %s\n", err)
+			return exitError
+		}
+		_ = exec.Command("systemctl", "--user", "daemon-reload").Run()
+		fmt.Fprintln(stdout, "devcules machine no longer starts at sign-in")
+		return exitOK
+	case "darwin":
+		path := filepath.Join(mustHome(), "Library", "LaunchAgents", "dev.devcules.machine.plist")
+		_ = exec.Command("launchctl", "unload", "-w", path).Run()
+		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+			fmt.Fprintf(stderr, "devcules machine uninstall: %s\n", err)
+			return exitError
+		}
+		fmt.Fprintln(stdout, "devcules machine no longer starts at sign-in")
+		return exitOK
+	default:
+		fmt.Fprintf(stderr, "devcules machine uninstall: no at-sign-in start on %s\n", runtime.GOOS)
+		return exitError
+	}
+}
+
+// mustHome is os.UserHomeDir where a service install can only make
+// sense with one; main guarantees HOME on any platform this runs on.
+func mustHome() string {
+	h, err := os.UserHomeDir()
+	if err != nil || h == "" {
+		return "/"
+	}
+	return h
+}
+
+// shellQuote is the minimal POSIX-shell quoting the systemd unit
+// needs: one path, single-quoted with any ' doubled into '\” .
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
+}
+
+// escapeXML is the encoding launchd plists need (&, <, > are all a
+// path can carry and break the doc).
+func escapeXML(s string) string {
+	r := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;")
+	return r.Replace(s)
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"sync"
@@ -27,16 +26,12 @@ type SessionStore interface {
 	Put(c *Conversation)
 }
 
-// Conversation is the loop's record of one session. Pending holds the
-// redacted arguments of each tool call awaiting its result, because a
-// compaction pass may have rewritten them out of the resent history:
-// the run uses the stored copy, never a post-compaction argument.
+// Conversation is the loop's record of one session.
 type Conversation struct {
 	ID        string
 	Assistant string
 	Msgs      []ChatMessage
 	Shown     []Message
-	Pending   map[string]json.RawMessage
 	Created   time.Time
 }
 

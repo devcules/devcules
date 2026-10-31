@@ -283,6 +283,12 @@ func (s *Session) Issued() int {
 // so the second underscore always starts the 10 hex digits.
 var placeholderRE = regexp.MustCompile(`REDACTED_[A-Z0-9]+_[0-9A-F]{10}`)
 
+// HasPlaceholder reports whether text holds a redaction marker, the
+// assistant loop's cheap "an argument was masked" check. It is the
+// redactor's own pattern, exported here so no caller grows a second
+// copy that can drift.
+func HasPlaceholder(text []byte) bool { return placeholderRE.Match(text) }
+
 // Restore puts back every placeholder this session issued. Others,
 // including look-alikes the model invented, stay as they are.
 func (s *Session) Restore(text string) string {

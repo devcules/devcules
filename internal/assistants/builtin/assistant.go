@@ -2,6 +2,7 @@ package builtin
 
 import (
 	"context"
+	"errors"
 
 	"github.com/devcules/devcules/internal/assistants"
 )
@@ -29,11 +30,7 @@ func New(loop *assistants.Loop) (*Assistant, error) {
 	return &Assistant{loop: loop}, nil
 }
 
-var errNilLoop = &assistantsError{"builtin: a loop is required"}
-
-type assistantsError struct{ s string }
-
-func (e *assistantsError) Error() string { return e.s }
+var errNilLoop = errors.New("builtin: a loop is required")
 
 // ID is "builtin", as the API lists it.
 func (a *Assistant) ID() string { return "builtin" }

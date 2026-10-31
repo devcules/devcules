@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -85,6 +86,12 @@ func TestScriptedApprovalFlow(t *testing.T) {
 	}, run))
 
 	// Answer any approval allow-once from a "phone" goroutine.
+	// One controlled answerer drains pending continuously against a
+	// single decision variable the phases flip; there is never a
+	// second goroutine able to answer the same approval, so the allow
+	// and deny phases cannot collide.
+	var decide atomic.Bool
+	decide.Store(true)
 	stop := make(chan struct{})
 	defer close(stop)
 	go func() {
@@ -92,13 +99,13 @@ func TestScriptedApprovalFlow(t *testing.T) {
 			select {
 			case <-stop:
 				return
-			case <-time.After(20 * time.Millisecond):
+			case <-time.After(5 * time.Millisecond):
 				pending, err := svc.List(ctx, "pending", 10)
 				if err != nil {
 					continue
 				}
 				for _, p := range pending {
-					_, _ = svc.Answer(ctx, p.ID, true, "owner", "")
+					_, _ = svc.Answer(ctx, p.ID, decide.Load(), "owner", "")
 				}
 			}
 		}
@@ -129,15 +136,7 @@ func TestScriptedApprovalFlow(t *testing.T) {
 		{ToolCalls: []ToolCallAsk{{ID: "c2", Name: "status", Args: json.RawMessage(`{}`)}}},
 		{Text: "The owner denied that, so I did not run it."},
 	}
-	denyOnce := make(chan struct{})
-	go func() {
-		<-denyOnce
-		pending, _ := svc.List(ctx, "pending", 10)
-		for _, p := range pending {
-			_, _ = svc.Answer(ctx, p.ID, false, "owner", "")
-		}
-	}()
-	close(denyOnce)
+	decide.Store(false)
 	evs, err = loop.Chat(ctx, loopTurnSession(t, loop), "try it again")
 	if err != nil {
 		t.Fatal(err)

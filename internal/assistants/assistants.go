@@ -20,7 +20,9 @@ package assistants
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"regexp"
+	"sort"
 	"time"
 )
 
@@ -66,21 +68,21 @@ const (
 
 // Event is one displayable step of a reply.
 type Event struct {
-	Type    string   `json:"type"`
-	Text    string   `json:"text,omitempty"`
-	Tool    ToolCall `json:"tool,omitempty"`
-	At      time.Time `json:"at"`
+	Type string    `json:"type"`
+	Text string    `json:"text,omitempty"`
+	Tool ToolCall  `json:"tool,omitempty"`
+	At   time.Time `json:"at"`
 }
 
 // ToolCall is one tool step of a reply as the chat shows it.
 type ToolCall struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
+	ID         string          `json:"id"`
+	Name       string          `json:"name"`
 	Args       json.RawMessage `json:"args"`
-	Decision   string `json:"decision"` // gate verdict: allow, ask, deny
-	ApprovedBy string `json:"approvedBy,omitempty"`
-	Result     string `json:"result"`
-	IsError    bool   `json:"isError"`
+	Decision   string          `json:"decision"` // gate verdict: allow, ask, deny
+	ApprovedBy string          `json:"approvedBy,omitempty"`
+	Result     string          `json:"result"`
+	IsError    bool            `json:"isError"`
 }
 
 // sessionID is the id alphabet the UI accepts: 16 lowercase hex
@@ -89,3 +91,48 @@ var sessionID = regexp.MustCompile(`^[0-9a-f]{16}$`)
 
 // ValidSessionID reports a well-formed conversation id.
 func ValidSessionID(id string) bool { return sessionID.MatchString(id) }
+
+// assistantID is the id alphabet the API accepts: like sessionID,
+// short enough to spot a typo.
+var assistantID = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
+
+// ValidAssistant reports a well-formed assistant id.
+func ValidAssistant(id string) bool { return assistantID.MatchString(id) }
+
+// Registry is the wired assistants, as serve builds them: the API
+// lists and dispatches by id.
+type Registry struct {
+	all map[string]Assistant
+}
+
+// NewRegistry registers assistants; a duplicate or invalid id is an
+// error at startup, never a swap later.
+func NewRegistry(list ...Assistant) (*Registry, error) {
+	r := &Registry{all: map[string]Assistant{}}
+	for _, a := range list {
+		if !ValidAssistant(a.ID()) {
+			return nil, errors.New("assistants: bad id " + a.ID())
+		}
+		if _, dup := r.all[a.ID()]; dup {
+			return nil, errors.New("assistants: duplicate id " + a.ID())
+		}
+		r.all[a.ID()] = a
+	}
+	return r, nil
+}
+
+// Get returns one assistant.
+func (r *Registry) Get(id string) (Assistant, bool) {
+	a, ok := r.all[id]
+	return a, ok
+}
+
+// List returns every assistant in id order.
+func (r *Registry) List() []Assistant {
+	out := make([]Assistant, 0, len(r.all))
+	for _, a := range r.all {
+		out = append(out, a)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID() < out[j].ID() })
+	return out
+}

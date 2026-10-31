@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/devcules/devcules/internal/approvals"
+	"github.com/devcules/devcules/internal/assistants"
 	"github.com/devcules/devcules/internal/audit"
 	"github.com/devcules/devcules/internal/auth"
 	"github.com/devcules/devcules/internal/launch"
@@ -83,6 +84,9 @@ type Options struct {
 	// grounding, done-verify) to the linked machine helpers. Nil
 	// answers those routes with 503; serve always passes a real one.
 	Machines *machrelay.Relay
+	// Assistants serves the assistant picker and chat; nil answers its
+	// routes with 503.
+	Assistants *assistants.Registry
 }
 
 // Handler returns the M3.2 mux. /healthz, /readyz, GET /link, /llm/,
@@ -168,6 +172,12 @@ func Handler(o Options) http.Handler {
 	}
 	mux.Handle("/api/approvals", requireSession(o.Auth, approvalsRoot(o.ApprovalQueue)))
 	mux.Handle("/api/approvals/", requireSession(o.Auth, approvalOne(o.ApprovalQueue, runners, o.PublicURL)))
+	// Assistants: sessions only, like the approvals queue above; the
+	// assistant's own writes are gated by its approvals mode, and the
+	// chat's CSRF check matches the rest of the writes.
+	as := NewAssistants(o.Assistants)
+	mux.Handle("/api/assistants", requireSession(o.Auth, as.root()))
+	mux.Handle("/api/assistants/", requireSession(o.Auth, as.one()))
 	mux.Handle("/hook/approvals", hookApprovals(o.ApprovalQueue, o.Launches))
 	mux.Handle("/hook/approvals/", hookApprovals(o.ApprovalQueue, o.Launches))
 	mux.Handle("/api/push", requireSession(o.Auth, pushRoot(o.Push)))

@@ -80,6 +80,10 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 		s.Close()
 		return exitError
 	}
+	// The provider keys saved before this start are known values too:
+	// seed the always-mask set once so the desk's credentials never
+	// reach a model, whatever the secret rules match.
+	api.SeedKnownKeys(context.Background(), redactor, v)
 	// Per-launch tokens and the model router. Providers are plug-ins:
 	// main hands them in, the router never imports them.
 	launches := launch.New(s)

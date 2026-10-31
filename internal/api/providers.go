@@ -10,6 +10,7 @@ import (
 
 	"github.com/devcules/devcules/internal/audit"
 	"github.com/devcules/devcules/internal/providers"
+	"github.com/devcules/devcules/internal/redact"
 	"github.com/devcules/devcules/internal/router"
 	"github.com/devcules/devcules/internal/store"
 	"github.com/devcules/devcules/internal/terminals"
@@ -20,6 +21,49 @@ import (
 type KeyWriter interface {
 	Put(ctx context.Context, name string, value []byte) error
 	Delete(ctx context.Context, name string) error
+}
+
+// KeyVault reads back the keys the store holds so they become values
+// the redactor must never send a model (Kaithos's "its key is now a
+// known value"). The vault is the only holder of plaintext, so it
+// implements both this and KeyWriter.
+type KeyVault interface {
+	KeyWriter
+	Get(ctx context.Context, name string) ([]byte, error)
+	Names(ctx context.Context) ([]string, error)
+}
+
+// refreshKnownKeys seeds the redactor with every provider key the
+// vault holds. Redaction that misses the desk's own key is the
+// failure Kaithos's "its key is now a known value" closes: a stored
+// key need not match a vendor's gitleaks pattern to be masked, so
+// every write or removal re-reads the whole set. A refusal leaves the
+// last good set rather than masking nothing or everything.
+func refreshKnownKeys(ctx context.Context, r *redact.Redactor, keys KeyVault) {
+	if r == nil || keys == nil {
+		return
+	}
+	names, err := keys.Names(ctx)
+	if err != nil {
+		return
+	}
+	values := make([]string, 0, len(names))
+	for _, n := range names {
+		if !strings.HasPrefix(n, router.KeySecretPrefix) || !strings.HasSuffix(n, router.KeySecretSuffix) {
+			continue
+		}
+		raw, err := keys.Get(ctx, n)
+		if err == nil && len(raw) > 0 {
+			values = append(values, string(raw))
+		}
+	}
+	r.SetKnown(values)
+}
+
+// SeedKnownKeys is refreshKnownKeys for serve start: keys saved
+// before this version must mask too, not just ones written since.
+func SeedKnownKeys(ctx context.Context, r *redact.Redactor, keys KeyVault) {
+	refreshKnownKeys(ctx, r, keys)
 }
 
 // profileRow is a provider profile as the browser sees it: every
@@ -62,7 +106,7 @@ func (b profileBody) profile(id string) providers.Profile {
 // providersRoot serves /api/providers: GET lists every profile (no
 // keys, only whether one is saved), POST adds one (session plus CSRF).
 // Without a profile store it lists the router's fixed providers.
-func providersRoot(rt *router.Router, profiles *providers.Service, keys KeyWriter, publicURL string, rec auditor) http.Handler {
+func providersRoot(rt *router.Router, profiles *providers.Service, keys KeyWriter, redactor *redact.Redactor, publicURL string, rec auditor) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if rt == nil {
 			writeAuthError(w, http.StatusServiceUnavailable, "model router not configured")
@@ -89,7 +133,7 @@ func providersRoot(rt *router.Router, profiles *providers.Service, keys KeyWrite
 			writeJSON(w, http.StatusOK, map[string]any{"providers": out})
 		case http.MethodPost:
 			csrf(publicURL, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				addProfile(w, r, rt, profiles, keys, rec)
+				addProfile(w, r, rt, profiles, keys, redactor, rec)
 			})).ServeHTTP(w, r)
 		default:
 			w.Header().Set("Allow", "GET, POST")
@@ -138,7 +182,7 @@ func profileDetail(p providers.Profile, key string) map[string]string {
 }
 
 // addProfile saves a new profile and, when sent, its key.
-func addProfile(w http.ResponseWriter, r *http.Request, rt *router.Router, profiles *providers.Service, keys KeyWriter, rec auditor) {
+func addProfile(w http.ResponseWriter, r *http.Request, rt *router.Router, profiles *providers.Service, keys KeyWriter, redactor *redact.Redactor, rec auditor) {
 	if profiles == nil || keys == nil {
 		writeAuthError(w, http.StatusServiceUnavailable, "provider profiles not configured")
 		return
@@ -160,9 +204,17 @@ func addProfile(w http.ResponseWriter, r *http.Request, rt *router.Router, profi
 		}
 		keyNote = "set"
 	}
+	refreshKnownKeys(r.Context(), redactor, asKeyVault(keys))
 	rt.ForgetModels(p.ID)
 	rec.record(r, audit.ProviderAdd, p.ID, profileDetail(p, keyNote))
 	writeJSON(w, http.StatusCreated, map[string]any{"provider": rowOf(r.Context(), rt, p)})
+}
+
+// asKeyVault keeps refreshKnownKeys working with a KeyWriter wherever
+// one is already held (the real vault implements both).
+func asKeyVault(keys KeyWriter) KeyVault {
+	kv, _ := keys.(KeyVault)
+	return kv
 }
 
 // providerOne serves /api/providers/{id}[/...] and /api/providers/probe:
@@ -175,7 +227,7 @@ func addProfile(w http.ResponseWriter, r *http.Request, rt *router.Router, profi
 //
 // Every write takes the session plus CSRF and is audited. A key is
 // never sent back, not even in part.
-func providerOne(rt *router.Router, profiles *providers.Service, keys KeyWriter, publicURL string, rec auditor) http.Handler {
+func providerOne(rt *router.Router, profiles *providers.Service, keys KeyWriter, redactor *redact.Redactor, publicURL string, rec auditor) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if rt == nil {
 			writeAuthError(w, http.StatusServiceUnavailable, "model router not configured")
@@ -201,7 +253,7 @@ func providerOne(rt *router.Router, profiles *providers.Service, keys KeyWriter,
 			return
 		case "key":
 			csrf(publicURL, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				providerKey(w, r, rt, keys, id, rec)
+				providerKey(w, r, rt, keys, redactor, id, rec)
 			})).ServeHTTP(w, r)
 			return
 		}
@@ -219,7 +271,7 @@ func providerOne(rt *router.Router, profiles *providers.Service, keys KeyWriter,
 				rec.record(r, audit.ProviderDefault, id, nil)
 				w.WriteHeader(http.StatusNoContent)
 			case rest == "" && r.Method == http.MethodPut:
-				editProfile(w, r, rt, profiles, keys, id, rec)
+				editProfile(w, r, rt, profiles, keys, redactor, id, rec)
 			case rest == "" && r.Method == http.MethodDelete:
 				if err := profiles.Remove(r.Context(), id); err != nil {
 					profileError(w, err)
@@ -228,6 +280,7 @@ func providerOne(rt *router.Router, profiles *providers.Service, keys KeyWriter,
 				// The key goes with it: a later profile reusing the id
 				// must not inherit it.
 				_ = keys.Delete(r.Context(), router.KeySecret(id))
+				refreshKnownKeys(r.Context(), redactor, asKeyVault(keys))
 				rt.ForgetModels(id)
 				rec.record(r, audit.ProviderRemove, id, nil)
 				w.WriteHeader(http.StatusNoContent)
@@ -242,7 +295,7 @@ func providerOne(rt *router.Router, profiles *providers.Service, keys KeyWriter,
 // editProfile saves new fields and, when sent, a new key. A saved key
 // is only ever sent to the address it was saved for: moving the base
 // URL to another host needs the key pasted again.
-func editProfile(w http.ResponseWriter, r *http.Request, rt *router.Router, profiles *providers.Service, keys KeyWriter, id string, rec auditor) {
+func editProfile(w http.ResponseWriter, r *http.Request, rt *router.Router, profiles *providers.Service, keys KeyWriter, redactor *redact.Redactor, id string, rec auditor) {
 	b, ok := readProfile(w, r)
 	if !ok {
 		return
@@ -269,6 +322,7 @@ func editProfile(w http.ResponseWriter, r *http.Request, rt *router.Router, prof
 			return
 		}
 		keyNote = "set"
+		refreshKnownKeys(r.Context(), redactor, asKeyVault(keys))
 	}
 	if b.Default && !p.Default {
 		if err := profiles.SetDefault(r.Context(), id); err == nil {
@@ -361,7 +415,7 @@ func providerModels(w http.ResponseWriter, r *http.Request, rt *router.Router, i
 // providerKey sets (PUT {"key"}) or removes (DELETE) one provider's
 // key in the vault, audits which provider changed (never the key), and
 // drops that provider's cached model list.
-func providerKey(w http.ResponseWriter, r *http.Request, rt *router.Router, keys KeyWriter, id string, rec auditor) {
+func providerKey(w http.ResponseWriter, r *http.Request, rt *router.Router, keys KeyWriter, redactor *redact.Redactor, id string, rec auditor) {
 	if keys == nil {
 		writeAuthError(w, http.StatusServiceUnavailable, "vault not configured")
 		return
@@ -388,6 +442,7 @@ func providerKey(w http.ResponseWriter, r *http.Request, rt *router.Router, keys
 			writeAuthError(w, http.StatusInternalServerError, "could not store the key")
 			return
 		}
+		refreshKnownKeys(r.Context(), redactor, asKeyVault(keys))
 		rt.ForgetModels(id)
 		rec.record(r, audit.ProviderKeySet, id, nil)
 		w.WriteHeader(http.StatusNoContent)
@@ -396,6 +451,7 @@ func providerKey(w http.ResponseWriter, r *http.Request, rt *router.Router, keys
 			writeAuthError(w, http.StatusInternalServerError, "could not remove the key")
 			return
 		}
+		refreshKnownKeys(r.Context(), redactor, asKeyVault(keys))
 		rt.ForgetModels(id)
 		rec.record(r, audit.ProviderKeyRemove, id, nil)
 		w.WriteHeader(http.StatusNoContent)

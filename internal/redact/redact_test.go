@@ -86,6 +86,11 @@ func TestModes(t *testing.T) {
 		t.Fatalf("rule = %q, want aws-access-token", f[0].Rule)
 	}
 
+	out, f, err = r.NewTestSession(only(Secret, Mask)).Redact("repeat " + fakeAWS + " then " + fakeAWS)
+	if err != nil || strings.Contains(out, fakeAWS) {
+		t.Fatalf("both copies masked: %q %v %v", out, f, err)
+	}
+
 	out, f, err = r.NewTestSession(only(Secret, Block)).Redact(text)
 	var be *BlockedError
 	if out != "" || len(f) != 1 || !errors.As(err, &be) || !errors.Is(err, ErrBlocked) {
@@ -96,6 +101,41 @@ func TestModes(t *testing.T) {
 	}
 	if f[0].Placeholder != "" {
 		t.Fatal("a blocked finding carries a placeholder")
+	}
+}
+
+// The desk's own keys mask even when no gitleaks rule names their
+// shape — the "known" set serve feeds from the vault, Kaithos's "its
+// key is now a known value".
+func TestKnownSecrets(t *testing.T) {
+	r := newTestRedactor(t)
+	const patternless = "▓▓not-a-vendor-key-42▓▓" // no rule matches this
+	r.SetKnown([]string{patternless, "short", ""})
+
+	s := r.NewTestSession(only(Secret, Mask))
+	out, f, err := s.Redact("the key is " + patternless + ", keep it close")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out, patternless) {
+		t.Fatalf("the known value is still there: %q", out)
+	}
+	if len(f) != 1 || f[0].Type != Secret || f[0].Rule != "desk-secret" {
+		t.Fatalf("finding = %+v, want one desk-secret SECRET", f)
+	}
+	if s.Restore(out) != "the key is "+patternless+", keep it close" {
+		t.Fatalf("restore lost it: %q", s.Restore(out))
+	}
+
+	// The same redactor with an empty set masks nothing.
+	r2 := newTestRedactor(t)
+	r2.SetKnown(nil)
+	out2, _, err2 := r2.NewTestSession(only(Secret, Mask)).Redact("the key is " + patternless)
+	if err2 != nil {
+		t.Fatal(err2)
+	}
+	if !strings.Contains(out2, patternless) {
+		t.Fatalf("without a known set it passed unmasked? out=%q", out2)
 	}
 }
 

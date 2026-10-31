@@ -192,8 +192,8 @@ func Handler(o Options) http.Handler {
 	// Provider profiles: each one's fields and whether its key is
 	// saved, its model list (fetched by serve with the vault key,
 	// never the browser), and the Settings writes.
-	mux.Handle("/api/providers", requireSession(o.Auth, providersRoot(o.Router, o.Profiles, o.ProviderKeys, o.PublicURL, rec)))
-	mux.Handle("/api/providers/", requireSession(o.Auth, providerOne(o.Router, o.Profiles, o.ProviderKeys, o.PublicURL, rec)))
+	mux.Handle("/api/providers", requireSession(o.Auth, providersRoot(o.Router, o.Profiles, o.ProviderKeys, o.Redact, o.PublicURL, rec)))
+	mux.Handle("/api/providers/", requireSession(o.Auth, providerOne(o.Router, o.Profiles, o.ProviderKeys, o.Redact, o.PublicURL, rec)))
 	mux.Handle("/api/launch-tokens", requireSession(o.Auth, launchesRoot(o.Launches, providerIDs, o.PublicURL, rec)))
 	mux.Handle("/api/launch-tokens/", requireSession(o.Auth, launchOne(o.Launches, o.PublicURL, rec)))
 	// Audit and traces: reads need a session, and reading a trace or

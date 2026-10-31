@@ -105,6 +105,13 @@ type Redactor struct {
 	rules  []rule
 	key    []byte
 	counts map[Type]*counters
+	// known is the holder's live set of credentials it must never send
+	// a model (Kaithos's "known" values): the placeholder key, runner
+	// link tokens, every provider key. find masks them always, off the
+	// policy: masking a key the desk holds is never wrong, and the
+	// secret rules only catch keys that match a vendor's pattern.
+	knownMu sync.RWMutex
+	known   []string
 }
 
 // New compiles the detectors. key is the per-install placeholder key
@@ -126,6 +133,28 @@ func New(key []byte) (*Redactor, error) {
 
 // Rules reports how many secret rules are loaded.
 func (r *Redactor) Rules() int { return len(r.rules) }
+
+// minKnown is the shortest value worth masking: shorter ones are
+// fragmentation bait, not credentials (the vault refuses anything
+// under 8 anyway).
+const minKnown = 8
+
+// SetKnown replaces the always-mask values. Values are secrets: they
+// stay in memory as supplied but never enter a log, an audit row or a
+// placeholder's input beyond the one-way HMAC.
+func (r *Redactor) SetKnown(values []string) {
+	seen := map[string]bool{}
+	known := make([]string, 0, len(values))
+	for _, v := range values {
+		if len(v) >= minKnown && !seen[v] {
+			seen[v] = true
+			known = append(known, v)
+		}
+	}
+	r.knownMu.Lock()
+	r.known = known
+	r.knownMu.Unlock()
+}
 
 // Stats returns a copy of the counters.
 func (r *Redactor) Stats() map[Type]Counts {
@@ -152,7 +181,11 @@ type span struct {
 	rule       string
 }
 
-// find runs every detector whose mode is not off.
+// find runs every detector whose mode is not off. The desk's own
+// credentials are matches under Secret whatever the mode says: they
+// are the values the holder must never send a model (Kaithos's
+// "known" detector), so the policy only decides whether to mask or
+// block one, never whether to miss it.
 func (r *Redactor) find(text string, p Policy) []span {
 	var spans []span
 	if p[Secret] != Off && p[Secret] != "" {
@@ -162,6 +195,19 @@ func (r *Redactor) find(text string, p Policy) []span {
 				spans = append(spans, span{m[0], m[1], Secret, r.rules[i].id})
 			}
 		}
+		r.knownMu.RLock()
+		for _, v := range r.known {
+			for off := 0; ; {
+				i := strings.Index(text[off:], v)
+				if i < 0 {
+					break
+				}
+				start := off + i
+				spans = append(spans, span{start, start + len(v), Secret, "desk-secret"})
+				off = start + len(v)
+			}
+		}
+		r.knownMu.RUnlock()
 	}
 	for i := range piiDetectors {
 		d := &piiDetectors[i]

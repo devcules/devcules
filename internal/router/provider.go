@@ -20,8 +20,16 @@ type Provider interface {
 	Auth(h http.Header, key string)
 }
 
+// KeySecretPrefix names the vault folder every provider key lives in.
+// The redactor scans under it for the always-mask values (its "known"
+// set), so a prefix here and a scan there never drift apart.
+const KeySecretPrefix = "provider/"
+
+// KeySecretSuffix ends every provider key's vault name.
+const KeySecretSuffix = "/api_key"
+
 // KeySecret is the vault name holding a provider's API key.
-func KeySecret(id string) string { return "provider/" + id + "/api_key" }
+func KeySecret(id string) string { return KeySecretPrefix + id + KeySecretSuffix }
 
 // Catalog resolves provider ids when a call arrives, so a profile
 // added or edited in Settings serves at once, without a restart.

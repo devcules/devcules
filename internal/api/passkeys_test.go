@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
@@ -31,8 +32,18 @@ func passkeyFixture(t *testing.T) (http.Handler, string, *authtest.Authenticator
 // postJSON posts a JSON body to target, carrying the session and
 // ceremony cookies when given.
 func postJSON(mux http.Handler, target string, body []byte, session, ceremony string) *httptest.ResponseRecorder {
+	return postJSONTLS(mux, target, body, session, ceremony, false)
+}
+
+// postJSONTLS is postJSON with the request marked TLS when tlsOn:
+// the Secure cookie flag follows the transport, so the HTTPS-shape
+// assertion needs a TLS-bound round trip, not just a header.
+func postJSONTLS(mux http.Handler, target string, body []byte, session, ceremony string, tlsOn bool) *httptest.ResponseRecorder {
 	r := httptest.NewRequest(http.MethodPost, target, bytes.NewReader(body))
 	r.Header.Set("Content-Type", "application/json")
+	if tlsOn {
+		r.TLS = &tls.ConnectionState{}
+	}
 	if session != "" {
 		r.AddCookie(&http.Cookie{Name: auth.CookieName, Value: session})
 	}
@@ -221,8 +232,38 @@ func TestPasskeyLoginRoundTrip(t *testing.T) {
 	if found == nil {
 		t.Fatalf("no %s cookie set", auth.CookieName)
 	}
-	if !found.HttpOnly || !found.Secure || found.SameSite != http.SameSiteStrictMode || found.Path != "/" {
+	if !found.HttpOnly || found.SameSite != http.SameSiteStrictMode || found.Path != "/" {
 		t.Fatalf("session cookie = %+v, want the password sign-in shape", found)
+	}
+	// Plain http on the test server matches plain http on a Tailscale
+	// IP: Chrome refuses Secure there, so the flag is unset. The TLS
+	// transport keeps it; loopback is still safe because browsers treat
+	// localhost as secure even over http.
+	if found.Secure {
+		t.Fatalf("plain-http login must not mark Secure, got %+v", found)
+	}
+	// And on TLS it does: a passkey sign-in then hands back the https
+	// cookie shape.
+	wt := postJSONTLS(mux, "/auth/passkeys/login/begin", nil, "", "", true)
+	if wt.Code != http.StatusOK {
+		t.Fatalf("TLS login begin = %d", wt.Code)
+	}
+	tlsBody, err := a.Assertion(wt.Body.Bytes())
+	if err != nil {
+		t.Fatalf("TLS Assertion: %s", err)
+	}
+	wt = postJSONTLS(mux, "/auth/passkeys/login/finish", tlsBody, "", ceremonyValue(t, wt), true)
+	if wt.Code != http.StatusNoContent {
+		t.Fatalf("TLS login finish = %d", wt.Code)
+	}
+	var tlsCookie *http.Cookie
+	for _, c := range wt.Result().Cookies() {
+		if c.Name == auth.CookieName {
+			tlsCookie = c
+		}
+	}
+	if tlsCookie == nil || !tlsCookie.Secure {
+		t.Fatalf("TLS cookie = %+v, want Secure set", tlsCookie)
 	}
 	if found.MaxAge != int(auth.AbsoluteTimeout.Seconds()) {
 		t.Fatalf("session cookie MaxAge = %d, want the absolute timeout", found.MaxAge)

@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -256,12 +257,39 @@ func TestSignInSuccess(t *testing.T) {
 	if session == nil {
 		t.Fatalf("no %s cookie set", auth.CookieName)
 	}
-	if !session.HttpOnly || !session.Secure || session.SameSite != http.SameSiteStrictMode || session.Path != "/" {
-		t.Fatalf("cookie attributes = HttpOnly:%v Secure:%v SameSite:%v Path:%q, want HttpOnly Secure Strict /",
+	// Plain http on the fixture matches plain http on a Tailscale IP:
+	// Chrome refuses Secure there, so the flag is off; the secure
+	// transport keeps it (TestSignInTLS below).
+	if !session.HttpOnly || session.Secure || session.SameSite != http.SameSiteStrictMode || session.Path != "/" {
+		t.Fatalf("cookie attributes = HttpOnly:%v Secure:%v SameSite:%v Path:%q, want HttpOnly no-Secure Strict /",
 			session.HttpOnly, session.Secure, session.SameSite, session.Path)
 	}
 	if session.MaxAge != int(auth.AbsoluteTimeout.Seconds()) {
 		t.Fatalf("cookie MaxAge = %d, want the absolute timeout in seconds", session.MaxAge)
+	}
+}
+
+// TestSignInTLS is the same round trip over TLS: the Secure flag is
+// kept, since the request crossed a secure channel and the browser
+// stores it.
+func TestSignInTLS(t *testing.T) {
+	mux, password := fixture(t, "")
+	r := httptest.NewRequest(http.MethodPost, "/auth/sign-in", strings.NewReader(signInCredentials(password).Encode()))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	r.TLS = &tls.ConnectionState{}
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, r)
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204", w.Code)
+	}
+	var session *http.Cookie
+	for _, c := range w.Result().Cookies() {
+		if c.Name == auth.CookieName {
+			session = c
+		}
+	}
+	if session == nil || !session.Secure {
+		t.Fatalf("TLS cookie = %+v, want Secure set", session)
 	}
 }
 

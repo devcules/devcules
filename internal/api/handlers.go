@@ -372,7 +372,7 @@ func signIn(svc *auth.Service, rec auditor) http.HandlerFunc {
 			writeAuthError(w, http.StatusInternalServerError, "internal error")
 		default:
 			rec.as(r, username, audit.SignIn, "", map[string]string{"method": "password"})
-			setSessionCookie(w, value)
+			setSessionCookie(w, r, value)
 			w.WriteHeader(http.StatusNoContent)
 		}
 	}
@@ -382,13 +382,18 @@ func signIn(svc *auth.Service, rec auditor) http.HandlerFunc {
 // SameSite=Strict on Path=/, dropped by the browser at the absolute
 // timeout even if the server never sees it again. Password and
 // passkey sign-ins share it byte for byte.
-func setSessionCookie(w http.ResponseWriter, value string) {
+func setSessionCookie(w http.ResponseWriter, r *http.Request, value string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     auth.CookieName,
 		Value:    value,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   true,
+		// Secure is not unconditional: Chrome refuses the cookie on a
+		// plain-http hostname that is not localhost, and the password
+		// sign-in then vanishes into a silent re-prompt. A Tailscale
+		// IP is still http on a trusted overlay, so only mark it when
+		// the request really crossed TLS; loopback is secure anyway.
+		Secure:   r.TLS != nil,
 		SameSite: http.SameSiteStrictMode,
 		// The browser drops the cookie at the absolute
 		// timeout even if the server never sees it again.

@@ -100,7 +100,9 @@ export default function Shell({
           and applies at once. The safe-area top inset moves into the
           bar so the body's `pt` stays zero. */}
       <header className="sticky top-0 z-10 flex items-center justify-between gap-2 bg-base px-4 pt-[env(safe-area-inset-top)] pb-1">
-        <span className="text-lead font-semibold">devcules</span>
+        {/* The wordmark carries the accent: it's the app's purple (or
+            rose, or green), so it stays readable on every background. */}
+        <span className="text-lead font-semibold text-accent">devcules</span>
         <ThemePicker />
       </header>
       <div className="flex flex-1 md:flex-row">
@@ -166,7 +168,7 @@ export default function Shell({
             aria-current={tab === t.id ? 'page' : undefined}
             onClick={() => setTab(t.id)}
             className={`flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center px-0.5 text-tab transition-colors duration-150 ${
-              tab === t.id ? 'text-text' : 'text-muted'
+              tab === t.id ? 'text-accent font-semibold' : 'text-muted'
             }`}
           >
             {/* Six tabs share a phone's width: the labels sit a size
@@ -175,12 +177,12 @@ export default function Shell({
               {t.label}
               {t.id === 'home' && <Badge count={waiting} />}
             </span>
-            {/* The active tab reads as text with an indicator, never
-                the accent: the accent means primary actions and
-                "needs you" only. */}
+            {/* The active tab: an accent dot under the label in the
+                theme's hero colour. The dot and the label both use
+                the accent now; it's the whole point of the mark. */}
             <span
               aria-hidden="true"
-              className={`mt-0.5 h-1 w-6 rounded-full ${tab === t.id ? 'bg-current' : 'bg-transparent'}`}
+              className={`mt-0.5 h-1 w-6 rounded-full ${tab === t.id ? 'bg-accent' : 'bg-transparent'}`}
             />
           </button>
         ))}
@@ -239,7 +241,7 @@ function NavButton({
       aria-current={active ? 'page' : undefined}
       onClick={onClick}
       className={`min-h-11 rounded-md px-3 text-left text-body transition-colors duration-150 ${
-        active ? 'bg-surface text-text' : 'text-muted'
+        active ? 'bg-surface text-accent font-semibold' : 'text-muted'
       }`}
     >
       {children}

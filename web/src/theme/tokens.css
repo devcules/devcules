@@ -170,16 +170,16 @@ lacks. Every token pair in every theme meets WCAG AA. */
   --c-surface: #282a36;
   --c-text: #f8f8f2;
   --c-muted: #bfbfbf;
-  --c-accent: #8be9fd;
+  --c-accent: #bd93f9;
   --c-on-accent: #221f2e;
 }
 
 [data-theme="dracula"] {
-  --c-tint: rgb(139 233 253 / 0.07);
-  --c-tint-strong: rgb(139 233 253 / 0.13);
-  --c-edge: rgb(139 233 253 / 0.16);
-  --c-glow: rgb(139 233 253 / 0.08);
-  --c-edge-top: rgb(190 240 255 / 0.10);
+  --c-tint: rgb(189 147 249 / 0.07);
+  --c-tint-strong: rgb(189 147 249 / 0.13);
+  --c-edge: rgb(189 147 249 / 0.16);
+  --c-glow: rgb(189 147 249 / 0.08);
+  --c-edge-top: rgb(215 190 250 / 0.10);
 }
 
 :root[data-theme="gruvbox"] {
@@ -206,16 +206,16 @@ lacks. Every token pair in every theme meets WCAG AA. */
   --c-surface: #1a1b26;
   --c-text: #c0caf5;
   --c-muted: #9aa5ce;
-  --c-accent: #7dcfff;
+  --c-accent: #bb9af7;
   --c-on-accent: #161d2f;
 }
 
 [data-theme="tokyo-night"] {
-  --c-tint: rgb(125 207 255 / 0.06);
-  --c-tint-strong: rgb(125 207 255 / 0.12);
-  --c-edge: rgb(125 207 255 / 0.18);
-  --c-glow: rgb(125 207 255 / 0.10);
-  --c-edge-top: rgb(190 225 255 / 0.10);
+  --c-tint: rgb(187 154 247 / 0.06);
+  --c-tint-strong: rgb(187 154 247 / 0.12);
+  --c-edge: rgb(187 154 247 / 0.18);
+  --c-glow: rgb(187 154 247 / 0.10);
+  --c-edge-top: rgb(210 190 250 / 0.10);
 }
 
 /* Solarized dark: text is the canonical near-white; the canonical
@@ -246,16 +246,16 @@ lacks. Every token pair in every theme meets WCAG AA. */
   --c-surface: #303040;
   --c-text: #cdd6f4;
   --c-muted: #bac2de;
-  --c-accent: #74c7ec;
+  --c-accent: #cba6f7;
   --c-on-accent: #1c2434;
 }
 
 [data-theme="catppuccin"] {
-  --c-tint: rgb(116 199 236 / 0.07);
-  --c-tint-strong: rgb(116 199 236 / 0.13);
-  --c-edge: rgb(116 199 236 / 0.16);
-  --c-glow: rgb(116 199 236 / 0.08);
-  --c-edge-top: rgb(170 215 240 / 0.10);
+  --c-tint: rgb(203 166 247 / 0.07);
+  --c-tint-strong: rgb(203 166 247 / 0.13);
+  --c-edge: rgb(203 166 247 / 0.16);
+  --c-glow: rgb(203 166 247 / 0.08);
+  --c-edge-top: rgb(220 200 255 / 0.10);
 }
 
 /* Flexoki light: paper over warm grey, teal accent. The canonical
@@ -269,6 +269,65 @@ lacks. Every token pair in every theme meets WCAG AA. */
   --c-muted: #575650;
   --c-accent: #1d6f68;
   --c-on-accent: #fffcf0;
+}
+
+/* Rosé Pine dusk: rose-lavender dark with the rose accent that reads
+   as the default Bear/thepaper.mediumcelery shape. */
+:root[data-theme="rose-pine"] {
+  color-scheme: dark;
+  --c-base: #191724;
+  --c-surface: #1f1d2e;
+  --c-text: #e0def4;
+  --c-muted: #a09cb7;
+  --c-accent: #ebbcba;
+  --c-on-accent: #1f1d2e;
+}
+
+[data-theme="rose-pine"] {
+  --c-tint: rgb(235 188 186 / 0.06);
+  --c-tint-strong: rgb(235 188 186 / 0.12);
+  --c-edge: rgb(235 188 186 / 0.16);
+  --c-glow: rgb(235 188 186 / 0.08);
+  --c-edge-top: rgb(240 210 210 / 0.10);
+}
+
+/* Everforest: deep green-grey; the green accent brings the forest. */
+:root[data-theme="everforest"] {
+  color-scheme: dark;
+  --c-base: #2d353b;
+  --c-surface: #343f43;
+  --c-text: #d3c6aa;
+  --c-muted: #b0bfa6;
+  --c-accent: #a7c080;
+  --c-on-accent: #232a2e;
+}
+
+[data-theme="everforest"] {
+  --c-tint: rgb(167 192 128 / 0.06);
+  --c-tint-strong: rgb(167 192 128 / 0.12);
+  --c-edge: rgb(167 192 128 / 0.16);
+  --c-glow: rgb(167 192 128 / 0.08);
+  --c-edge-top: rgb(200 220 175 / 0.10);
+}
+
+/* Monokai classic: warm near-black with the amber-yellow accent that
+   makes "console" feel like the 2000s. */
+:root[data-theme="monokai"] {
+  color-scheme: dark;
+  --c-base: #2d2a2e;
+  --c-surface: #3a3839;
+  --c-text: #fcfcfa;
+  --c-muted: #b3b2b3;
+  --c-accent: #ffd866;
+  --c-on-accent: #2a2220;
+}
+
+[data-theme="monokai"] {
+  --c-tint: rgb(255 216 102 / 0.06);
+  --c-tint-strong: rgb(255 216 102 / 0.12);
+  --c-edge: rgb(255 216 102 / 0.18);
+  --c-glow: rgb(255 216 102 / 0.10);
+  --c-edge-top: rgb(255 235 180 / 0.12);
 }
 
 /* Solarized light: cream over warm grey; the canonical blue sits

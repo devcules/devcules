@@ -81,24 +81,29 @@ export default function ThemePicker() {
           {(['dark', 'light'] as const).map((scheme) => (
             <div key={scheme}>
               <div className="px-3 pt-1 text-tab uppercase text-muted">{scheme}</div>
-              {THEMES.filter((t) => t.scheme === scheme).map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  role="option"
-                  aria-selected={t.id === theme}
-                  onClick={() => pick(t.id)}
-                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-body text-text transition-colors duration-150 hover:bg-base"
-                >
+              {THEMES.filter((t) => t.scheme === scheme).map((t) => {
+                const picked = t.id === theme;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    role="option"
+                    aria-selected={picked}
+                    onClick={() => pick(t.id)}
+                    className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-body transition-colors duration-150 hover:bg-base ${
+                      picked ? 'text-accent' : 'text-text'
+                    }`}
+                  >
                   <span
                     aria-hidden="true"
                     className="h-3 w-3 shrink-0 rounded-full border border-muted"
                     style={{ backgroundColor: t.swatch[2] }}
                   />
                   <span className="min-w-0 flex-1 truncate">{t.label}</span>
-                  {t.id === theme && <span aria-hidden="true">✓</span>}
+                  {picked && <span aria-hidden="true">✓</span>}
                 </button>
-              ))}
+                );
+              })}
             </div>
           ))}
         </div>

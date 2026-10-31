@@ -64,13 +64,15 @@ export default function StatusBar({ username }: { username: string }) {
     >
       <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-1">
         <div className="flex min-w-0 items-center gap-x-4">
-          <Item l="USER">{username}</Item>
+          <Item l="USER" accent>
+            {username}
+          </Item>
           <Item l="MACHINE">{info.hostname}</Item>
           {repoBase !== '' && (
-            <Item l="REPO">
+            <Item l="REPO" accent>
               {repoBase}
               {info.branch !== undefined && info.branch !== '' && (
-                <span className="text-text">@{info.branch}</span>
+                <span className="text-accent">@{info.branch}</span>
               )}
             </Item>
           )}
@@ -92,12 +94,22 @@ export default function StatusBar({ username }: { username: string }) {
 
 // One labelled metric. The label reads upper-case in the same tab
 // size as the phone nav so the two rows read as one chrome; the
-// value wears text. The pattern is the ticket from kaithos's bar.
-function Item({ l, children }: { l: string; children: React.ReactNode }) {
+// value wears text — accent when it's the "identity" of the bar
+// (user, repo) — theme colour wears too much to go on the level,
+// so identity rows alone carry it.
+function Item({
+  l,
+  accent = false,
+  children,
+}: {
+  l: string;
+  accent?: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <span className="flex min-w-0 items-baseline gap-1">
       <span className="text-muted">{l}</span>
-      <span className="min-w-0 truncate text-text">{children}</span>
+      <span className={`min-w-0 truncate ${accent ? 'text-accent' : 'text-text'}`}>{children}</span>
     </span>
   );
 }

@@ -14,4 +14,10 @@
 // It does not run anything itself: the runner's terminal manager
 // writes the launch's files and starts it in tmux, and serve decides
 // approvals. Adapters never see a provider key, only launch tokens.
+//
+// Terminal assistants — a developer's own assistant CLI (Hermes,
+// OpenClaw) that speaks its own API and login — are the off-router
+// kind (the cli/ package): the same interface and picker, but the
+// launch runs the CLI itself in the project's directory, with no
+// router, key or hook of ours between the assistant and its user.
 package agents

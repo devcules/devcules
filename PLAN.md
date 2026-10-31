@@ -102,7 +102,7 @@ internal/
   api/                   REST + WebSocket handlers
   web/                   embedded built PWA (go:embed)
 plugins/
-  agents/                Agent interface; musecode/, claudecode/, codex/
+  agents/                Agent interface; musecode/, claudecode/, codex/, cli/ (terminal assistants: Hermes, OpenClaw)
   assistants/            Assistant interface; builtin/ (Muse Spark), hermes/, openclaw/
   providers/             Provider interface; meta/ (Meta Model API), openai/ (any compatible), ollama/
   machines/              screen, input, accessibility, OCR, SAM 3.1 grounding

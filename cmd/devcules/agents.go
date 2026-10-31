@@ -9,13 +9,32 @@ import (
 	"github.com/devcules/devcules/internal/terminals/pty"
 	"github.com/devcules/devcules/plugins/agents"
 	"github.com/devcules/devcules/plugins/agents/claudecode"
+	"github.com/devcules/devcules/plugins/agents/cli"
 	"github.com/devcules/devcules/plugins/agents/codex"
 	"github.com/devcules/devcules/plugins/agents/musecode"
 )
 
-// agentList is every coding agent adapter this build offers.
+// agentList is every agent adapter this build offers: the coding
+// agents on the router, then the personal assistant CLIs that run
+// their own binary in the project's directory.
 func agentList() []agents.Agent {
-	return []agents.Agent{musecode.New(), claudecode.New(), codex.New()}
+	return []agents.Agent{
+		musecode.New(), claudecode.New(), codex.New(),
+		cli.NewHermes(), cli.NewOpenClaw(),
+	}
+}
+
+// wiredAgents is the hook's list: only the agents an approval hook
+// can run. An off-router assistant installs none, so naming one to
+// `devcules hook` is unknown.
+func wiredAgents() []agents.Agent {
+	var out []agents.Agent
+	for _, a := range agentList() {
+		if agents.Wired(a) {
+			out = append(out, a)
+		}
+	}
+	return out
 }
 
 // agentLauncher adapts the plugins/agents registry to the runner's
@@ -44,13 +63,13 @@ func (l agentLauncher) Launch(_ context.Context, a terminals.AgentLaunch, dir st
 
 // hookAgent finds the adapter `devcules hook --agent <id>` names.
 func hookAgent(id string) (agents.Agent, bool) {
-	return agents.New("", "", agentList()...).Get(id)
+	return agents.New("", "", wiredAgents()...).Get(id)
 }
 
-// agentIDs lists the adapter ids for usage messages.
+// agentIDs lists the hook adapter ids for usage messages.
 func agentIDs() string {
 	var ids []string
-	for _, a := range agentList() {
+	for _, a := range wiredAgents() {
 		ids = append(ids, a.ID())
 	}
 	return strings.Join(ids, ", ")

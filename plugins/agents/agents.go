@@ -96,6 +96,23 @@ type Agent interface {
 	HookAnswer(a Answer) Reply
 }
 
+// wirer is the off-router marker: an adapter whose launch speaks
+// its own API (a personal assistant CLI) reports Wired false and
+// skips the router, token and approval hook. Coding agents do not
+// implement it; Wired treats a missing method as true.
+type wirer interface {
+	Wired() bool
+}
+
+// Wired reports whether a launch routes through serve. Every coding
+// agent does; a personal assistant CLI (plugins/agents/cli) does not.
+func Wired(a Agent) bool {
+	if w, ok := a.(wirer); ok {
+		return w.Wired()
+	}
+	return true
+}
+
 // ProviderFor resolves the provider a launch calls: p, or the agent's
 // own when p is empty. A malformed id, or one outside the agent's
 // Only list, is an error. Whether the profile serves the agent's Wire
@@ -151,7 +168,7 @@ func (r *Registry) Agents(ctx context.Context) []terminals.AgentInfo {
 			defer func() { done <- struct{}{} }()
 			v, ok := a.Detect(ctx)
 			out[i] = terminals.AgentInfo{ID: a.ID(), Name: a.Name(), Provider: a.Provider(),
-				Wire: a.Wire(), Only: a.Only(), Installed: ok, Version: v, Install: a.InstallHint()}
+				Wire: a.Wire(), Only: a.Only(), Direct: !Wired(a), Installed: ok, Version: v, Install: a.InstallHint()}
 		}()
 	}
 	for range r.agents {
@@ -176,7 +193,11 @@ func (r *Registry) Spec(a terminals.AgentLaunch, dir string) (Spec, error) {
 	if spec.Files == nil {
 		spec.Files = map[string][]byte{}
 	}
-	spec.Files[TokenFile] = []byte(a.Token)
+	// The token file only exists for the hook to read; an off-router
+	// assistant installs no hook, so its launch carries no token at all.
+	if Wired(ag) {
+		spec.Files[TokenFile] = []byte(a.Token)
+	}
 	return spec, nil
 }
 

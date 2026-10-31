@@ -1,7 +1,9 @@
-// Package agenttest is the contract suite every coding agent adapter
-// passes (PLAN.md §9): identity, a launch pointed at serve with the
-// token kept off the command line, the approval hook installed, and a
-// hook translation that fails closed.
+// Package agenttest is the contract suite every agent adapter passes
+// (PLAN.md §9): identity, a launch pointed at serve with the token
+// kept off the command line, the approval hook installed, and a hook
+// translation that fails closed. An off-router assistant (Wired ==
+// false, plugins/agents/cli) skips the router and hook checks through
+// its own "off-router" subtest instead.
 package agenttest
 
 import (
@@ -36,14 +38,79 @@ func Run(t *testing.T, a agents.Agent, f Fixture) {
 	token := "dvl_" + "contracttoken0123456789"
 	dir := filepath.Join(t.TempDir(), "launch-0123456789abcdef")
 
+	t.Run("listing", func(t *testing.T) {
+		// The API's agent list marks the wiring: a coding agent is not
+		// Direct; an off-router assistant is. That false/true pair is
+		// what sendDownstream's POST keys on to skip provider and key.
+		r := agents.New(serveURL, "/usr/local/bin/devcules", a)
+		list := r.Agents(context.Background())
+		if len(list) != 1 {
+			t.Fatalf("Agents() = %d entries, want just this one", len(list))
+		}
+		if list[0].Direct == agents.Wired(a) {
+			t.Errorf("Direct %v, want %v", list[0].Direct, !agents.Wired(a))
+		}
+	})
+
 	t.Run("identity", func(t *testing.T) {
 		if !terminals.ValidAgentID(a.ID()) {
 			t.Fatalf("ID %q is not a lowercase agent id", a.ID())
 		}
-		if a.Name() == "" || a.Provider() == "" || a.InstallHint() == "" {
-			t.Fatalf("Name %q, Provider %q, InstallHint %q: all are required", a.Name(), a.Provider(), a.InstallHint())
+		if a.Name() == "" || a.InstallHint() == "" {
+			t.Fatalf("Name %q, InstallHint %q: both are required", a.Name(), a.InstallHint())
+		}
+		if !agents.Wired(a) {
+			if a.Provider() != "" || a.Wire() != "" || len(a.Only()) > 0 {
+				t.Fatalf("an off-router assistant keeps no wire: Provider %q, Wire %q, Only %q", a.Provider(), a.Wire(), a.Only())
+			}
+			return
+		}
+		if a.Provider() == "" {
+			t.Fatal("a wired agent names its provider")
 		}
 	})
+
+	if !agents.Wired(a) {
+		t.Run("off-router", func(t *testing.T) {
+			r := agents.New(serveURL, "/usr/local/bin/devcules", a)
+			spec, err := r.Spec(terminals.AgentLaunch{ID: a.ID(), Token: token, Model: "contract-model-1"}, dir)
+			if err != nil {
+				t.Fatalf("Spec: %s", err)
+			}
+			if len(spec.Cmd) == 0 || spec.Cmd[0] == "" {
+				t.Fatal("no command")
+			}
+			text := specText(spec)
+			for what := range map[string]string{
+				"the serve URL": serveURL,
+				"the model":     "contract-model-1",
+				"the hook":      "hook --agent",
+				"the token":     token,
+			} {
+				if strings.Contains(text, what) {
+					t.Errorf("an off-router launch mentions %s (%q)", text, what)
+				}
+			}
+			if len(spec.Files) > 0 {
+				t.Errorf("an off-router launch writes files: %v", spec.Files)
+			}
+			for p := range spec.Files {
+				if !filepath.IsLocal(p) {
+					t.Fatalf("file %q escapes the launch dir", p)
+				}
+			}
+			if _, err := a.LaunchSpec(agents.Launch{}); err == nil {
+				t.Error("an empty launch was accepted")
+			}
+			if _, err := a.HookCall([]byte(`{}`)); err == nil {
+				t.Error("an off-router assistant answered a hook call")
+			}
+			if r := a.HookAnswer(agents.Answer{Allow: true, Reason: "full access"}); r.Code == 0 {
+				t.Errorf("an off-router assistant allowed a hook call: %+v", r)
+			}
+		})
+		return
+	}
 
 	t.Run("providers", func(t *testing.T) {
 		// It names the API it speaks; a malformed provider id is

@@ -166,6 +166,11 @@ type AgentInfo struct {
 	// WireResponses): serve offers it every provider profile that
 	// serves that API.
 	Wire string `json:"wire,omitempty"`
+	// Direct marks an off-router assistant (a personal assistant CLI):
+	// the launch runs its own binary under its own login with no
+	// router, key or approval hook of ours. Serve skips the provider
+	// and token for one.
+	Direct bool `json:"direct,omitempty"`
 	// Only, when set, limits it to these providers: Muse Code only
 	// speaks to Meta.
 	Only []string `json:"only,omitempty"`

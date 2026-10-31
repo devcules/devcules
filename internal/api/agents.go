@@ -131,7 +131,11 @@ func startAgent(w http.ResponseWriter, r *http.Request, rl *relay.Relay, tokens 
 		}
 	}
 	model := body.Model
-	if model == "" && profiles != nil {
+	// An off-router assistant runs its own CLI: no provider, router or
+	// key takes part, so a profile default or the provider check below
+	// stays out of its way.
+	offRouter := info.Direct
+	if model == "" && profiles != nil && !offRouter {
 		if p, err := profiles.Get(r.Context(), provider); err == nil {
 			model = p.Model
 		}
@@ -140,6 +144,8 @@ func startAgent(w http.ResponseWriter, r *http.Request, rl *relay.Relay, tokens 
 	case !info.Installed:
 		writeAuthError(w, http.StatusConflict, info.Name+" is not installed on "+runner+": install it there with "+info.Install)
 		return
+	case offRouter:
+		// Its own login answers for it; nothing here to gate.
 	case !slices.Contains(speaks, provider):
 		served := rt != nil && rt.Serves(r.Context(), provider)
 		switch {
@@ -160,6 +166,9 @@ func startAgent(w http.ResponseWriter, r *http.Request, rl *relay.Relay, tokens 
 		return
 	}
 	place.Name = body.Name
+	// The launch token is issued like any agent's for the audit and
+	// trace trail; an off-router assistant's never leaves serve — its
+	// launch runs the CLI itself, with no token file and no hook.
 	token, l, err := tokens.MintOn(r.Context(), runner, info.Name+" on "+runner, provider, launch.DefaultTTL)
 	if err != nil {
 		writeAuthError(w, http.StatusInternalServerError, "internal error")

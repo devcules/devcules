@@ -222,8 +222,9 @@ func TestRun(t *testing.T) {
 	for _, args := range [][]string{{"hook", "--agent", "nope"}, {"hook", "--agent"}, {"hook", "extra"}} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
 			code, _, stderr := invoke(t, map[string]string{}, args...)
-			// The usage lists every registered adapter: musecode since
-			// M3.3, claudecode and codex since M3.4.
+			// The usage lists every hook-able (wired) adapter: musecode
+			// since M3.3, claudecode and codex since M3.4. Off-router
+			// assistants install no hook, so they are not named.
 			if code != exitUsage || !strings.Contains(stderr, "--agent <id> (known: musecode, claudecode, codex)") {
 				t.Fatalf("exit = %d, stderr = %q, want usage with the known agents", code, stderr)
 			}

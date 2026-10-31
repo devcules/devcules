@@ -26,8 +26,9 @@ import (
 	"github.com/devcules/devcules/internal/terminals/relay"
 )
 
-// fakeAgents offers four agents: one that starts, one not installed,
-// one for a provider the router lacks, and one whose launch fails.
+// fakeAgents offers five agents: one that starts, one not installed,
+// one for a provider the router lacks, one whose launch fails, and one
+// off-router assistant that needs no provider or key.
 type fakeAgents struct{}
 
 func (fakeAgents) Agents(context.Context) []terminals.AgentInfo {
@@ -36,6 +37,7 @@ func (fakeAgents) Agents(context.Context) []terminals.AgentInfo {
 		{ID: "absent", Name: "Absent", Provider: "meta", Install: "curl -fsSL https://example.com/install.sh | sh"},
 		{ID: "other", Name: "Other", Provider: "nope", Installed: true},
 		{ID: "broken", Name: "Broken", Provider: "meta", Installed: true},
+		{ID: "hermes", Name: "Hermes", Direct: true, Installed: true},
 	}
 }
 
@@ -132,7 +134,7 @@ func TestAgentsAPI(t *testing.T) {
 		Agents []terminals.AgentInfo
 	}
 	_ = json.Unmarshal(w.Body.Bytes(), &listed)
-	if w.Code != 200 || listed.Runner != "laptop" || listed.Mode != "critical" || len(listed.Agents) != 4 || listed.Agents[0].Version != "1.0.0" {
+	if w.Code != 200 || listed.Runner != "laptop" || listed.Mode != "critical" || len(listed.Agents) != 5 || listed.Agents[0].Version != "1.0.0" {
 		t.Fatalf("list = %d %s", w.Code, w.Body)
 	}
 
@@ -177,6 +179,18 @@ func TestAgentsAPI(t *testing.T) {
 	if w.Code != http.StatusCreated || started.ID == "" || started.Launch.Runner != "laptop" || started.Launch.Provider != "meta" ||
 		strings.Contains(w.Body.String(), launch.Prefix) {
 		t.Fatalf("start = %d %s", w.Code, w.Body)
+	}
+
+	// The off-router assistant needs no provider: no router check, no
+	// key, no profile default — its own CLI logs in.
+	w = doJSON(f.mux, http.MethodPost, "/api/agents", `{"agent":"hermes","name":"my assistant"}`, f.session)
+	var direct struct {
+		ID     string
+		Launch launch.Launch
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &direct)
+	if w.Code != http.StatusCreated || direct.ID == "" || direct.Launch.Provider != "" {
+		t.Fatalf("assistant start = %d %s, want 201 with no provider", w.Code, w.Body)
 	}
 
 	w = terminalRequest(t, f.mux, http.MethodGet, "/api/terminals", f.session)

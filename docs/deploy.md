@@ -88,6 +88,10 @@ apply to the runner too, which serves nothing.
   the non-root runner cannot write it yet. The idle M0.5 runner writes
   nothing, so this is dormant; M3 (which installs agent CLIs there)
   must take ownership on first write.
-- **No Tailscale or Postgres profiles yet** (M6.2 / stretch goal).
-  `DEVCULES_DATABASE_URL` set makes serve exit with next steps instead
-  of silently using SQLite.
+- **The Tailscale profile** brings the desk's HTTPS front up on the
+  tailnet (`docker compose --profile tailscale up -d --wait`, with
+  `TS_AUTHKEY` in `.env`; the hostname is `TS_HOSTNAME`, `devcules`
+  by default). Tailscale TLS-terminates and forwards to `serve:7659`;
+  serve never binds a public port. The Postgres profile is still the
+  stretch goal: `DEVCULES_DATABASE_URL` set makes serve exit with next
+  steps instead of silently using SQLite.

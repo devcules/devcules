@@ -172,12 +172,13 @@ func Handler(o Options) http.Handler {
 	}
 	mux.Handle("/api/approvals", requireSession(o.Auth, approvalsRoot(o.ApprovalQueue)))
 	mux.Handle("/api/approvals/", requireSession(o.Auth, approvalOne(o.ApprovalQueue, runners, o.PublicURL)))
-	// Assistants: sessions only, like the approvals queue above; the
-	// assistant's own writes are gated by its approvals mode, and the
-	// chat's CSRF check matches the rest of the writes.
+	// Assistants: the picker reads need a session like every /api
+	// read; the chat write carries the CSRF check on top, like the
+	// other write routes (an assistant's own tool calls are then also
+	// gated by its approvals mode).
 	as := NewAssistants(o.Assistants)
 	mux.Handle("/api/assistants", requireSession(o.Auth, as.root()))
-	mux.Handle("/api/assistants/", requireSession(o.Auth, as.one()))
+	mux.Handle("/api/assistants/", csrf(o.PublicURL, requireSession(o.Auth, as.one())))
 	mux.Handle("/hook/approvals", hookApprovals(o.ApprovalQueue, o.Launches))
 	mux.Handle("/hook/approvals/", hookApprovals(o.ApprovalQueue, o.Launches))
 	mux.Handle("/api/push", requireSession(o.Auth, pushRoot(o.Push)))

@@ -1,0 +1,23 @@
+# The sample app the PLAN.md §11 demo drives (M6.2): a deliberately
+# small checkout page for the agent to fix and verify, in one
+# container, behind nothing (the desk reaches it from the runner
+# network as http://demo-store:8080).
+#
+#   docker compose -f deploy/demo/docker-compose.yaml --project-name devcules-demo up -d --wait
+#
+# It is not part of the desk's stack: the demo lives on its own, and
+# the sample bug is seeded in the page (the Pay button is drawn on a
+# canvas so the accessibility tree is empty and only SAM 3.1 can find
+# it).
+services:
+  demo-store:
+    build: .
+    image: devcules-demo-store:local
+    restart: unless-stopped
+    ports:
+      - "${DEMO_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10

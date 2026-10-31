@@ -80,7 +80,39 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  # Phone over the tailnet (M6.2): `docker compose --profile tailscale
+  # up -d --wait`, with TS_AUTHKEY from .env. Tailscale serves this
+  # desk at https://<host>.<tailnet>.ts.net through `tailscale serve`
+  # and TLS-terminates there; the serve container is never public
+  # off the tailnet.
+  tailscale:
+    profiles: ["tailscale"]
+    image: tailscale/tailscale:stable
+    restart: unless-stopped
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY:?TS_AUTHKEY missing: put the reusable tailnet auth key in .env}
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_HOSTNAME: ${TS_HOSTNAME:-devcules}
+      TS_EXTRA_ARGS: --reset
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    depends_on:
+      serve:
+        condition: service_healthy
+    # Bring the tailnet name up as the desk's HTTPS front once serve
+    # answers: `tailscale serve` forwards to the container.
+    command: >
+      sh -c "tailscaled --tun=userspace-networking --statedir=/var/lib/tailscale --socket=/tmp/tailscaled.sock &
+             tailscale --socket=/tmp/tailscaled.sock login --auth-key=$${TS_AUTHKEY} --hostname=$${TS_HOSTNAME} &&
+             tailscale --socket=/tmp/tailscaled.sock serve --bg --https=443 http://serve:7659 &&
+             wait"
+
 volumes:
   devcules-data:
   runner-home:
   link:
+  tailscale-state:

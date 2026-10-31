@@ -144,3 +144,22 @@ and checks the VAPID signature.
 | VAPID (RFC 8292) | `Authorization: vapid t=<JWT>, k=<base64url public key>`. The JWT is ES256 (raw `r\|\|s` signature) with `aud` = the endpoint's origin, `exp` at most 24 hours ahead (Devcules uses 12), and `sub` a `mailto:` or `https:` contact |
 | Keys | The VAPID signing key is never the ECDH key: each message gets a fresh ECDH key |
 | Browser side | `PushManager.subscribe({userVisibleOnly: true, applicationServerKey})` with the server's uncompressed 65-byte public key; iPhone offers it only to a web app added to the Home Screen |
+
+## Assistant runtimes
+
+Checked 2026-10-31 against the runtime docs the style adapters wire;
+each rechecks when the runtime's SDK changes. The adapters themselves
+are `assistants/hermes` and `assistants/openclaw`, over the shared
+`assistantsopenai` caller (`docs/assistants.md`).
+
+| Runtime | Base URL | Model | Auth | Notes |
+|---|---|---|---|---|
+| Hermes | `DEVCULES_HERMES_BASE_URL` when set, else the operator's runtime (no default) | `hermes-4` | `Authorization: Bearer <token>` | OpenAI-style chat completions with tools; the plugin hooks the runtime documents are how Devcules would notice its lifecycle, not the chat path |
+| OpenClaw | the profile's base URL (a profile named `openclaw` opts the adapter in) | `openclaw-1` unless the profile overrides it | `Authorization: Bearer <key>` from the `openclaw` profile's vault secret | the service the OpenHark reference implementation describes |
+
+Both are OpenAI-style `POST /v1/chat/completions` against their own
+base URL; the wire the adapters send is the same one the router sends
+for an OpenAI-compatible provider. There is no MCP-style initialize on
+the assistant side: the tools Devcules serves (`docs/mcp.md`) are the
+model's own registry listing, and the desk's MCP server is only called
+in-process by the gate.

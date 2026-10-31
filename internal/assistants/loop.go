@@ -50,9 +50,11 @@ func Blocked(err error) (string, bool) {
 
 // ModelCaller sends one turn to the model and returns its reply. The
 // conversation (system prompt plus history) goes with every call; the
-// loop owns tool execution, so the caller only translates. req is
-// redacted and the caller must restore placeholders in the reply's
-// text and arguments (Devcules's redaction boundary, PLAN.md §3).
+// loop owns tool execution, so the caller only translates. The
+// boundary is send-side-only: user input is redacted before it is ever
+// put in the model's window, and a placeholder the model quotes back
+// as an argument is refused at the gate; the caller never un-masks.
+// (PLAN.md §3's redaction boundary, applied to the user side.)
 type ModelCaller interface {
 	Chat(ctx context.Context, req ChatRequest) (ModelReply, error)
 }
@@ -347,11 +349,24 @@ func (l *Loop) FreshChat() string {
 	return id
 }
 
-// Session implements Assistant.Session.
+// Session implements Assistant.Session. It copies the view under the
+// session's own turn lock, so a conversation being read while a Chat
+// on it is appending is never a torn slice.
 func (l *Loop) Session(sess string) (Session, error) {
 	if !ValidSessionID(sess) {
 		return Session{}, store.ErrNotFound
 	}
+	l.mu.Lock()
+	turn, ok := l.turns[sess]
+	l.mu.Unlock()
+	if !ok {
+		if _, err := l.o.Convos.Get(sess); err != nil {
+			return Session{}, err
+		}
+		return Session{}, store.ErrNotFound
+	}
+	turn.Lock()
+	defer turn.Unlock()
 	c, err := l.o.Convos.Get(sess)
 	if err != nil {
 		return Session{}, err

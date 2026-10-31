@@ -33,12 +33,14 @@ func runLocal(cfg config.Config, stdout, stderr io.Writer, sigs chan os.Signal, 
 		}
 	}
 	// The in-process runner talks to serve on its own listen address,
-	// where the split runner defaults to the compose name "serve".
-	if cfg.ServeURL == "" {
+	// where the split runner defaults to the compose name "serve". Only
+	// an explicit DEVCULES_SERVE_URL overrides; otherwise the host desk
+	// always links against the address it listens on itself.
+	if envEmpty("DEVCULES_SERVE_URL") {
 		cfg.ServeURL = "http://" + listenAddress(cfg.Listen)
 	}
 	// Local cookies and passkeys take the same loopback name.
-	if cfg.PublicURL == "" {
+	if envEmpty("DEVCULES_PUBLIC_URL") {
 		cfg.PublicURL = cfg.ServeURL
 	}
 
@@ -79,6 +81,13 @@ func runLocal(cfg config.Config, stdout, stderr io.Writer, sigs chan os.Signal, 
 	// One half stopped: the other unwinds through the signal channel.
 	sigs <- os.Interrupt
 	return code
+}
+
+// envEmpty reports an unset or blank environment variable: a value that
+// is all whitespace means the same as unset.
+func envEmpty(name string) bool {
+	v, set := os.LookupEnv(name)
+	return !set || strings.TrimSpace(v) == ""
 }
 
 // readRunnerToken waits for serve to mint the runner token (same file

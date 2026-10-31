@@ -92,12 +92,17 @@ func TestRunLocalEndToEnd(t *testing.T) {
 		t.Fatal("the desk did not drain after SIGTERM")
 	}
 
-	// The link carried the host label, and serve minted the token file
-	// it shares with the runner half (the compose link volume in one
-	// process — nothing left in the test's env).
+	// The link carried the host label, serve minted the token file it
+	// shares with the runner half (the compose link volume in one
+	// process — nothing left in the test's env), and the runner dials
+	// the address the desk itself listens on, never the compose
+	// "serve" name that must not leak out of the container path.
 	out := stdout.String()
 	if !strings.Contains(out, `name":"host (`) || strings.Contains(out, "container") {
 		t.Errorf("stdout lacks the host link label: %s", out)
+	}
+	if !strings.Contains(out, `"serve":"http://127.0.0.1:`) || strings.Contains(out, "http://serve:") {
+		t.Errorf("the host runner did not dial its own listen address: %s", out)
 	}
 	if raw, err := os.ReadFile(filepath.Join(home, "runner.token")); err != nil || strings.TrimSpace(string(raw)) == "" {
 		t.Errorf("runner token never minted under %s: %v", home, err)

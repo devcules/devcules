@@ -132,7 +132,14 @@ func registerMachineDist(mux *http.ServeMux, publicURL string) {
 			http.Error(w, "this Devcules has no machine helper built yet: run scripts/build-machine.sh on the Devcules host", http.StatusServiceUnavailable)
 			return
 		}
-		server := publicURL
+		// Where the bootstrap calls back: ?server= if the UI named it
+		// (the caller knows the address every machine will reach this
+		// box at), else the configured public URL, else the host the
+		// curl actually came in on.
+		server := r.URL.Query().Get("server")
+		if server == "" {
+			server = publicURL
+		}
 		if server == "" {
 			server = requestOrigin(r)
 		}
@@ -237,8 +244,14 @@ export DEVCULES_SERVE_URL="$SERVER"
 echo "==> enrolling this computer"
 "$prefix/bin/$exe" machine enrol "$CODE"
 echo "==> starting it, and at every sign-in"
-"$prefix/bin/$exe" machine install || true
-"$prefix/bin/$exe" machine &
+if ! "$prefix/bin/$exe" machine install; then
+  # No systemd/launchd on this box: one helper for now (and one note
+  # on how to make it permanent). Never service-start and a second
+  # foreground start at once: two links with one name replace (kill)
+  # each other.
+  echo "(no systemd/launchd here: starting one copy for this session; add '$prefix/bin/$exe machine' to your login scripts to keep it)"
+  nohup "$prefix/bin/$exe" machine >/dev/null 2>&1 &
+fi
 echo ""
 echo "Done. This computer now shows under Machines in your Devcules."
 echo "    ${prefix}/bin/$exe machine uninstall   removes the sign-in start"

@@ -156,6 +156,16 @@ export default function DirPicker({
         })}
       </ul>
       {list?.truncated && <p className="text-body text-muted">Showing the first 500 folders. Type a path to go further.</p>}
+      {/* The icon key: what each mark next to a folder means. Lives
+          here (where folders are picked) so the tree itself doesn't
+          carry the row forever. */}
+      <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-body text-muted">
+        <span className="flex items-center gap-1">▢ folder</span>
+        <span className="flex items-center gap-1"><RemoteIcon remote="" size={11} /> git repo</span>
+        <span className="flex items-center gap-1"><RemoteIcon remote="github" size={11} /> GitHub</span>
+        <span className="flex items-center gap-1"><RemoteIcon remote="gitlab" size={11} /> GitLab</span>
+        <span className="flex items-center gap-1"><RemoteIcon remote="azure" size={11} /> Azure DevOps</span>
+      </p>
     </div>
   );
 }

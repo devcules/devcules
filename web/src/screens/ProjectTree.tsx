@@ -220,13 +220,9 @@ export default function ProjectTree({
         );
       })}
       </ul>
-      <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 px-3 text-body text-muted">
-        <span className="flex items-center gap-1">▢ folder</span>
-        <span className="flex items-center gap-1"><RemoteIcon remote="" size={11} /> git repo</span>
-        <span className="flex items-center gap-1"><RemoteIcon remote="github" size={11} /> GitHub</span>
-        <span className="flex items-center gap-1"><RemoteIcon remote="gitlab" size={11} /> GitLab</span>
-        <span className="flex items-center gap-1"><RemoteIcon remote="azure" size={11} /> Azure DevOps</span>
-      </p>
+      {/* The icon legend lives in the New Project picker (DirPicker):
+          the marks explain themselves where folders are chosen, and
+          the tree stays clean after that. */}
     </>
   );
 }

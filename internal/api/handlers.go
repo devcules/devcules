@@ -425,7 +425,10 @@ func signOut(svc *auth.Service, rec auditor) http.HandlerFunc {
 			Value:    "",
 			Path:     "/",
 			HttpOnly: true,
-			Secure:   true,
+			// The delete must satisfy the same rule the set did: on
+			// plain http Chrome refuses the Secure attribute, so the
+			// live cookie would survive "sign out" on a Tailscale IP.
+			Secure:   r.TLS != nil,
 			SameSite: http.SameSiteStrictMode,
 			MaxAge:   -1,
 			Expires:  time.Unix(1, 0).UTC(),

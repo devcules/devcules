@@ -9,6 +9,7 @@ import Settings from '../screens/Settings';
 import Activity from '../screens/Activity';
 import Assistant from '../screens/Assistant';
 import ThemePicker from '../theme/ThemePicker';
+import StatusBar from './StatusBar';
 
 type Tab = 'home' | 'projects' | 'terminals' | 'machines' | 'assistant' | 'activity' | 'settings';
 
@@ -148,6 +149,12 @@ export default function Shell({
           <Settings username={username} onSignedOut={onSignedOut} onSessionExpired={onSessionExpired} />
         )}
       </main>
+      </div>
+      {/* The footer strip: after the sidebar+main row, where kaithos
+          keeps its machine line. Flow, not fixed, so content runs
+          right down to it; on mobile it sits above the fixed
+          bottom tabs. */}
+      <StatusBar username={username} />
       <nav
         aria-label="Tabs"
         className="fixed inset-x-0 bottom-0 flex bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
@@ -178,7 +185,6 @@ export default function Shell({
           </button>
         ))}
       </nav>
-      </div>
     </div>
   );
 }

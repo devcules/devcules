@@ -15,6 +15,7 @@ import (
 	"github.com/devcules/devcules/internal/assistants"
 	"github.com/devcules/devcules/internal/audit"
 	"github.com/devcules/devcules/internal/auth"
+	"github.com/devcules/devcules/internal/hostinfo"
 	"github.com/devcules/devcules/internal/launch"
 	"github.com/devcules/devcules/internal/link/hub"
 	"github.com/devcules/devcules/internal/machines"
@@ -222,6 +223,11 @@ func Handler(o Options) http.Handler {
 	mux.Handle("/api/machines-input", requireSession(o.Auth, machinesInput(o.Machines, o.PublicURL)))
 	mux.Handle("/api/machines-ground", requireSession(o.Auth, machinesGround(o.Machines, o.PublicURL)))
 	mux.Handle("/api/machines-verify", requireSession(o.Auth, machinesVerify(o.Machines, o.PublicURL)))
+	// The status bar: processor, memory and the checked-out branch
+	// of the machine serve itself is on. GET poll; the probe answers
+	// in ~200ms, cheap on a 5s tick, and every value the OS won't
+	// say is absent from the JSON (never a guess).
+	mux.Handle("/api/host-info", requireSession(o.Auth, hostInfo()))
 	mux.Handle("/", root(o.Web, o.Auth))
 	return secureHeaders(mux)
 }
@@ -314,6 +320,21 @@ func readyz(s store.Store, link *hub.Hub) http.HandlerFunc {
 		// A struct (not a map) keeps the documented key order stable.
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(readyzBody{Status: "ok", RunnersLinked: runners})
+	}
+}
+
+// hostInfo is the bottom bar's one read: the machine serve itself
+// runs on. Each value is the kernel's answer or absent; the call
+// measures live (~1.5s worst on darwin: top's sample) on a poll the
+// client already does with its approvals call. No cache — the bar
+// reads stale once a minute, that's the point of it.
+func hostInfo() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireMethod(w, r, http.MethodGet) {
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(hostinfo.Snapshot())
 	}
 }
 

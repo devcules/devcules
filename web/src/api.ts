@@ -800,6 +800,51 @@ function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
+// The bottom bar: the machine serve itself runs on, every field
+// best-effort. serve answers it on GET /api/host-info; a fetch error
+// turns the panel off entirely rather than blame a probe.
+export type HostInfo = {
+  hostname: string;
+  os: string;
+  arch: string;
+  cpuPercent: number;
+  cores: number;
+  memTotalBytes: number;
+  memUsedBytes: number;
+  memPercent: number;
+  repo?: string;
+  branch?: string;
+  gpuName?: string;
+  collected: string;
+};
+
+function isHostInfo(v: unknown): v is HostInfo {
+  return (
+    isObject(v) &&
+    typeof v.hostname === 'string' &&
+    typeof v.os === 'string' &&
+    typeof v.arch === 'string' &&
+    typeof v.cpuPercent === 'number' &&
+    typeof v.cores === 'number' &&
+    typeof v.memTotalBytes === 'number' &&
+    typeof v.memUsedBytes === 'number' &&
+    typeof v.memPercent === 'number' &&
+    typeof v.collected === 'string'
+  );
+}
+
+export async function hostInfo(): Promise<HostInfo | 'unauthorized' | 'unreachable'> {
+  const res = await terminalFetch('/api/host-info');
+  if (typeof res === 'string') {
+    return res === 'unauthorized' ? res : 'unreachable';
+  }
+  if (!res.ok) {
+    return 'unreachable';
+  }
+  const data: unknown = await res.json().catch(() => null);
+  return isHostInfo(data) ? data : 'unreachable';
+}
+
 async function redactFetch(path: string, init?: RequestInit): Promise<Response | 'unauthorized' | 'unreachable'> {
   let res: Response;
   try {

@@ -14,6 +14,7 @@ import AccessModes from './AccessModes';
 import Notifications from './Notifications';
 import Providers from './Providers';
 import Redaction from './Redaction';
+import ThemePicker from './ThemePicker';
 
 // 'elsewhere': the server has passkeys on, but this page is open at
 // an IP address, where WebAuthn never works.
@@ -177,6 +178,7 @@ export default function Settings({
       <p className="text-body text-muted">
         Signed in as <span className="text-text">{username}</span>
       </p>
+      <ThemePicker />
       <section aria-label="Passkeys" className="flex flex-col gap-3">
         <h3 className="text-body font-semibold text-text">Passkeys</h3>
         {status === 'loading' && <p className="text-body text-muted">Checking passkeys…</p>}

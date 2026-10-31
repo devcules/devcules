@@ -3,8 +3,18 @@
 /* The one visual system (PLAN.md §1a). Tokens live here and nowhere
 else: Tailwind reads them through @theme below, and the WCAG test
 parses this file so the values it checks are these values. Dark is
-the default; light follows the OS. */
+the default; light follows the OS.
 
+Themes: a theme is six tokens on a different :root selector, plus
+the optional glass block that turns surfaces liquid. Arc dark +
+Arc light are the implicit pair (no attribute, media query); the
+rest are explicit, chosen in Settings and pinned by a data-theme
+attribute, whose block outranks the media query by specificity.
+The theme list (id, label, hint) lives in themes.ts; the contrast
+test parses both files and fails when one grows a theme the other
+lacks. Every token pair in every theme meets WCAG AA. */
+
+/* Arc (default) dark, and its light pair for OS-follows-light. */
 :root {
   color-scheme: dark;
   --c-base: #101418;
@@ -24,6 +34,111 @@ the default; light follows the OS. */
     --c-muted: #5b6470;
     --c-accent: #8a5a00;
     --c-on-accent: #ffffff;
+  }
+}
+
+/* Paper: the light pair as an explicit pick (no OS dependence). */
+:root[data-theme="paper"] {
+  color-scheme: light;
+  --c-base: #ffffff;
+  --c-surface: #f1f2f4;
+  --c-text: #17191d;
+  --c-muted: #5b6470;
+  --c-accent: #8a5a00;
+  --c-on-accent: #ffffff;
+}
+
+/* Slate: low-chroma blue-grey dark. Quiet chrome, cold steel accent. */
+:root[data-theme="slate"] {
+  color-scheme: dark;
+  --c-base: #11151c;
+  --c-surface: #1b222e;
+  --c-text: #e2e8f0;
+  --c-muted: #94a3b3;
+  --c-accent: #9fb8d4;
+  --c-on-accent: #12161c;
+}
+
+[data-theme="slate"] {
+  --c-tint: rgb(159 184 212 / 0.07);
+  --c-tint-strong: rgb(159 184 212 / 0.13);
+  --c-edge: rgb(184 204 227 / 0.16);
+  --c-glow: rgb(159 184 212 / 0.08);
+  --c-edge-top: rgb(230 240 250 / 0.10);
+}
+
+/* Midnight: room-dark blue, cold sky accent. For the 2 a.m. commit. */
+:root[data-theme="midnight"] {
+  color-scheme: dark;
+  --c-base: #0a0f24;
+  --c-surface: #131a34;
+  --c-text: #dde5f6;
+  --c-muted: #8b9cc9;
+  --c-accent: #92b4fb;
+  --c-on-accent: #0a1020;
+}
+
+[data-theme="midnight"] {
+  --c-tint: rgb(128 160 240 / 0.06);
+  --c-tint-strong: rgb(128 160 240 / 0.12);
+  --c-edge: rgb(150 180 245 / 0.16);
+  --c-glow: rgb(110 145 235 / 0.10);
+  --c-edge-top: rgb(190 210 250 / 0.10);
+}
+
+/* IASF — Meta AI Developer Hackathon, Menlo Park, Oct 26 2026.
+   Electric Meta blue over near-black indigo: the launch-page blue
+   gradient frozen into a base, a surface, and a glow. The brand
+   blue (#0082fb) would sit just under 4.5:1 on this base, so the
+   accent *surface* is the water-blue #3d9bfd and text on it goes
+   near-black; a lighter --c-accent-hero is there for glyph-weight
+   accents only (the contrast test checks the two pairs that carry
+   body text, above).
+
+   "Liquid glass" is literal here: every bg-surface is the blue
+   tint over the base, a lighter top edge, a soft brand glow, and
+   a blur over what sits behind. */
+:root[data-theme="meta-hackathon"] {
+  color-scheme: dark;
+  --c-base: #061020;
+  --c-surface: #0d1b33;
+  --c-text: #eaf2fc;
+  --c-muted: #97a9c8;
+  --c-accent: #3d9bfd;
+  --c-accent-hero: #56b0ff;
+  --c-on-accent: #041020;
+}
+
+[data-theme="meta-hackathon"] {
+  --c-tint: rgb(61 155 253 / 0.08);
+  --c-tint-strong: rgb(61 155 253 / 0.16);
+  --c-edge: rgb(120 180 255 / 0.22);
+  --c-glow: rgb(61 155 253 / 0.12);
+  --c-edge-top: rgb(190 220 255 / 0.16);
+}
+
+/* Where glass tokens are set, the surface utilities become the
+   frosted panel themselves; where they are not, these declarations
+   collapse to the plain surface + border they were before. The
+   hero accent (the bright outline on the theme picker choice) uses
+   the lighter glyph blue in the IASF theme and the readable accent
+   everywhere else. */
+@layer components {
+  .bg-surface {
+    background-color: var(--c-tint, var(--c-surface));
+    box-shadow:
+      inset 0 1px 0 var(--c-edge-top, transparent),
+      0 8px 32px -16px var(--c-glow, transparent);
+    backdrop-filter: blur(14px) saturate(1.4);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  }
+
+  .border-accent {
+    border-color: color-mix(
+      in srgb,
+      var(--c-accent-hero, var(--c-accent)) 65%,
+      transparent
+    );
   }
 }
 
@@ -56,10 +171,15 @@ off under reduced motion. */
   }
 }
 
-/* GitHub's brand mark is near-black; on the default dark background
-invert it to a light tone. Light mode (OS follows) keeps it as-is. */
+/* GitHub's brand mark is near-black; on a dark base invert it to a
+light tone. Light bases (Paper + OS-follows-light Arc) keep it. */
 @media (prefers-color-scheme: dark) {
-  .remote-tint {
+  :root:not([data-theme="paper"]) .remote-tint {
     filter: invert(0.85) brightness(1.1);
   }
+}
+[data-theme="slate"] .remote-tint,
+[data-theme="midnight"] .remote-tint,
+[data-theme="meta-hackathon"] .remote-tint {
+  filter: invert(0.85) brightness(1.1);
 }

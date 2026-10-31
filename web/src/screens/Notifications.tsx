@@ -48,7 +48,13 @@ function when(iso: string): string {
 // devices that get approval notices. A notice never carries the
 // command: it says who wants to run what kind of thing, and opens
 // the app on the approval.
-export default function Notifications({ onSessionExpired }: { onSessionExpired: () => void }) {
+export default function Notifications({
+  onSessionExpired,
+  onSummary,
+}: {
+  onSessionExpired: () => void;
+  onSummary?: (summary: string) => void;
+}) {
   const [key, setKey] = useState<string | null>(null);
   const [devices, setDevices] = useState<PushDevice[] | 'loading' | 'unreachable'>('loading');
   const [mine, setMine] = useState<string | null>(null);
@@ -184,9 +190,32 @@ export default function Notifications({ onSessionExpired }: { onSessionExpired: 
   const list = Array.isArray(devices) ? devices : [];
   const subscribed = mine !== null && list.some((d) => d.id === mine);
 
+  useEffect(() => {
+    if (!onSummary) {
+      return;
+    }
+    if (devices === 'loading') {
+      return; // no placeholder: the header shows the plain title
+    }
+    if (devices === 'unreachable') {
+      onSummary('Unreachable');
+      return;
+    }
+    if (!usable) {
+      onSummary('Not on this browser');
+      return;
+    }
+    if (subscribed) {
+      onSummary(
+        list.length > 1 ? `On · ${list.length} devices` : 'On for this device',
+      );
+      return;
+    }
+    onSummary(list.length > 0 ? `Off · ${list.length} other device(s)` : 'Off');
+  }, [devices, mine, usable, list.length, subscribed, onSummary]);
+
   return (
-    <section aria-label="Notifications" className="flex flex-col gap-3">
-      <h3 className="text-body font-semibold text-text">Notifications</h3>
+    <div className="flex flex-col gap-3">
       <p className="text-body text-muted">
         Get a notice when an agent asks for approval. It names the agent and the kind of command, never the
         command itself.
@@ -275,6 +304,6 @@ export default function Notifications({ onSessionExpired }: { onSessionExpired: 
           {notice}
         </p>
       )}
-    </section>
+    </div>
   );
 }

@@ -33,7 +33,13 @@ function Chip({ children }: { children: ReactNode }) {
 // a base URL and an optional default model each. A key goes to serve's
 // vault and is never shown again, not even in part; the router uses a
 // change from the next call, with no restart.
-export default function Providers({ onSessionExpired }: { onSessionExpired: () => void }) {
+export default function Providers({
+  onSessionExpired,
+  onSummary,
+}: {
+  onSessionExpired: () => void;
+  onSummary?: (summary: string) => void;
+}) {
   const [list, setList] = useState<ProviderState[] | null>(null);
   const [editing, setEditing] = useState<ProviderState | null>(null);
   const [draft, setDraft] = useState<ProviderDraft>(blank);
@@ -169,9 +175,22 @@ export default function Providers({ onSessionExpired }: { onSessionExpired: () =
   const openai = draft.format === 'openai';
   const keyKept = editing?.ready === true;
 
+  useEffect(() => {
+    if (!onSummary || list === null) {
+      return; // loading or nothing to say: the header keeps the title
+    }
+    if (list.length === 0) {
+      onSummary('None yet');
+      return;
+    }
+    const def = list.find((p) => p.ready && p.default);
+    const defName = def && (def.name ?? providerLabel(def.id));
+    const suffix = def ? ` · ${defName} default` : '';
+    onSummary(`${list.length} ${list.length === 1 ? 'provider' : 'providers'}${suffix}`);
+  }, [list, onSummary]);
+
   return (
-    <section aria-label="Providers" className="flex flex-col gap-3">
-      <h3 className="text-body font-semibold text-text">Providers</h3>
+    <div className="flex flex-col gap-3">
       <p className="text-body text-muted">
         Agents reach their models through Devcules, on one of these providers. A key is kept encrypted on this server and
         never shown again.
@@ -382,6 +401,6 @@ export default function Providers({ onSessionExpired }: { onSessionExpired: () =
           )}
         </div>
       </form>
-    </section>
+    </div>
   );
 }

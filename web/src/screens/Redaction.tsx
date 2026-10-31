@@ -26,7 +26,13 @@ const modeLabels: Record<RedactMode, string> = {
 
 // Redaction settings: one mode per type, the counters since serve
 // started, and a test box that shows exactly what a model would get.
-export default function Redaction({ onSessionExpired }: { onSessionExpired: () => void }) {
+export default function Redaction({
+  onSessionExpired,
+  onSummary,
+}: {
+  onSessionExpired: () => void;
+  onSummary?: (summary: string) => void;
+}) {
   const [state, setState] = useState<RedactState | 'loading' | 'unreachable'>('loading');
   const [notice, setNotice] = useState<string | null>(null);
   const [text, setText] = useState('');
@@ -102,9 +108,28 @@ export default function Redaction({ onSessionExpired }: { onSessionExpired: () =
     }
   }
 
+  useEffect(() => {
+    if (!onSummary) {
+      return;
+    }
+    if (state === 'loading') {
+      return; // no "…" placeholder: the header just shows the title
+    }
+    if (state === 'unreachable') {
+      onSummary('Unreachable');
+      return;
+    }
+    const active = state.types.filter((t) => state.policy[t] !== 'off');
+    onSummary(
+      active.length === 0
+        ? 'All off'
+        : `${active.length} of ${state.types.length} on · ${state.rules} rules`,
+    );
+    // policy/modes live inside state; state identity changes on load.
+  }, [state, onSummary]);
+
   return (
-    <section aria-label="Redaction" className="flex flex-col gap-3">
-      <h3 className="text-body font-semibold text-text">Redaction</h3>
+    <div className="flex flex-col gap-3">
       {state === 'loading' && <p className="text-body text-muted">Loading redaction settings…</p>}
       {state === 'unreachable' && (
         <p role="alert" className="text-body text-text">
@@ -189,6 +214,6 @@ export default function Redaction({ onSessionExpired }: { onSessionExpired: () =
           {notice}
         </p>
       )}
-    </section>
+    </div>
   );
 }

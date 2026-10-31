@@ -37,7 +37,13 @@ function slug(name: string): string {
 // runner, the critical command rules, and a box to try a command
 // against them. Rules are a tripwire for agents that mean well, not a
 // sandbox: the doc says so too.
-export default function AccessModes({ onSessionExpired }: { onSessionExpired: () => void }) {
+export default function AccessModes({
+  onSessionExpired,
+  onSummary,
+}: {
+  onSessionExpired: () => void;
+  onSummary?: (summary: string) => void;
+}) {
   const [state, setState] = useState<ApprovalSettings | 'loading' | 'unreachable'>('loading');
   const [notice, setNotice] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -147,9 +153,33 @@ export default function AccessModes({ onSessionExpired }: { onSessionExpired: ()
     );
   }
 
+  useEffect(() => {
+    if (!onSummary) {
+      return;
+    }
+    if (state === 'loading') {
+      return; // no placeholder: the header shows the plain title
+    }
+    if (state === 'unreachable') {
+      onSummary('Unreachable');
+      return;
+    }
+    const unset = state.targets.filter((t) => t.mode === '').length;
+    const set = state.targets.length - unset;
+    const rules = state.rules.filter((r) => r.enabled).length;
+    if (state.targets.length === 0) {
+      onSummary('No runners');
+      return;
+    }
+    onSummary(
+      unset === state.targets.length
+        ? `${state.targets.length} runner(s) blocking every call · ${rules} rules`
+        : `${set} of ${state.targets.length} runners set · ${rules} rules`,
+    );
+  }, [state, onSummary]);
+
   return (
-    <section aria-label="Access modes" className="flex flex-col gap-3">
-      <h3 className="text-body font-semibold text-text">Access modes</h3>
+    <div className="flex flex-col gap-3">
       {state === 'loading' && <p className="text-body text-muted">Loading access modes…</p>}
       {state === 'unreachable' && (
         <p role="alert" className="text-body text-text">
@@ -287,6 +317,6 @@ export default function AccessModes({ onSessionExpired }: { onSessionExpired: ()
           {notice}
         </p>
       )}
-    </section>
+    </div>
   );
 }

@@ -15,10 +15,14 @@ export default function ThemePicker() {
 
   return (
     <section aria-labelledby="theme-heading">
-      <h2 id="theme-heading" className="text-lead font-semibold">
+      {/* Static (never collapsible): the theme headline is the whole
+          point of the top of Settings, and its state is already
+          visible in the swatch row. h3, sibling of the collapsible
+          sections. */}
+      <h3 id="theme-heading" className="px-3 text-body font-semibold text-text">
         Theme
-      </h2>
-      <div role="radiogroup" aria-labelledby="theme-heading" className="mt-3 space-y-2">
+      </h3>
+      <div role="radiogroup" aria-labelledby="theme-heading" className="mt-2 space-y-2">
         {THEMES.map((t) => (
           <label key={t.id} className="block cursor-pointer" onClick={() => pick(t.id)}>
             <input

@@ -14,11 +14,25 @@ import AccessModes from './AccessModes';
 import Notifications from './Notifications';
 import Providers from './Providers';
 import Redaction from './Redaction';
+import Section from './Section';
 import ThemePicker from './ThemePicker';
+import { readFolds, writeFold } from '../theme/themes';
 
 // 'elsewhere': the server has passkeys on, but this page is open at
 // an IP address, where WebAuthn never works.
 type PasskeyState = 'loading' | 'on' | 'elsewhere' | 'off' | 'unreachable';
+
+// Sections: the default page opens short — Passkeys visible, the
+// rest folded one-liners — and any choice you make stays
+// (per-browser, like the theme itself). Module-level: a per-section
+// key of the page, never a prop.
+const sectionDefaults: Record<string, boolean> = {
+  passkeys: true,
+  providers: false,
+  notifications: false,
+  access: false,
+  redaction: false,
+};
 
 export default function Settings({
   username,
@@ -172,15 +186,52 @@ export default function Settings({
   // still be renamed or removed; the Add button needs them on.
   const showList = status === 'on' || status === 'elsewhere' || keys.length > 0;
 
+  const [folded, setFolded] = useState<Record<string, boolean>>(() => readFolds());
+  const isOpen = (id: string) => (id in folded ? !folded[id] : sectionDefaults[id]);
+  const toggle = useCallback((id: string) => {
+    setFolded((f) => {
+      const open = id in f ? !f[id] : sectionDefaults[id];
+      const next = { ...f, [id]: open };
+      writeFold(id, open);
+      return next;
+    });
+  }, []);
+
+  // One line: child  section -> header. Writing a summary remounts
+  // nothing (identity changes only on fresh data).
+  const [summaries, setSummaries] = useState<Record<string, string>>({});
+  const summariser = useCallback((id: string) => {
+    return (line: string) =>
+      setSummaries((s) => (s[id] === line ? s : { ...s, [id]: line }));
+  }, []);
+
+  const passkeySummary =
+    status === 'unreachable'
+      ? 'Unreachable'
+      : status === 'off'
+        ? 'Off'
+        : status === 'elsewhere'
+          ? 'Managed on the web address'
+          : keys.length === 0
+            ? 'None yet'
+            : `${keys.length} ${keys.length === 1 ? 'passkey' : 'passkeys'}`;
+
+  // Open-state: a stored choice wins; otherwise the default above.
+
   return (
-    <div className="flex flex-1 flex-col gap-4 px-6 pt-8">
-      <h2 className="text-lead font-semibold text-text">Settings</h2>
-      <p className="text-body text-muted">
+    <div className="flex flex-1 flex-col gap-2 px-6 pt-8">
+      <h2 className="px-3 text-lead font-semibold text-text">Settings</h2>
+      <p className="px-3 text-body text-muted">
         Signed in as <span className="text-text">{username}</span>
       </p>
       <ThemePicker />
-      <section aria-label="Passkeys" className="flex flex-col gap-3">
-        <h3 className="text-body font-semibold text-text">Passkeys</h3>
+      <Section
+        id="passkeys"
+        title="Passkeys"
+        summary={passkeySummary}
+        open={isOpen('passkeys')}
+        onToggle={toggle}
+      >
         {status === 'loading' && <p className="text-body text-muted">Checking passkeys…</p>}
         {status === 'unreachable' && (
           <p role="alert" className="text-body text-text">
@@ -295,11 +346,43 @@ export default function Settings({
             {notice}
           </p>
         )}
-      </section>
-      <Providers onSessionExpired={onSessionExpired} />
-      <Redaction onSessionExpired={onSessionExpired} />
-      <Notifications onSessionExpired={onSessionExpired} />
-      <AccessModes onSessionExpired={onSessionExpired} />
+      </Section>
+      <Section
+        id="providers"
+        title="Providers"
+        summary={summaries.providers}
+        open={isOpen('providers')}
+        onToggle={toggle}
+      >
+        <Providers onSessionExpired={onSessionExpired} onSummary={summariser('providers')} />
+      </Section>
+      <Section
+        id="notifications"
+        title="Notifications"
+        summary={summaries.notifications}
+        open={isOpen('notifications')}
+        onToggle={toggle}
+      >
+        <Notifications onSessionExpired={onSessionExpired} onSummary={summariser('notifications')} />
+      </Section>
+      <Section
+        id="access"
+        title="Access modes"
+        summary={summaries.access}
+        open={isOpen('access')}
+        onToggle={toggle}
+      >
+        <AccessModes onSessionExpired={onSessionExpired} onSummary={summariser('access')} />
+      </Section>
+      <Section
+        id="redaction"
+        title="Redaction"
+        summary={summaries.redaction}
+        open={isOpen('redaction')}
+        onToggle={toggle}
+      >
+        <Redaction onSessionExpired={onSessionExpired} onSummary={summariser('redaction')} />
+      </Section>
       <button
         type="button"
         onClick={leave}

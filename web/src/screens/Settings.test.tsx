@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import Settings from './Settings';
 
 // The page address check is mocked: jsdom always serves localhost.
@@ -81,6 +81,77 @@ function renderSettings(expired = vi.fn()) {
   render(<Settings username="admin" onSignedOut={signedOut} onSessionExpired={expired} />);
   return { expired, signedOut };
 }
+
+describe('Settings sections', () => {
+  // Passkeys stands open for a first visit; the collapsible blades
+  // fold to one-liners until asked for. localStorage can carry the
+  // record across renders — and across tests, since each records
+  // folds; clear it so the defaults below are first-visit defaults.
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  function baseRoutes() {
+    route({
+      '/auth/passkeys/status': { status: 200, body: { enabled: true } },
+      '/api/passkeys': { status: 200, body: { passkeys: [phone, laptop] } },
+    });
+  }
+
+  it('opens with Passkeys out and the others folded', async () => {
+    baseRoutes();
+    renderSettings();
+    const providers = screen.getByRole('button', { name: /Providers/ });
+    expect(providers.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.getByRole('button', { name: /Access modes/ }).getAttribute('aria-expanded')).toBe(
+      'false',
+    );
+    expect(screen.getByRole('button', { name: /Redaction/ }).getAttribute('aria-expanded')).toBe(
+      'false',
+    );
+    expect(await screen.findByRole('button', { name: /Passkeys/ })).toBeTruthy();
+    // and the passkeys blade itself is open:
+    await screen.findByText('Phone');
+  });
+
+  it('passkeys header names the count once folded', async () => {
+    const user = userEvent.setup();
+    baseRoutes();
+    renderSettings();
+    await screen.findByText('Phone');
+    await user.click(screen.getByRole('button', { name: /Passkeys/ }));
+    expect(screen.getByText('2 passkeys')).toBeTruthy();
+  });
+
+  it('expand keeps the body mounted: open, fold, reopen — no refetch shape', async () => {
+    const user = userEvent.setup();
+    baseRoutes();
+    renderSettings();
+    const passkeys = screen.getByRole('button', { name: /Passkeys/ });
+    await screen.findByText('Phone');
+    await user.click(passkeys); // fold
+    expect(passkeys.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.getByText('2 passkeys')).toBeTruthy();
+    await user.click(passkeys); // reopen
+    expect(passkeys.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByText('Phone')).toBeTruthy();
+  });
+
+  it('the fold survives a remount', async () => {
+    const user = userEvent.setup();
+    baseRoutes();
+    renderSettings();
+    const providers = screen.getByRole('button', { name: /Providers/ });
+    await user.click(providers);
+    expect(providers.getAttribute('aria-expanded')).toBe('true');
+
+    // A fresh Settings on the same browser reads the same record.
+    renderSettings();
+    expect(screen.getAllByRole('button', { name: /Providers/ })[1].getAttribute('aria-expanded')).toBe(
+      'true',
+    );
+  });
+});
 
 describe('Settings', () => {
   it('lists passkeys with their backup state', async () => {

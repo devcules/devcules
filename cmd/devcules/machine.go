@@ -225,6 +225,11 @@ func runMachineLink(cfg config.Config, stdout, stderr io.Writer, sigs <-chan os.
 		log.Info("shell withheld by DEVCULES_MACHINE_SHELL=off")
 	} else if m, err := machineTerminals(cfg, log); err != nil {
 		log.Warn("shell unavailable, linking without terminals", "err", err.Error())
+		// The link must still answer terminal ops: silence from us is
+		// the relay's "machine did not answer", not the useful "tmux
+		// not installed here". Serve every frame with an immediate
+		// refusal that names to fix.
+		pty.ServeNoShell(ctx, c, "tmux is not installed on this machine: install it (apt install tmux, brew install tmux), then re-run the install line to re-register the shell")
 	} else {
 		pty.Serve(ctx, c, m, nil)
 	}

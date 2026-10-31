@@ -4,6 +4,21 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-31, built-in assistant)
+
+- The **Assistant** tab chats with the built-in setup helper
+  (`assistants/builtin`): the model answers from the live setup through
+  the same MCP tools coding agents use, and every change it proposes is
+  gated by the approvals policy (its own mode in Access,
+  `assistant:builtin`) exactly as a terminal agent's call is. Your
+  message is redacted before the model sees it; a block-mode finding
+  answers 422 instead of sending. Chats buffer the turn's events and
+  answer as JSON: a tool row shows `✓ ran`, `✓ approved` or
+  `✗ declined` with the approver. The `assistanttest` contract suite
+  seeds the conversations a reviewer reads (grounding, deny-shown,
+  placeholder refusals, the 25-step turn cap, forged session ids) and
+  every implementation passes it.
+
 ### Added (2026-10-30, one-command host desk)
 
 - Bare `devcules` (and the explicit `devcules local`) on a computer now

@@ -48,7 +48,7 @@ func (h *Assistants) root() http.Handler {
 		list := h.reg.List()
 		out := make([]assistantView, 0, len(list))
 		for _, a := range list {
-			out = append(out, assistantView{ID: a.ID(), Name: assistantName(a.ID())})
+			out = append(out, assistantView{ID: a.ID(), Name: assistantName(a.ID()), State: assistantState(a)})
 		}
 		sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 		writeJSON(w, http.StatusOK, struct {
@@ -58,8 +58,19 @@ func (h *Assistants) root() http.Handler {
 }
 
 type assistantView struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	State string `json:"state,omitempty"`
+}
+
+// assistantState is the assistant's own readiness note when it has
+// one (the built-in names why it is not answering).
+func assistantState(a assistants.Assistant) string {
+	type stater interface{ State() string }
+	if s, ok := a.(stater); ok {
+		return s.State()
+	}
+	return ""
 }
 
 // one serves /api/assistants/{id}/... : POST .../chat and GET

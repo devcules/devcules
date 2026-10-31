@@ -122,11 +122,16 @@ func Builtin(o SetupOptions) (*Assistant, error) {
 	if o.Redact != nil && o.Settings != nil {
 		red = assistants.NewSessionRedact(o.Redact, o.Settings)
 	}
+	var notes []string
+	if strings.TrimSpace(o.Key) == "" {
+		notes = append(notes, "no helper-model key yet: set META_API_KEY or save the default provider's key in Settings")
+	}
 	if o.Decider == nil {
 		// Shadow mode: the model answers from its own knowledge and
 		// never calls a tool. The gate denies everything, and the
 		// assistant says so, instead of failing to load on a desk
 		// that has no approvals service yet.
+		notes = append(notes, "read only: no approvals service, so the assistant answers but never runs a tool")
 		opts.Gate = func(context.Context, assistants.ToolCallAsk) assistants.GateResult {
 			return assistants.GateResult{Decision: "deny", Result: mcp.Result{
 				Text: "this desk has no approvals service, so the assistant cannot use tools; it can still answer", IsError: true}}
@@ -143,7 +148,7 @@ func Builtin(o SetupOptions) (*Assistant, error) {
 	if err != nil {
 		return nil, err
 	}
-	return New(loop)
+	return New(loop, notes...)
 }
 
 // toolsRunner is the assistant's execution view of the MCP server:

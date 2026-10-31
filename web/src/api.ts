@@ -1369,3 +1369,85 @@ export async function machineVerify(machine = ''): Promise<VerifyResult | Machin
   }
   return 'unreachable';
 }
+
+// The assistant picker and one chat turn. A chat answers when the
+// model and the gate have fully played out (no streaming): the events
+// come in order, with approvals recorded on each tool call.
+export type AssistantSummary = { id: string; name: string; state?: string };
+
+export async function listAssistants(): Promise<{ assistants: AssistantSummary[] } | TerminalError> {
+  const res = await terminalFetch('/api/assistants');
+  if (typeof res === 'string') {
+    return res;
+  }
+  if (!res.ok) {
+    return 'unreachable';
+  }
+  const data: unknown = await res.json();
+  if (typeof data === 'object' && data !== null && 'assistants' in data && Array.isArray(data.assistants)) {
+    return {
+      assistants: data.assistants.filter(
+        (a): a is AssistantSummary =>
+          typeof a === 'object' && a !== null && 'id' in a && typeof a.id === 'string'
+      ),
+    };
+  }
+  return { assistants: [] };
+}
+
+export type AssistantToolEvent = {
+  id: string;
+  name: string;
+  args: string;
+  decision: string;
+  approvedBy?: string;
+  result: string;
+  isError: boolean;
+};
+
+export type AssistantEvent = {
+  type: 'assistant.message' | 'assistant.tool';
+  text?: string;
+  tool?: AssistantToolEvent;
+  at: string;
+};
+
+export type ChatTurn = { session: string; assistant: string; events: AssistantEvent[] };
+
+export async function chatAssistant(
+  id: string,
+  message: string,
+  session = ''
+): Promise<ChatTurn | TerminalError | 'blocked'> {
+  const res = await terminalFetch(`/api/assistants/${id}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, session }),
+  });
+  if (typeof res === 'string') {
+    return res;
+  }
+  if (res.status === 422) {
+    return 'blocked';
+  }
+  if (!res.ok) {
+    return 'unreachable';
+  }
+  return (await res.json()) as ChatTurn;
+}
+
+export type AssistantMessage = { role: string; content: string; at: string };
+
+export async function readAssistant(
+  id: string,
+  sess: string
+): Promise<{ id: string; messages: AssistantMessage[] } | TerminalError> {
+  const res = await terminalFetch(`/api/assistants/${id}/conversations/${sess}`);
+  if (typeof res === 'string') {
+    return res;
+  }
+  if (!res.ok) {
+    return 'unreachable';
+  }
+  return (await res.json()) as { id: string; messages: AssistantMessage[] };
+}

@@ -7,14 +7,16 @@ import ProjectTree from '../screens/ProjectTree';
 import Terminals from '../screens/Terminals';
 import Settings from '../screens/Settings';
 import Activity from '../screens/Activity';
+import Assistant from '../screens/Assistant';
 
-type Tab = 'home' | 'projects' | 'terminals' | 'machines' | 'activity' | 'settings';
+type Tab = 'home' | 'projects' | 'terminals' | 'machines' | 'assistant' | 'activity' | 'settings';
 
 const tabs: Array<{ id: Tab; label: string }> = [
   { id: 'home', label: 'Home' },
   { id: 'projects', label: 'Projects' },
   { id: 'terminals', label: 'Terminals' },
   { id: 'machines', label: 'Machines' },
+  { id: 'assistant', label: 'Assistant' },
   { id: 'activity', label: 'Activity' },
   { id: 'settings', label: 'Settings' },
 ];
@@ -131,6 +133,7 @@ export default function Shell({
         )}
         {tab === 'terminals' && <Terminals onSessionExpired={onSessionExpired} />}
         {tab === 'machines' && <Machines onSessionExpired={onSessionExpired} />}
+        {tab === 'assistant' && <Assistant onSessionExpired={onSessionExpired} />}
         {tab === 'activity' && <Activity onSessionExpired={onSessionExpired} />}
         {tab === 'settings' && (
           <Settings username={username} onSignedOut={onSignedOut} onSessionExpired={onSessionExpired} />

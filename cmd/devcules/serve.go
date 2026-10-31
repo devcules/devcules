@@ -172,7 +172,7 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 	// task view routes screen/input/tree/ground/verify to them.
 	machinesRelay := machrelay.New(h)
 	machinesRelay.Run()
-	assistantReg := setupAssistants(profiles, v, llm, mcpServer, launches, approvalSvc, redactor, redactSettings, auditLog, log)
+	assistantReg := setupAssistants(cfg, profiles, v, llm, mcpServer, launches, approvalSvc, redactor, redactSettings, auditLog, log)
 	srv := &http.Server{
 		Handler:           api.Handler(api.Options{Store: s, Auth: authSvc, Web: web.Embedded(), PublicURL: cfg.PublicURL, Link: h, Terminals: terms, Redact: redactor, RedactSettings: redactSettings, Router: llm, Launches: launches, AuditLog: auditLog, TraceStore: traces, MCP: mcpServer, ApprovalQueue: approvalSvc, Push: pushSvc, Enrol: machines.NewIssuer(s), MachineStore: machineStore, Machines: machinesRelay, Projects: s.Projects(), ProviderKeys: v, Profiles: profiles, Assistants: assistantReg}),
 		ReadHeaderTimeout: 5 * time.Second,

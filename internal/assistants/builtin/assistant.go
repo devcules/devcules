@@ -19,18 +19,31 @@ import (
 // underlying loop serialises one session's turns.
 type Assistant struct {
 	loop *assistants.Loop
+	// state-Never inline at construction; State says why it is not
+	// answering (no key, shadow mode) so the picker can show the reason
+	// instead of a dead list entry.
+	stateNote string
 }
 
 // New wires the assistant over an existing loop: serve builds the
 // loop (tools, gate, redactor) and this holds it.
-func New(loop *assistants.Loop) (*Assistant, error) {
+func New(loop *assistants.Loop, notes ...string) (*Assistant, error) {
 	if loop == nil {
 		return nil, errNilLoop
 	}
-	return &Assistant{loop: loop}, nil
+	a := &Assistant{loop: loop}
+	for _, n := range notes {
+		if a.stateNote == "" {
+			a.stateNote = n
+		}
+	}
+	return a, nil
 }
 
 var errNilLoop = errors.New("builtin: a loop is required")
+
+// State is "" when the assistant answers normally, else why not.
+func (a *Assistant) State() string { return a.stateNote }
 
 // ID is "builtin", as the API lists it.
 func (a *Assistant) ID() string { return "builtin" }

@@ -8,6 +8,7 @@ import Terminals from '../screens/Terminals';
 import Settings from '../screens/Settings';
 import Activity from '../screens/Activity';
 import Assistant from '../screens/Assistant';
+import ThemePicker from '../theme/ThemePicker';
 
 type Tab = 'home' | 'projects' | 'terminals' | 'machines' | 'assistant' | 'activity' | 'settings';
 
@@ -91,9 +92,19 @@ export default function Shell({
   const waiting = Array.isArray(pending) ? pending.length : 0;
 
   return (
-    <div className="flex min-h-dvh bg-base text-text md:flex-row">
-      {/* Desktop: sidebar. Phone: bottom bar below. */}
-      <nav aria-label="Primary" className="hidden w-60 shrink-0 flex-col gap-1 overflow-y-auto p-4 md:flex">
+    <div className="flex min-h-dvh flex-col bg-base text-text">
+      {/* Top bar: the brand and, on the right, the theme drop-down.
+          Kaithos keeps the picker in the header so the theme is
+          reachable from every screen; the pick persists per browser
+          and applies at once. The safe-area top inset moves into the
+          bar so the body's `pt` stays zero. */}
+      <header className="sticky top-0 z-10 flex items-center justify-between gap-2 bg-base px-4 pt-[env(safe-area-inset-top)] pb-1">
+        <span className="text-lead font-semibold">devcules</span>
+        <ThemePicker />
+      </header>
+      <div className="flex flex-1 md:flex-row">
+        {/* Desktop: sidebar. Phone: bottom bar below. */}
+        <nav aria-label="Primary" className="hidden w-60 shrink-0 flex-col gap-1 overflow-y-auto p-4 md:flex">
         {tabs.map((t) => (
           <NavButton key={t.id} active={tab === t.id} onClick={() => setTab(t.id)}>
             {t.label}
@@ -122,9 +133,7 @@ export default function Shell({
           />
         </section>
       </nav>
-      {/* The standalone PWA draws under the iPhone status bar
-          (black-translucent), so content starts below the inset. */}
-      <main className="flex flex-1 flex-col pt-[env(safe-area-inset-top)] pb-20 md:pb-0">
+      <main className="flex flex-1 flex-col pb-20 md:pb-0">
         {tab === 'home' && (
           <Inbox pending={pending} focus={focus} onAnswered={poll} onSessionExpired={onSessionExpired} />
         )}
@@ -169,6 +178,7 @@ export default function Shell({
           </button>
         ))}
       </nav>
+      </div>
     </div>
   );
 }

@@ -15,7 +15,6 @@ import Notifications from './Notifications';
 import Providers from './Providers';
 import Redaction from './Redaction';
 import Section from './Section';
-import ThemePicker from './ThemePicker';
 import { readFolds, writeFold } from '../theme/themes';
 
 // 'elsewhere': the server has passkeys on, but this page is open at
@@ -224,7 +223,6 @@ export default function Settings({
       <p className="px-3 text-body text-muted">
         Signed in as <span className="text-text">{username}</span>
       </p>
-      <ThemePicker />
       <Section
         id="passkeys"
         title="Passkeys"

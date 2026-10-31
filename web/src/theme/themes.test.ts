@@ -11,13 +11,13 @@ describe('theme registry', () => {
     expect(ids[0]).toBe('arc');
   });
 
-  it('every theme carries a 3-colour swatch and a hint', () => {
+  it('every theme carries a 3-colour swatch and a scheme', () => {
     for (const t of THEMES) {
       expect(t.swatch, t.id).toHaveLength(3);
       for (const hex of t.swatch) {
         expect(hex).toMatch(/^#[0-9a-f]{6}$/i);
       }
-      expect(t.hint.length, t.id).toBeGreaterThan(0);
+      expect(['dark', 'light']).toContain(t.scheme);
     }
   });
 });

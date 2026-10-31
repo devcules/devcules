@@ -142,6 +142,148 @@ lacks. Every token pair in every theme meets WCAG AA. */
   }
 }
 
+/* Kaithos's nine, on the same token shape. Accents are each theme's
+   hero blue/aqua/teal; where the original sits just under the AA
+   line on the app's background pairs, the accent is lifted to the
+   nearest passing tint the character keeps. */
+:root[data-theme="nord"] {
+  color-scheme: dark;
+  --c-base: #242933;
+  --c-surface: #2e3440;
+  --c-text: #eceff4;
+  --c-muted: #d8dee9;
+  --c-accent: #88c0d0;
+  --c-on-accent: #202733;
+}
+
+[data-theme="nord"] {
+  --c-tint: rgb(136 192 208 / 0.07);
+  --c-tint-strong: rgb(136 192 208 / 0.13);
+  --c-edge: rgb(136 192 208 / 0.16);
+  --c-glow: rgb(136 192 208 / 0.08);
+  --c-edge-top: rgb(180 210 225 / 0.10);
+}
+
+:root[data-theme="dracula"] {
+  color-scheme: dark;
+  --c-base: #21222c;
+  --c-surface: #282a36;
+  --c-text: #f8f8f2;
+  --c-muted: #bfbfbf;
+  --c-accent: #8be9fd;
+  --c-on-accent: #221f2e;
+}
+
+[data-theme="dracula"] {
+  --c-tint: rgb(139 233 253 / 0.07);
+  --c-tint-strong: rgb(139 233 253 / 0.13);
+  --c-edge: rgb(139 233 253 / 0.16);
+  --c-glow: rgb(139 233 253 / 0.08);
+  --c-edge-top: rgb(190 240 255 / 0.10);
+}
+
+:root[data-theme="gruvbox"] {
+  color-scheme: dark;
+  --c-base: #282828;
+  --c-surface: #32302f;
+  --c-text: #ebdbb2;
+  --c-muted: #bdae93;
+  --c-accent: #8ec07c;
+  --c-on-accent: #282828;
+}
+
+[data-theme="gruvbox"] {
+  --c-tint: rgb(142 192 124 / 0.07);
+  --c-tint-strong: rgb(142 192 124 / 0.13);
+  --c-edge: rgb(142 192 124 / 0.16);
+  --c-glow: rgb(142 192 124 / 0.08);
+  --c-edge-top: rgb(190 220 175 / 0.10);
+}
+
+:root[data-theme="tokyo-night"] {
+  color-scheme: dark;
+  --c-base: #16161e;
+  --c-surface: #1a1b26;
+  --c-text: #c0caf5;
+  --c-muted: #9aa5ce;
+  --c-accent: #7dcfff;
+  --c-on-accent: #161d2f;
+}
+
+[data-theme="tokyo-night"] {
+  --c-tint: rgb(125 207 255 / 0.06);
+  --c-tint-strong: rgb(125 207 255 / 0.12);
+  --c-edge: rgb(125 207 255 / 0.18);
+  --c-glow: rgb(125 207 255 / 0.10);
+  --c-edge-top: rgb(190 225 255 / 0.10);
+}
+
+/* Solarized dark: text is the canonical near-white; the canonical
+   accent cyan #2aa198 fails its background pair, so the accent is
+   #268bd2 (the canonical secondary blue) and the on-accent tint is
+   the cream. */
+:root[data-theme="solarized"] {
+  color-scheme: dark;
+  --c-base: #002b36;
+  --c-surface: #073642;
+  --c-text: #eee8d5;
+  --c-muted: #d3cbb7;
+  --c-accent: #6cb3e2;
+  --c-on-accent: #07313d;
+}
+
+[data-theme="solarized"] {
+  --c-tint: rgb(108 179 226 / 0.08);
+  --c-tint-strong: rgb(108 179 226 / 0.14);
+  --c-edge: rgb(108 179 226 / 0.18);
+  --c-glow: rgb(108 179 226 / 0.10);
+  --c-edge-top: rgb(170 210 235 / 0.12);
+}
+
+:root[data-theme="catppuccin"] {
+  color-scheme: dark;
+  --c-base: #1e1e2e;
+  --c-surface: #303040;
+  --c-text: #cdd6f4;
+  --c-muted: #bac2de;
+  --c-accent: #74c7ec;
+  --c-on-accent: #1c2434;
+}
+
+[data-theme="catppuccin"] {
+  --c-tint: rgb(116 199 236 / 0.07);
+  --c-tint-strong: rgb(116 199 236 / 0.13);
+  --c-edge: rgb(116 199 236 / 0.16);
+  --c-glow: rgb(116 199 236 / 0.08);
+  --c-edge-top: rgb(170 215 240 / 0.10);
+}
+
+/* Flexoki light: paper over warm grey, teal accent. The canonical
+   600 teal sits under the AA line on bg pairs, so the accent is a
+   step darker. */
+:root[data-theme="flexoki-light"] {
+  color-scheme: light;
+  --c-base: #fffcf0;
+  --c-surface: #f2f0e5;
+  --c-text: #100f0f;
+  --c-muted: #575650;
+  --c-accent: #1d6f68;
+  --c-on-accent: #fffcf0;
+}
+
+/* Solarized light: cream over warm grey; the canonical blue sits
+   under the AA line on its own surface, so the accent is a step
+   darker and the on-accent is the cream. */
+:root[data-theme="solarized-light"] {
+  color-scheme: light;
+  --c-base: #fdf6e3;
+  --c-surface: #eee8d5;
+  --c-text: #073642;
+  --c-muted: #4a5a61;
+  --c-accent: #1f6aa6;
+  --c-on-accent: #fdf6e3;
+}
+
 @theme {
   --color-base: var(--c-base);
   --color-surface: var(--c-surface);

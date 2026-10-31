@@ -10,49 +10,27 @@ export const THEME_KEY = 'devcules.theme';
 export interface Theme {
   id: string;
   label: string;
-  /** One line under the label in the picker — what it's for. */
-  hint: string;
   scheme: 'dark' | 'light';
-  /** The three swatches the picker shows: base, surface, accent. */
+  /** The three swatches the theme picker shows: base, surface, accent. */
   swatch: [string, string, string];
 }
 
+// Kaithos's palettes joined the list: one home set above, then
+// theirs, grouped dark then light in the dropdown.
 export const THEMES: Theme[] = [
-  {
-    id: 'arc',
-    label: 'Arc',
-    hint: 'The default. Warm amber over neutral dark; light follows your OS unless you pick Paper.',
-    scheme: 'dark',
-    swatch: ['#101418', '#1a212b', '#e0a63f'],
-  },
-  {
-    id: 'paper',
-    label: 'Paper',
-    hint: 'Daylight desk. Light always, whatever the OS says.',
-    scheme: 'light',
-    swatch: ['#ffffff', '#f1f2f4', '#8a5a00'],
-  },
-  {
-    id: 'slate',
-    label: 'Slate',
-    hint: 'Muted blue-grey for long sessions; low-chroma, high quiet.',
-    scheme: 'dark',
-    swatch: ['#11151c', '#1b222e', '#8fa8c9'],
-  },
-  {
-    id: 'midnight',
-    label: 'Midnight',
-    hint: 'Room-dark blue with a cold sky accent. For the 2 a.m. commit.',
-    scheme: 'dark',
-    swatch: ['#0a0f24', '#131a34', '#7aa2f7'],
-  },
-  {
-    id: 'meta-hackathon',
-    label: 'IASF',
-    hint: 'Meta AI Developer Hackathon (Menlo Park, Oct 26). Electric blue, liquid glass.',
-    scheme: 'dark',
-    swatch: ['#061020', '#0d1b33', '#0082fb'],
-  },
+  { id: 'arc', label: 'arc', scheme: 'dark', swatch: ['#101418', '#1a212b', '#e0a63f'] },
+  { id: 'slate', label: 'slate', scheme: 'dark', swatch: ['#11151c', '#1b222e', '#9fb8d4'] },
+  { id: 'midnight', label: 'midnight', scheme: 'dark', swatch: ['#0a0f24', '#131a34', '#92b4fb'] },
+  { id: 'meta-hackathon', label: 'IASF', scheme: 'dark', swatch: ['#061020', '#0d1b33', '#3d9bfd'] },
+  { id: 'nord', label: 'nord', scheme: 'dark', swatch: ['#242933', '#2e3440', '#88c0d0'] },
+  { id: 'dracula', label: 'dracula', scheme: 'dark', swatch: ['#21222c', '#282a36', '#8be9fd'] },
+  { id: 'gruvbox', label: 'gruvbox', scheme: 'dark', swatch: ['#282828', '#32302f', '#8ec07c'] },
+  { id: 'tokyo-night', label: 'tokyo night', scheme: 'dark', swatch: ['#16161e', '#1a1b26', '#7dcfff'] },
+  { id: 'solarized', label: 'solarized', scheme: 'dark', swatch: ['#002b36', '#073642', '#6cb3e2'] },
+  { id: 'catppuccin', label: 'catppuccin', scheme: 'dark', swatch: ['#1e1e2e', '#303040', '#74c7ec'] },
+  { id: 'paper', label: 'paper', scheme: 'light', swatch: ['#ffffff', '#f1f2f4', '#8a5a00'] },
+  { id: 'flexoki-light', label: 'flexoki light', scheme: 'light', swatch: ['#fffcf0', '#f2f0e5', '#1d6f68'] },
+  { id: 'solarized-light', label: 'solarized light', scheme: 'light', swatch: ['#fdf6e3', '#eee8d5', '#1f6aa6'] },
 ];
 
 const FALLBACK = THEMES[0];

@@ -13,6 +13,7 @@ import {
 import MachineScreen from './MachineScreen';
 import TerminalView from './TerminalView';
 import { Empty } from './Empty';
+import CopyButton from './CopyButton';
 
 type View =
   | { view: 'loading' }
@@ -313,7 +314,6 @@ function AddComputer({
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [before] = useState(() => new Set(known));
-  const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
     if (code === null) {
@@ -350,16 +350,12 @@ function AddComputer({
   const serve = window.location.origin;
   // One pasted line installs the helper from this box, checks its
   // SHA-256, enrols with the one-time code and starts it at sign-in.
-  const enrol = code ? `curl -fsSL ${serve}/install/machine.sh | sh -s -- --code ${code.code}` : '';
+  // The server the script bakes in comes from the box's pinned outward
+  // address (DEVCULES_PUBLIC_URL when set), so it always matches what
+  // the machine will dial.
+  const enrol = code ? `curl -fsSL "${serve}/install/machine.sh" | sh -s -- --code ${code.code}` : '';
   const manual = code ? `DEVCULES_SERVE_URL=${serve} devcules machine enrol ${code.code}` : '';
   const left = code ? Math.max(0, Math.round((code.until - now) / 1000)) : 0;
-
-  function copy(text: string): void {
-    void navigator.clipboard?.writeText(text).then(
-      () => setCopied(text),
-      () => setCopied(null),
-    );
-  }
 
   return (
     <section aria-label="Add a computer" className="flex flex-col gap-3 rounded-md bg-surface px-3 py-3">
@@ -419,14 +415,7 @@ function AddComputer({
           {[{ cmd: enrol, label: 'the install command' }, { cmd: manual, label: 'the enrol command (if you already have devcules)' }].map(({ cmd, label }) => (
             <div key={cmd} className="flex items-start gap-2">
               <code className="min-w-0 flex-1 break-all rounded bg-base px-2 py-2 font-mono text-body text-text">{cmd}</code>
-              <button
-                type="button"
-                onClick={() => copy(cmd)}
-                aria-label={`Copy ${label}`}
-                className="min-h-11 rounded-md px-3 text-body text-text"
-              >
-                {copied === cmd ? 'Copied' : 'Copy'}
-              </button>
+              <CopyButton text={cmd} label={`Copy ${label}`} />
             </div>
           ))}
           <p className="text-body text-muted">

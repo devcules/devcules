@@ -105,7 +105,7 @@ describe('Machines', () => {
     expect(await screen.findByText('ABCD-EFGH-JKMN')).toBeDefined();
     expect(body).toBe('{"label":"studio Mac"}');
     expect(
-      screen.getByText(`curl -fsSL ${window.location.origin}/install/machine.sh | sh -s -- --code ABCD-EFGH-JKMN`),
+      screen.getByText(`curl -fsSL "${window.location.origin}/install/machine.sh" | sh -s -- --code ABCD-EFGH-JKMN`),
     ).toBeDefined();
     expect(screen.getByText(`DEVCULES_SERVE_URL=${window.location.origin} devcules machine enrol ABCD-EFGH-JKMN`)).toBeDefined();
     enrolled = true;

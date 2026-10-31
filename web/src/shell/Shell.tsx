@@ -10,6 +10,7 @@ import Activity from '../screens/Activity';
 import Assistant from '../screens/Assistant';
 import ThemePicker from '../theme/ThemePicker';
 import StatusBar from './StatusBar';
+import UserMenu from './UserMenu';
 
 type Tab = 'home' | 'projects' | 'terminals' | 'machines' | 'assistant' | 'activity' | 'settings';
 
@@ -103,7 +104,10 @@ export default function Shell({
         {/* The wordmark carries the accent: it's the app's purple (or
             rose, or green), so it stays readable on every background. */}
         <span className="text-lead font-semibold text-accent">devcules</span>
-        <ThemePicker />
+        <div className="flex items-center gap-1">
+          <ThemePicker />
+          <UserMenu username={username} onSignedOut={onSignedOut} />
+        </div>
       </header>
       <div className="flex flex-1 md:flex-row">
         {/* Desktop: sidebar. Phone: bottom bar below. */}

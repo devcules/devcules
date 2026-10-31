@@ -241,6 +241,34 @@ prefix="${DEVCULES_MACHINE_PREFIX:-$HOME/.local}"
 mkdir -p "$prefix/bin"
 cp "$tmp/$target/$exe" "$prefix/bin/$exe"
 export DEVCULES_SERVE_URL="$SERVER"
+
+# A terminal needs tmux. Put it there with the helper, best effort and
+# non-interactive (no question should stop the one-liner); a failure is
+# a warning, and the link still serves, just refusing terminal opens
+# cleanly until the box gets one.
+if ! command -v tmux >/dev/null 2>&1; then
+  echo "==> tmux is missing; installing it for the terminal"
+  install_tmux() {
+    if command -v sudo >/dev/null 2>&1; then elevate="sudo "; else elevate=""; fi
+    if command -v apt-get >/dev/null 2>&1; then
+      ${elevate}env DEBIAN_FRONTEND=noninteractive apt-get update -qq && ${elevate}env DEBIAN_FRONTEND=noninteractive apt-get install -y -q tmux
+    elif command -v dnf >/dev/null 2>&1; then
+      ${elevate}dnf install -y -q tmux
+    elif command -v yum >/dev/null 2>&1; then
+      ${elevate}yum install -y -q tmux
+    elif command -v pacman >/dev/null 2>&1; then
+      ${elevate}pacman -Sy --noconfirm tmux
+    elif command -v brew >/dev/null 2>&1; then
+      brew install tmux
+    else
+      return 1
+    fi
+  }
+  if ! install_tmux; then
+    echo "    couldn't install tmux here (no root or no packager this script knows). The machine links either way, but terminals won't work until tmux is installed: sudo apt-get install -y tmux (or your packager)."
+  fi
+fi
+
 echo "==> enrolling this computer"
 "$prefix/bin/$exe" machine enrol "$CODE"
 echo "==> starting it, and at every sign-in"

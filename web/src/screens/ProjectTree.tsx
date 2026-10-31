@@ -125,8 +125,11 @@ export default function ProjectTree({
   }
 
   const row = compact ? 'min-h-9' : 'min-h-11';
+  // The legend lives below the tree: one muted line naming each mark,
+  // so a folder icon never asks for a help page.
   return (
-    <ul aria-label="Projects" className="flex flex-col gap-1">
+    <>
+      <ul aria-label="Projects" className="flex flex-col gap-1">
       {projects.map((p) => {
         const isOpen = !folded.has(p.id);
         const list = terms[p.id] ?? [];
@@ -216,7 +219,15 @@ export default function ProjectTree({
           </li>
         );
       })}
-    </ul>
+      </ul>
+      <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 px-3 text-body text-muted">
+        <span className="flex items-center gap-1">▢ folder</span>
+        <span className="flex items-center gap-1"><RemoteIcon remote="" size={11} /> git repo</span>
+        <span className="flex items-center gap-1"><RemoteIcon remote="github" size={11} /> GitHub</span>
+        <span className="flex items-center gap-1"><RemoteIcon remote="gitlab" size={11} /> GitLab</span>
+        <span className="flex items-center gap-1"><RemoteIcon remote="azure" size={11} /> Azure DevOps</span>
+      </p>
+    </>
   );
 }
 

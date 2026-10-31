@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
+	"strings"
 	"testing"
 
 	"github.com/devcules/devcules/internal/store/sqlite"
@@ -69,6 +70,23 @@ func TestChallengeBadInputs(t *testing.T) {
 	}{{"bad!", pub, sig}, {n, pub[:1], sig}, {n, pub, sig[:1]}} {
 		if err := Verify(tt.nonce, tt.pub, tt.sig); err == nil {
 			t.Fatalf("Verify passed for %+v", tt)
+		}
+	}
+}
+
+// TestValidName pins the link-name shape the API boundary applies: it
+// matches the hub's helloPayload, so a picker's display name ("host
+// (Mac.home)", "container (…)") enrols without an alias and a "/" is
+// still rejected (it would collide with the hub's machine address).
+func TestValidName(t *testing.T) {
+	for _, name := range []string{"Mac.home", "host (Mac.home)", "container (c87802936386)", "vpn-machine.kiran", "🔗 link"} {
+		if !ValidName(name) {
+			t.Errorf("ValidName(%q) = false, want true", name)
+		}
+	}
+	for _, name := range []string{"", "with/slash", strings.Repeat("a", 65)} {
+		if ValidName(name) {
+			t.Errorf("ValidName(%q) = true, want false", name)
 		}
 	}
 }

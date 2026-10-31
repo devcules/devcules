@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 
@@ -35,11 +34,14 @@ var (
 	ErrBadMachine = errors.New("machines: bad name, key or signature")
 )
 
-var nameRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
-
-// ValidName reports a usable machine name: it is the link name, so
-// it never holds "/" (the hub's machine address separator).
-func ValidName(name string) bool { return nameRE.MatchString(name) }
+// ValidName reports a usable machine name. It must be a linkable name
+// exactly as the hub's helloPayload accepts it (1-64 characters, no
+// "/"), so the picker's display names — "host (Mac.home)", "container
+// (c87802936386)" — enrol as-is. The name is never a path or command
+// part, so no other character is unsafe here.
+func ValidName(name string) bool {
+	return name != "" && len(name) <= 64 && !strings.Contains(name, "/")
+}
 
 // NormalizeCode upper-cases a typed code and drops the dashes and
 // spaces people add, so "abcd-efgh-jkmn" redeems "ABCDEFGHJKMN".

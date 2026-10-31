@@ -1,237 +1,303 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { chatAssistant, listAssistants, type AssistantEvent, type AssistantSummary } from '../api';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  closeTerminal,
+  listAgents,
+  listTerminals,
+  openTerminal,
+  startAgent,
+  type AgentInfo,
+  type TerminalError,
+  type TerminalSummary,
+} from '../api';
+import TerminalView from './TerminalView';
+import { Empty } from './Empty';
 
-// Assistant is the setup-helper chat: the picker row of assistants
-// (today the built-in one) then the conversation against it. A turn
-// is sent whole and answered with its events in order; a tool call
-// shows its gate verdict and who approved it, so the change it made
-// reads with its receipt.
+const AUTO = 'auto';
+
+// Assistant is a tmux session per assistant you start, one tab strip
+// across the top the way the machine's terminals live. Everything you
+// see runs on the runner: you open it, chat or command in the pane,
+// and Stop takes the tmux session down. The Assistants sub-list is
+// the CLIs the runner has (Hermes, OpenClaw, anything detected on the
+// machine); each Start launches that assistant inside a fresh named
+// terminal.
 export default function Assistant({ onSessionExpired }: { onSessionExpired: () => void }) {
-  const [list, setList] = useState<AssistantSummary[] | 'loading' | 'unreachable'>('loading');
-  const [chosen, setChosen] = useState<AssistantSummary | null>(null);
+  const [terms, setTerms] = useState<TerminalSummary[] | 'loading' | 'unreachable'>('loading');
+  const [agents, setAgents] = useState<AgentInfo[] | 'loading' | 'unreachable'>('loading');
+  const [active, setActive] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [showNew, setShowNew] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    void listAssistants().then((res) => {
-      if (typeof res === 'string') {
-        if (res === 'unauthorized') {
-          onSessionExpired();
-          return;
-        }
-        setList('unreachable');
-        return;
-      }
-      setList(res.assistants);
-    });
-  }, [onSessionExpired]);
-
-  if (chosen) {
-    return (
-      <Chat assistant={chosen} onBack={() => setChosen(null)} onSessionExpired={onSessionExpired} />
-    );
-  }
-
-  return (
-    <section aria-label="Assistants" className="flex flex-col gap-3">
-      <h3 className="text-body font-semibold text-text">Assistant</h3>
-      <p className="text-body text-muted">
-        Ask about this Devcules setup or let the helper inspect and fix it. Every change is gated
-        exactly like an agent's tool call.
-      </p>
-      {list === 'loading' && <p className="text-body text-muted">Loading…</p>}
-      {list === 'unreachable' && (
-        <p role="alert" className="text-body text-text">
-          Couldn't reach the server. Try again.
-        </p>
-      )}
-      {Array.isArray(list) && list.length === 0 && (
-        <p className="text-body text-muted">No assistant is wired on this desk yet.</p>
-      )}
-      {Array.isArray(list) && list.length > 0 && (
-        <ul aria-label="Assistants" className="flex flex-col gap-2">
-          {list.map((a) => (
-            <li key={a.id}>
-              <button
-                type="button"
-                onClick={() => setChosen(a)}
-                className="flex min-h-11 w-full flex-col items-start gap-0.5 rounded-md border border-muted px-3 py-1 text-left"
-              >
-                <span className="text-body font-semibold text-text">{a.name}</span>
-                {a.state && <span className="text-body text-muted">{a.state}</span>}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-type Row = { kind: 'user' | 'assistant' | 'tool'; text: string; event?: AssistantEvent };
-
-function Chat({
-  assistant,
-  onBack,
-  onSessionExpired,
-}: {
-  assistant: AssistantSummary;
-  onBack: () => void;
-  onSessionExpired: () => void;
-}) {
-  const [session, setSession] = useState('');
-  const [rows, setRows] = useState<Row[]>([]);
-  const [draft, setDraft] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
-  const endRef = useRef<HTMLLIElement>(null);
-
-  const append = useCallback((rs: Row[]) => {
-    setRows((prev) => [...prev, ...rs]);
-  }, []);
-
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ block: 'end' });
-  }, [rows]);
-
-  async function send(): Promise<void> {
-    const message = draft.trim();
-    if (!message || busy) {
-      return;
-    }
-    setBusy(true);
-    setNotice(null);
-    append([{ kind: 'user', text: message }]);
-    setDraft('');
-    const res = await chatAssistant(assistant.id, message, session);
-    if (typeof res === 'string') {
+  const refresh = useCallback(() => {
+    void listTerminals().then((res) => {
       if (res === 'unauthorized') {
         onSessionExpired();
         return;
       }
-      if (res === 'blocked') {
-        append([
-          { kind: 'assistant', text: 'That message was blocked by the redaction policy, so it was never sent.' },
-        ]);
-      } else {
-        setNotice("Couldn't reach the server. Your message was not answered; try again.");
+      if (typeof res === 'string') {
+        setTerms('unreachable');
+        return;
       }
-      setBusy(false);
+      // Project terminals belong to a project; they are not
+      // assistants and must not appear here (a ✕ on the strip then
+      // can't kill a project's shell by mistake).
+      setTerms(res.terminals.filter((t) => t.project === undefined));
+    });
+    void listAgents().then((res) => {
+      if (res === 'unauthorized' || res === 'unreachable' || res === 'offline') {
+        setAgents('unreachable');
+        return;
+      }
+      setAgents(res.agents.filter((a) => a.direct));
+    });
+  }, [onSessionExpired]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  // Poll every 5 s: a terminal that ended elsewhere drops off, a newly
+  // started assistant appears.
+  useEffect(() => {
+    const t = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        refresh();
+      }
+    }, 5000);
+    return () => window.clearInterval(t);
+  }, [refresh]);
+
+  const list = Array.isArray(terms) ? terms : [];
+  const active_t = list.find((t) => t.term === active);
+
+  async function spawn(agent: AgentInfo | null): Promise<void> {
+    setError(null);
+    const key = agent?.id ?? AUTO;
+    setBusy(key);
+    const res = agent ? await startAgent(agent.id, { name: agent.id }) : await openTerminal(undefined, 'assistant');
+    setBusy(null);
+    setShowNew(false);
+    if (res === 'unauthorized') {
+      onSessionExpired();
       return;
     }
-    setSession(res.session);
-    append(
-      res.events.map((e): Row => {
-        if (e.type === 'assistant.tool' && e.tool) {
-          return { kind: 'tool', text: e.tool.result, event: e };
-        }
-        return { kind: 'assistant', text: e.text ?? '', event: e };
-      }),
-    );
-    setBusy(false);
+    if (typeof res === 'string') {
+      setError(words(res));
+      return;
+    }
+    if ('refused' in res) {
+      setError(res.refused);
+      return;
+    }
+    setActive(res.id);
+    setShowNew(false);
+    refresh();
   }
 
+  async function drop(id: string): Promise<void> {
+    setError(null);
+    const res = await closeTerminal(id);
+    if (res === 'unauthorized') {
+      onSessionExpired();
+      return;
+    }
+    if (active === id) {
+      setActive(null);
+    }
+    refresh();
+  }
+
+  const agentsList = Array.isArray(agents) ? agents : [];
+
   return (
-    <section aria-label={`Chat with ${assistant.name}`} className="flex h-full flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <button type="button" onClick={onBack} className="min-h-11 rounded-md px-3 text-body text-muted">
-          ← Assistants
+    <section aria-label="Assistant" className="flex h-full min-h-0 flex-col gap-2">
+      {/* The tab strip: every live assistant terminal, one tap to
+          focus its pane. The newest opens selected. */}
+      <div className="flex flex-wrap items-center gap-1">
+        <button
+          type="button"
+          onClick={() => setActive(null)}
+          aria-pressed={active === null}
+          className={`flex min-h-11 items-center gap-1.5 rounded-md px-3 text-body ${active === null ? 'bg-text text-base' : 'text-text'}`}
+        >
+          ◈ Assistants
+          <span className="text-body opacity-70">{list.length}</span>
         </button>
-        <h3 className="text-body font-semibold text-text">{assistant.name}</h3>
-      </div>
-      {assistant.state && <p className="text-body text-muted">{assistant.state}.</p>}
-
-      <ul aria-label="Conversation" className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
-        {rows.length === 0 && (
-          <li className="text-body text-muted">
-            Ask about the setup, or something like “why did my launch get denied?”.
-          </li>
-        )}
-        {rows.map((r, i) => (
-          <ChatRow key={i} row={r} />
+        {list.map((t) => (
+          <span
+            key={t.term}
+            className={`flex items-center rounded-md text-body ${active === t.term ? 'bg-text text-base' : 'text-text'}`}
+          >
+            <button
+              type="button"
+              onClick={() => setActive(t.term)}
+              aria-pressed={active === t.term}
+              title={t.name ?? t.term}
+              className="flex min-h-11 items-center gap-1.5 px-3 text-body"
+            >
+              <span aria-hidden="true" className={t.agent ? 'text-accent' : 'text-muted'}>
+                ⌭
+              </span>
+              <span className="max-w-36 truncate">{t.name ?? t.term.slice(0, 8)}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => void drop(t.term)}
+              aria-label={`Close ${t.name ?? t.term}`}
+              title={`Close ${t.name ?? t.term}`}
+              className="min-h-11 min-w-9 px-1 text-body opacity-70"
+            >
+              ✕
+            </button>
+          </span>
         ))}
-        <li ref={endRef} aria-hidden="true" />
-      </ul>
+        <button
+          type="button"
+          onClick={() => {
+            setActive(null);
+            setShowNew((s) => !s);
+          }}
+          aria-expanded={showNew}
+          aria-label="New assistant terminal"
+          className="min-h-11 rounded-md px-3 text-body text-text"
+        >
+          +
+        </button>
+        {active_t && (
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void drop(active_t.term)}
+              aria-label={`Stop ${active_t.name ?? active_t.term}`}
+              className="min-h-11 rounded-md px-3 text-body text-muted"
+            >
+              Stop
+            </button>
+          </div>
+        )}
+      </div>
 
-      {notice && (
+      {error !== null && (
         <p role="alert" className="text-body text-text">
-          {notice}
+          {error}
+        </p>
+      )}
+      {terms === 'unreachable' && (
+        <p role="alert" className="text-body text-text">
+          Couldn't reach the server. Try again.
         </p>
       )}
 
-      <form
-        className="flex items-end gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void send();
-        }}
-      >
-        <label className="flex-1">
-          <span className="sr-only">Message</span>
-          <textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            rows={2}
-            placeholder="Ask the helper…"
-            className="w-full rounded-md border border-muted bg-transparent px-3 py-2 text-body text-text"
+      {/* The pane: nothing open opens a new terminal on its own; an
+          active tab streams it full-screen. */}
+      {/* The pane: an active tab streams it full-screen. The new
+          card shows on the overview tab — the only place it makes
+          sense to start from — which the + button lands back on. */}
+      {active !== null && active_t && (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <TerminalView id={active_t.term} onBack={() => setActive(null)} onSessionExpired={onSessionExpired} />
+        </div>
+      )}
+      {active === null && (
+        <div className="flex flex-col gap-3">
+          {list.length === 0 && terms !== 'loading' && (
+            <Empty
+              title="No assistants running."
+              body="Open one below: a plain shell, or one of the assistant CLIs the runner has."
+            />
+          )}
+          <NewCard
+            agents={agentsList}
+            busy={busy}
+            onSpawn={(a) => void spawn(a)}
+            agentsState={agents}
           />
-        </label>
-        <button
-          type="submit"
-          disabled={busy || draft.trim() === ''}
-          className="min-h-11 rounded-md bg-action px-4 text-body font-semibold text-background disabled:opacity-50"
-        >
-          {busy ? 'Sending…' : 'Send'}
-        </button>
-      </form>
+        </div>
+      )}
     </section>
   );
 }
 
-function ChatRow({ row }: { row: Row }) {
-  if (row.kind === 'user') {
-    return <li className="self-end rounded-md bg-action px-3 py-2 text-body text-background">{row.text}</li>;
-  }
-  if (row.kind === 'assistant') {
-    return <li className="rounded-md border border-muted px-3 py-2 text-body text-text">{row.text}</li>;
-  }
-  const t = row.event?.tool;
+function NewCard({
+  agents,
+  busy,
+  onSpawn,
+  agentsState,
+}: {
+  agents: AgentInfo[];
+  busy: string | null;
+  onSpawn: (a: AgentInfo | null) => void;
+  agentsState: AgentInfo[] | 'loading' | 'unreachable';
+}) {
   return (
-    <li className="rounded-md border border-dashed border-muted px-3 py-2 text-body text-muted">
-      <span className="font-semibold text-text">{t?.name ?? 'tool'}</span>
-      {t && (
-        <span aria-label={decisionLabel(t.decision)} title={decisionLabel(t.decision)}>
-          {' '}
-          · {decisionBadge(t.decision)}
-        </span>
+    <section aria-label="Start an assistant" className="flex flex-col gap-2 rounded-md bg-surface p-3">
+      <h3 className="text-body font-semibold text-text">Start an assistant</h3>
+      <p className="text-body text-muted">
+        A shell is always there; the assistants below are the CLIs the runner has on hand. Tools
+        stay with the CLI you pick.
+      </p>
+      <ul className="flex flex-col gap-2">
+        <li className="flex min-h-11 items-center justify-between gap-2 rounded-md bg-base px-3 py-1">
+          <span className="min-w-0 flex-1 text-left">
+            <span className="block text-body font-semibold text-text">Shell</span>
+            <span className="block text-body text-muted">A plain tmux terminal on the runner</span>
+          </span>
+          <button
+            type="button"
+            disabled={busy !== null}
+            onClick={() => onSpawn(null)}
+            aria-label="Start a shell"
+            className="min-h-11 rounded-md bg-accent px-4 text-body text-base disabled:opacity-60"
+          >
+            {busy === AUTO ? 'Starting…' : 'Start'}
+          </button>
+        </li>
+        {agents.map((a) => {
+          const self = a.id;
+          return (
+            <li key={self} className="flex min-h-11 items-center justify-between gap-2 rounded-md bg-base px-3 py-1">
+              <span className="min-w-0 flex-1 text-left">
+                <span className="block text-body font-semibold text-text">{a.name}</span>
+                <span className="block text-body text-muted">
+                  {a.installed ? (a.version ? `v${a.version}` : 'Installed') : 'Not installed — show install command'}
+                </span>
+              </span>
+              <button
+                type="button"
+                disabled={busy !== null || !a.installed}
+                onClick={() => onSpawn(a)}
+                aria-label={`Start ${a.name}`}
+                className="min-h-11 rounded-md bg-accent px-4 text-body text-base disabled:opacity-60"
+              >
+                {busy === self ? 'Starting…' : 'Start'}
+              </button>
+            </li>
+          );
+        })}
+        {agentsState === 'loading' && <li className="text-body text-muted">Checking which assistants are installed…</li>}
+        {agentsState === 'unreachable' && (
+          <li className="text-body text-muted">The runner did not answer; only the shell is offered.</li>
+        )}
+      </ul>
+      {agents.some((a) => !a.installed && a.install) && (
+        <p className="text-body text-muted">
+          Not-installed assistants list their install lives with the runner where they belong.
+        </p>
       )}
-      {t?.approvedBy && <span> · by {t.approvedBy}</span>}
-      <br />
-      <span className={row.text ? '' : 'italic'}>{row.text || '(no result text)'}</span>
-    </li>
+    </section>
   );
 }
 
-function decisionBadge(decision: string): string {
-  switch (decision) {
-    case 'allow':
-      return '✓ ran';
-    case 'ask':
-      return '✓ approved';
-    case 'deny':
-      return '✗ declined';
+function words(err: TerminalError | 'busy'): string {
+  switch (err) {
+    case 'busy':
+      return 'Another terminal is opening. Try in a moment.';
+    case 'offline':
+      return 'The runner is offline. Start assistants once it is back.';
+    case 'unreachable':
+      return "Couldn't reach the server. Try again.";
     default:
-      return decision;
-  }
-}
-
-function decisionLabel(decision: string): string {
-  switch (decision) {
-    case 'allow':
-      return 'the policy allowed this call';
-    case 'ask':
-      return 'the owner approved this call';
-    case 'deny':
-      return 'this call was declined';
-    default:
-      return decision;
+      return 'Something went wrong. Try again.';
   }
 }

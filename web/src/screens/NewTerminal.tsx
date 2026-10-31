@@ -66,7 +66,10 @@ export default function NewTerminal({
   }, [onMachine, project, onSessionExpired]);
 
   const agent = agents.find((a) => a.id === run);
-  const speaks = agent ? (agent.providers?.length ? agent.providers : [agent.provider]) : [];
+  // Off-router assistants run their own CLI: no router provider, key
+  // or model enters the form, so the launch is one tap.
+  const direct = agent?.direct === true;
+  const speaks = agent && !direct ? (agent.providers?.length ? agent.providers : [agent.provider]) : [];
   const served = (id: string) => providers.find((p) => p.id === id);
   const labelOf = (id: string) => served(id)?.name ?? providerLabel(id);
 
@@ -85,6 +88,11 @@ export default function NewTerminal({
     setError(null);
     const a = agents.find((x) => x.id === id);
     if (!a) {
+      pickProvider('');
+      return;
+    }
+    // An assistant has no provider to pick: its CLI logs in alone.
+    if (a.direct === true) {
       pickProvider('');
       return;
     }
@@ -180,11 +188,31 @@ export default function NewTerminal({
         Runs
         <select value={run} onChange={(e) => pickRun(e.target.value)} className="min-h-11 rounded-md bg-base px-3 text-body text-text">
           <option value="shell">Shell</option>
-          {agents.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
+          {/* Coding agents call their model through the router; the
+              assistants open their own CLI. The groups make the split
+              the picker reads */}
+          {agents.some((a) => a.direct !== true) && (
+            <optgroup label="Coding agents">
+              {agents
+                .filter((a) => a.direct !== true)
+                .map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+            </optgroup>
+          )}
+          {agents.some((a) => a.direct === true) && (
+            <optgroup label="Assistants">
+              {agents
+                .filter((a) => a.direct === true)
+                .map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+            </optgroup>
+          )}
         </select>
       </label>
       {onMachine && <p className="text-body text-muted">Agents run on runners; on a machine a terminal is a shell.</p>}
@@ -259,7 +287,7 @@ export default function NewTerminal({
       <div className="flex gap-2">
         <button
           type="submit"
-          disabled={busy || (agent !== undefined && !served(provider)?.ready)}
+          disabled={busy || (agent !== undefined && !direct && !served(provider)?.ready)}
           className="min-h-11 rounded-md bg-accent px-4 text-body text-base disabled:opacity-60"
         >
           {busy ? 'Opening…' : agent ? `Start ${agent.name}` : 'Open shell'}

@@ -398,6 +398,9 @@ export type AgentInfo = {
   provider: string;
   // providers lists the router providers it can use, its own first.
   providers?: string[];
+  // direct marks an off-router assistant CLI: it runs its own binary
+  // under its own login, so no router provider or key takes part.
+  direct?: boolean;
   installed: boolean;
   version?: string;
   install?: string;

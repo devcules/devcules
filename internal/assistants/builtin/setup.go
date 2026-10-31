@@ -14,6 +14,7 @@ import (
 
 	"github.com/devcules/devcules/internal/approvals"
 	"github.com/devcules/devcules/internal/assistants"
+	"github.com/devcules/devcules/internal/assistants/assistantsopenai"
 	"github.com/devcules/devcules/internal/launch"
 	"github.com/devcules/devcules/internal/mcp"
 	"github.com/devcules/devcules/internal/redact"
@@ -23,6 +24,13 @@ import (
 // long to finish, so a wedged upstream cannot pin a chat even with
 // the gate answering. It must cover an approval answered by hand.
 const ChatCap = 10 * time.Minute
+
+// CallTimeout is the model call cap, shared with every adapter.
+const CallTimeout = assistantsopenai.CallTimeout
+
+// DefaultModel is the Meta Model API's assistant model (the desk's
+// model, as the agents' config docs name it).
+const DefaultModel = "muse-spark-1.3"
 
 // RunnerTarget is the approvals target the built-in assistant's calls
 // count as: it gets its own row in Access, beside the terminal
@@ -82,7 +90,11 @@ func Builtin(o SetupOptions) (*Assistant, error) {
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 		Timeout:       CallTimeout,
 	}
-	caller, err := NewCaller(o.Model, o.BaseURL, o.Key, cli)
+	// The upstream caller is the shared chat-completions one, on the
+	// no-redirect client every adapter uses.
+	_ = cli // o.Client is honoured through assistantsopenai.NoRedirect below.
+	caller, err := assistantsopenai.NewCaller(o.Model, o.BaseURL, o.Key,
+		assistantsopenai.NoRedirect(http.DefaultTransport))
 	if err != nil {
 		return nil, err
 	}
@@ -111,10 +123,10 @@ func Builtin(o SetupOptions) (*Assistant, error) {
 		}
 		token = tok
 	}
-	runner := toolsRunner{MCP: o.MCP, Token: token}
+	runner := ToolsRunner{MCP: o.MCP, Token: token}
 	opts := assistants.Options{
 		Model:   caller,
-		Tools:   runner.tools,
+		Tools:   runner.Tools,
 		Now:     o.Now,
 		OnEvent: o.OnEvent,
 	}
@@ -142,7 +154,7 @@ func Builtin(o SetupOptions) (*Assistant, error) {
 			Runner:   "builtin",
 			Agent:    "builtin",
 			LaunchID: LaunchID,
-		}, runner.run)
+		}, runner.Run)
 	}
 	loop, err := assistants.NewLoop("builtin", opts, red)
 	if err != nil {
@@ -151,14 +163,16 @@ func Builtin(o SetupOptions) (*Assistant, error) {
 	return New(loop, notes...)
 }
 
-// toolsRunner is the assistant's execution view of the MCP server:
+// ToolsRunner is the assistant's execution view of the MCP server:
 // tools/list and tools/call over httptest, never leaving the process.
-type toolsRunner struct {
+type ToolsRunner struct {
+	// MCP is the serve MCP handler; Token is the assistant's
+	// launch token the calls carry.
 	MCP   http.Handler
 	Token string
 }
 
-func (r toolsRunner) run(ctx context.Context, ask assistants.ToolCallAsk) (mcp.Result, error) {
+func (r ToolsRunner) Run(ctx context.Context, ask assistants.ToolCallAsk) (mcp.Result, error) {
 	body := map[string]any{
 		"jsonrpc": "2.0", "id": "1", "method": "tools/call",
 		"params": map[string]any{"name": ask.Name, "arguments": json.RawMessage(ask.Args)},
@@ -195,7 +209,7 @@ func (r toolsRunner) run(ctx context.Context, ask assistants.ToolCallAsk) (mcp.R
 }
 
 // tools lists what the assistant may name, from the live MCP registry.
-func (r toolsRunner) tools() []mcp.Tool {
+func (r ToolsRunner) Tools() []mcp.Tool {
 	if r.MCP == nil {
 		return nil
 	}
@@ -225,7 +239,7 @@ func (r toolsRunner) tools() []mcp.Tool {
 }
 
 // rpc does one POST against the in-process MCP handler.
-func (r toolsRunner) rpc(ctx context.Context, body map[string]any) ([]byte, error) {
+func (r ToolsRunner) rpc(ctx context.Context, body map[string]any) ([]byte, error) {
 	if r.MCP == nil {
 		return nil, errors.New("builtin: MCP server not configured")
 	}

@@ -64,6 +64,23 @@ cannot answer normally:
 - **read only**: the desk has no approvals service, so the assistant
   answers from its own knowledge and never runs a tool.
 
+## The style adapters (hermes, openclaw)
+
+`assistants/hermes` and `assistants/openclaw` are the conversational
+helpers PLAN.md §9's M5.2 ships: each is the shared
+`assistantsopenai.Caller` pointed at the service's own OpenAI-style
+chat completions endpoint, with the loop and gate the built-in uses.
+A desk lists one only when a provider profile named for it exists —
+`hermes` or `openclaw` — whose base URL and (optional) model override
+the adapter's default, and whose vault key (`provider/<id>/api_key`)
+authorizes the calls. No profile, no picker entry: PLAN.md §2 holds
+for assistants as for agent CLIs (detect and wire at runtime, never
+bundle).
+
+Both run the shared contract suite in
+`internal/assistants/assistanttest` (`TestContract` in each package);
+that is M5.2's test gate.
+
 ## The web surface
 
 `GET /api/assistants` lists the wired assistants for the picker;

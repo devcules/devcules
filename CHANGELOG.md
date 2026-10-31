@@ -4,6 +4,16 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-10-31, style adapters)
+
+- `assistants/hermes` and `assistants/openclaw` ship the two style
+  adapters: each is the shared `assistantsopenai.Caller` pointed at the
+  service's OpenAI-style endpoint, wired in serve when a provider
+  profile named for it (`hermes`, `openclaw`) exists with its key in
+  the vault. The picker's readiness note, the gate (its own
+  `assistant:<id>` target in Access) and the `assistanttest` contract
+  suite are the built-in's; both pass `TestContract`.
+
 ### Added (2026-10-31, built-in assistant)
 
 - The **Assistant** tab chats with the built-in setup helper

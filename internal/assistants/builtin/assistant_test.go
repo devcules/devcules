@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/devcules/devcules/internal/assistants"
+	"github.com/devcules/devcules/internal/assistants/assistantsopenai"
 	"github.com/devcules/devcules/internal/assistants/assistanttest"
 	"github.com/devcules/devcules/internal/assistants/builtin"
 	"github.com/devcules/devcules/internal/mcp"
@@ -65,7 +66,7 @@ func modelServer(t *testing.T, script *assistanttest.Script) *httptest.Server {
 func wired(t *testing.T, script *assistanttest.Script, allow map[string]string) (assistants.Assistant, *sync.Map) {
 	t.Helper()
 	upstream := modelServer(t, script)
-	caller, err := builtin.NewCaller(builtin.DefaultModel, upstream.URL, "test-key", upstream.Client())
+	caller, err := assistantsopenai.NewCaller(builtin.DefaultModel, upstream.URL, "test-key", upstream.Client())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +109,7 @@ func TestUpstreamError(t *testing.T) {
 		_, _ = w.Write([]byte(`{"error":{"message":"spillover"}}`))
 	}))
 	t.Cleanup(upstream.Close)
-	caller, err := builtin.NewCaller(builtin.DefaultModel, upstream.URL, "k", upstream.Client())
+	caller, err := assistantsopenai.NewCaller(builtin.DefaultModel, upstream.URL, "k", upstream.Client())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +140,7 @@ func TestTokenGate(t *testing.T) {
 		_, _ = w.Write([]byte(`{"choices":[{"index":0,"message":{"role":"assistant","content":"hi"},"finish_reason":"stop"}]}`))
 	}))
 	t.Cleanup(upstream.Close)
-	caller, err := builtin.NewCaller("m", upstream.URL, "secret-bearer", upstream.Client())
+	caller, err := assistantsopenai.NewCaller("m", upstream.URL, "secret-bearer", upstream.Client())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +172,7 @@ func TestPairMissedCallWiresToolResult(t *testing.T) {
 		_, _ = w.Write([]byte(`{"choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}`))
 	}))
 	t.Cleanup(upstream.Close)
-	caller, err := builtin.NewCaller("m", upstream.URL, "", upstream.Client())
+	caller, err := assistantsopenai.NewCaller("m", upstream.URL, "", upstream.Client())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,10 +187,10 @@ func TestPairMissedCallWiresToolResult(t *testing.T) {
 
 // TestNewCallerValidation: base URL and model are checked up front.
 func TestNewCallerValidation(t *testing.T) {
-	if _, err := builtin.NewCaller("", "http://x", "", nil); err == nil {
+	if _, err := assistantsopenai.NewCaller("", "http://x", "", nil); err == nil {
 		t.Fatal("empty model accepted")
 	}
-	if _, err := builtin.NewCaller("m", "gopher://x", "", nil); err == nil {
+	if _, err := assistantsopenai.NewCaller("m", "gopher://x", "", nil); err == nil {
 		t.Fatal("gopher base accepted")
 	}
 }

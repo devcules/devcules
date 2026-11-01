@@ -60,7 +60,8 @@ export default function ThemePicker() {
         aria-expanded={open}
         aria-label="Theme"
         onClick={() => setOpen((o) => !o)}
-        className="flex min-h-9 items-center gap-1.5 rounded-md px-2 text-body text-muted transition-colors duration-150 hover:text-text"
+        data-selected={open ? 'true' : undefined}
+        className="i-control flex min-h-9 items-center gap-1.5 px-2 text-body text-muted"
       >
         <span
           aria-hidden="true"

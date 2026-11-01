@@ -13,6 +13,7 @@ import { credentialToJSON, passkeysUsableHere, toCreationOptions } from '../weba
 import AccessModes from './AccessModes';
 import Notifications from './Notifications';
 import Providers from './Providers';
+import SecretsScreen from './Secrets';
 import Redaction from './Redaction';
 import Section from './Section';
 import { readFolds, writeFold } from '../theme/themes';
@@ -353,6 +354,15 @@ export default function Settings({
         onToggle={toggle}
       >
         <Providers onSessionExpired={onSessionExpired} onSummary={summariser('providers')} />
+      </Section>
+      <Section
+        id="secrets"
+        title="Secrets"
+        summary={summaries.secrets}
+        open={isOpen('secrets')}
+        onToggle={toggle}
+      >
+        <SecretsScreen onSessionExpired={onSessionExpired} onSummary={summariser('secrets')} />
       </Section>
       <Section
         id="notifications"

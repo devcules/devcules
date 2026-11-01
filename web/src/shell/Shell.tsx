@@ -7,6 +7,7 @@ import ProjectTree from '../screens/ProjectTree';
 import Settings from '../screens/Settings';
 import Activity from '../screens/Activity';
 import Assistant from '../screens/Assistant';
+import DeskPage from '../screens/desk/DeskPage';
 import { useMobile, useVisibleHeight } from '../screens/useMobile';
 import ThemePicker from '../theme/ThemePicker';
 import StatusBar from './StatusBar';
@@ -19,9 +20,12 @@ import UserMenu from './UserMenu';
 // still exist: ask() below still lands project intents on the
 // Projects host, and open tabs' state keeps "projects" in the union
 // for that host.
-type Tab = 'home' | 'projects' | 'terminals' | 'machines' | 'assistant' | 'activity' | 'settings';
+type Tab = 'desk' | 'home' | 'projects' | 'terminals' | 'machines' | 'assistant' | 'activity' | 'settings';
 
+// Desk leads: the instrument panel is the landing tab (Kaithos' Desk),
+// before the Home inbox.
 const tabs: Array<{ id: Tab; label: string }> = [
+  { id: 'desk', label: 'Desk' },
   { id: 'home', label: 'Home' },
   { id: 'projects', label: 'Projects' },
   { id: 'assistant', label: 'Assistant' },
@@ -39,9 +43,12 @@ export default function Shell({
   onSignedOut: () => void;
   onSessionExpired: () => void;
 }) {
-  const [tab, setTab] = useState<Tab>('home');
+  // The Desk is the landing tab — unless a push notice deep-linked a
+  // specific approval, in which case Home (where that card lives) wins.
+  const [initialApproval] = useState<string | null>(takeApprovalLink);
+  const [tab, setTab] = useState<Tab>(() => (initialApproval ? 'home' : 'desk'));
   const [pending, setPending] = useState<PendingState>('loading');
-  const [focus, setFocus] = useState<string | null>(takeApprovalLink);
+  const [focus, setFocus] = useState<string | null>(initialApproval);
   // Mobile-first run mode: while a terminal pane is focused the shell
   // chrome (header, sidebar, footer, bottom tabs) folds away and the
   // terminal takes the visible viewport. Kaithos calls this fs; the ☰
@@ -221,7 +228,10 @@ export default function Shell({
           />
         </section>
       </nav>
-      <main className="flex flex-1 flex-col pb-20 md:pb-0">
+      <main className="flex min-h-0 flex-1 flex-col pb-20 md:pb-0">
+        {tab === 'desk' && (
+          <DeskPage onSessionExpired={onSessionExpired} onOpenApprovals={() => setTab('home')} />
+        )}
         {tab === 'home' && (
           <Inbox pending={pending} focus={focus} onAnswered={poll} onSessionExpired={onSessionExpired} />
         )}

@@ -118,3 +118,69 @@ system font stack keeps the app offline-capable and tracking-free. */
     outline-offset: 2px;
   }
 }
+
+/* ---- Desk ---- */
+/* The grid's placeholder matches a tile silhouette in the theme's accent,
+   and the resize corner is the theme's accent on hover. RGL's own styles
+   come from its bundle; these are the pieces that must feel like Devcules. */
+.react-grid-item.react-grid-placeholder {
+  background-color: color-mix(in srgb, var(--c-accent) 18%, transparent);
+  border-radius: 0.5rem;
+  opacity: 0.6;
+}
+.react-grid-item > .react-resizable-handle::after {
+  border-color: var(--c-accent);
+}
+.d-led {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+.d-led-live { background-color: var(--c-accent); }
+.d-led-loading { background-color: var(--c-muted); }
+.d-led-stale { background-color: #f59e0b; }
+.d-led-error { background-color: #ef4444; }
+.d-led-off { background-color: var(--c-muted); opacity: 0.5; }
+@media (prefers-reduced-motion: no-preference) {
+  .d-led-live {
+    animation: i-live-pulse 1.8s ease-in-out infinite;
+  }
+}
+/* In arrange mode the whole tile reads as grabbable via its grip. */
+.react-grid-item.react-draggable-dragging {
+  z-index: 30;
+}
+
+/* FullCalendar, Devcules-themed: grids, buttons and events pick up the
+   tokens so light and dark themes both read as part of the app. */
+.d-calendar {
+  min-height: 260px;
+  --fc-border-color: var(--c-muted);
+  --fc-button-bg-color: var(--c-base);
+  --fc-button-text-color: var(--c-text);
+  --fc-button-border-color: var(--c-muted);
+  --fc-button-hover-bg-color: var(--c-muted);
+  --fc-button-active-bg-color: var(--c-accent);
+  --fc-button-active-border-color: var(--c-accent);
+  --fc-button-active-text-color: var(--c-base);
+  --fc-today-bg-color: color-mix(in srgb, var(--c-accent) 12%, transparent);
+  --fc-event-bg-color: var(--c-accent);
+  --fc-event-border-color: var(--c-accent);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: var(--c-base);
+  --fc-list-event-hover-bg-color: var(--c-base);
+  --fc-small-font-size: 0.75rem;
+}
+.d-calendar .fc {
+  color: var(--c-text);
+  font-size: 0.8rem;
+}
+.d-calendar .fc-toolbar-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.d-calendar .fc-col-header-cell-cushion,
+.d-calendar .fc-daygrid-day-number {
+  color: var(--c-text);
+}

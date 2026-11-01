@@ -57,7 +57,8 @@ describe('Shell', () => {
     const user = userEvent.setup();
     route([[]]);
     render(<Shell username="admin" onSignedOut={vi.fn()} onSessionExpired={vi.fn()} />);
-    expect(screen.getByText('Nothing needs you.')).toBeDefined();
+    await user.click(tabs().getByRole('button', { name: 'Home' }));
+    expect(await screen.findByText('Nothing needs you.')).toBeDefined();
     await user.click(tabs().getByRole('button', { name: 'Machines' }));
     expect(await screen.findByRole('heading', { name: 'Machines' })).toBeDefined();
     await user.click(tabs().getByRole('button', { name: 'Settings' }));
@@ -78,8 +79,8 @@ describe('Shell', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     route([[waiting], []]);
     render(<Shell username="admin" onSignedOut={vi.fn()} onSessionExpired={vi.fn()} />);
+    (await tabs().findByRole('button', { name: 'Home, 1 approval waiting' })).click();
     expect(await screen.findByRole('heading', { name: '1 approval needs you' })).toBeDefined();
-    expect(tabs().getByRole('button', { name: 'Home, 1 approval waiting' })).toBeDefined();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5000);
     });
@@ -115,6 +116,8 @@ describe('Shell', () => {
     act(() => {
       target.dispatchEvent(new MessageEvent('message', { data: { approval: 'a1' } }));
     });
+    // A tapped notice jumps to Home: the Inbox card is the focus, even
+    // though the Desk is where the shell otherwise lands.
     const card = await screen.findByRole('listitem', { name: 'Recursive delete from Claude Code on laptop' });
     expect(card.className).toContain('border-2');
     delete (navigator as unknown as Record<string, unknown>).serviceWorker;

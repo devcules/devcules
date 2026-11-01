@@ -4,7 +4,6 @@ import { Inbox, type PendingState } from '../screens/Approvals';
 import Machines from '../screens/Machines';
 import Projects, { type ProjectAsk, type ProjectIntent } from '../screens/Projects';
 import ProjectTree from '../screens/ProjectTree';
-import Terminals from '../screens/Terminals';
 import Settings from '../screens/Settings';
 import Activity from '../screens/Activity';
 import Assistant from '../screens/Assistant';
@@ -12,12 +11,17 @@ import ThemePicker from '../theme/ThemePicker';
 import StatusBar from './StatusBar';
 import UserMenu from './UserMenu';
 
+// The standalone Projects and Terminals pages are gone as tab
+// destinations: both duplicate what lives alongside the nav — the
+// project tree below (browse, fold, +, ×), and every terminal that
+// already opens on Assistant or a project. The flows they hosted
+// still exist: ask() below still lands project intents on the
+// Projects host, and open tabs' state keeps "projects" in the union
+// for that host.
 type Tab = 'home' | 'projects' | 'terminals' | 'machines' | 'assistant' | 'activity' | 'settings';
 
 const tabs: Array<{ id: Tab; label: string }> = [
   { id: 'home', label: 'Home' },
-  { id: 'projects', label: 'Projects' },
-  { id: 'terminals', label: 'Terminals' },
   { id: 'machines', label: 'Machines' },
   { id: 'assistant', label: 'Assistant' },
   { id: 'activity', label: 'Activity' },
@@ -147,7 +151,6 @@ export default function Shell({
         {tab === 'projects' && (
           <Projects intent={intent} onChanged={() => setTreeReload((n) => n + 1)} onSessionExpired={onSessionExpired} />
         )}
-        {tab === 'terminals' && <Terminals onSessionExpired={onSessionExpired} />}
         {tab === 'machines' && <Machines onSessionExpired={onSessionExpired} />}
         {tab === 'assistant' && <Assistant onSessionExpired={onSessionExpired} />}
         {tab === 'activity' && <Activity onSessionExpired={onSessionExpired} />}
@@ -244,9 +247,8 @@ function NavButton({
       type="button"
       aria-current={active ? 'page' : undefined}
       onClick={onClick}
-      className={`min-h-11 rounded-md px-3 text-left text-body transition-colors duration-150 ${
-        active ? 'bg-surface text-accent font-semibold' : 'text-muted'
-      }`}
+      data-selected={active ? 'true' : undefined}
+      className="i-row min-h-11 px-3 text-left text-body text-muted data-[selected=true]:text-text"
     >
       {children}
     </button>

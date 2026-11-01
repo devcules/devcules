@@ -58,8 +58,8 @@ describe('Shell', () => {
     route([[]]);
     render(<Shell username="admin" onSignedOut={vi.fn()} onSessionExpired={vi.fn()} />);
     expect(screen.getByText('Nothing needs you.')).toBeDefined();
-    await user.click(tabs().getByRole('button', { name: 'Terminals' }));
-    expect(await screen.findByText('No terminals yet.')).toBeDefined();
+    await user.click(tabs().getByRole('button', { name: 'Machines' }));
+    expect(await screen.findByRole('heading', { name: 'Machines' })).toBeDefined();
     await user.click(tabs().getByRole('button', { name: 'Settings' }));
     expect(screen.getByText('Signed in as')).toBeDefined();
   });

@@ -68,6 +68,32 @@ export const getMeetings = (refresh = false) => req<Record<string, unknown>>(`/a
 
 export const listSecrets = () => req<{ names: string[] }>('/api/secrets');
 export const putSecret = (name: string, value: string) => put('/api/secrets', { name, value });
+
+// ---- calendar (the user's own plans merged with feeds) ----
+export type CalEvent = {
+  id: string; title: string; start: string; end: string; all_day?: boolean;
+  location?: string; url?: string; notes?: string; reminder_min?: number;
+  rrule?: string; feed?: string; plan?: boolean; occurrence?: boolean;
+};
+export const getCalendar = (from: string, to: string, refresh = false) =>
+  req<{ events: CalEvent[]; configured: boolean; plans: number; stale?: boolean }>(
+    `/api/calendar/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}${refresh ? '&refresh=1' : ''}`);
+export const createCalendar = (e: Partial<CalEvent>) =>
+  req<CalEvent>('/api/calendar/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(e) });
+export const updateCalendar = (id: string, e: Partial<CalEvent>) =>
+  req<CalEvent>(`/api/calendar/events/${encodeURIComponent(id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(e) });
+export const deleteCalendar = async (id: string): Promise<Result<true>> => {
+  let res: Response;
+  try {
+    res = await fetch(`/api/calendar/events/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  } catch {
+    return 'unreachable';
+  }
+  if (res.status === 401) return 'unauthorized';
+  return res.status === 204 ? true : 'unreachable';
+};
+export const quickAddCalendar = (text: string) =>
+  req<CalEvent>('/api/calendar/quick', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
 export const deleteSecret = async (name: string): Promise<Result<true>> => {
   let res: Response;
   try {

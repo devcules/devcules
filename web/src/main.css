@@ -201,3 +201,12 @@ system font stack keeps the app offline-capable and tracking-free. */
 .d-calendar .fc-timegrid-now-indicator-arrow {
   border-color: var(--c-accent);
 }
+
+/* Plans vs feeds on the grid: a plan (yours, editable) is the accent at
+   full strength; a feed event is quieter so your own plans stand out. */
+.d-calendar .fc-event.d-cal-feed {
+  opacity: 0.72;
+}
+.d-calendar .fc-event.d-cal-plan {
+  border-left-width: 3px;
+}

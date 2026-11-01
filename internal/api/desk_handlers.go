@@ -73,18 +73,22 @@ func deskSources(svc *desk.Service, rec auditor) http.HandlerFunc {
 				writeAuthError(w, http.StatusBadRequest, "sources JSON refused")
 				return
 			}
-			// A PUT that leaves a secret field blank keeps the stored one:
-			// the drawer never round-trips a token, so blank means "untouched".
-			if src.TavilyKey == "" || src.TicketToken == "" {
-				if cur, err := svc.ReadSources(r.Context()); err == nil {
-					if src.TavilyKey == "" {
-						src.TavilyKey = cur.TavilyKey
-					}
-					if src.TicketToken == "" {
-						src.TicketToken = cur.TicketToken
-					}
-				}
+			// Blank keeps the stored token (the drawer never round-trips a
+			// secret), except an explicit X_clear, which removes it.
+			cur, _ := svc.ReadSources(r.Context())
+			if src.ClearTavily {
+				src.TavilyKey = ""
+			} else if src.TavilyKey == "" {
+				src.TavilyKey = cur.TavilyKey
 			}
+			if src.ClearTicket {
+				src.TicketToken = ""
+			} else if src.TicketToken == "" {
+				src.TicketToken = cur.TicketToken
+			}
+			// Never persist the control flags themselves.
+			src.ClearTavily = false
+			src.ClearTicket = false
 			if err := svc.WriteSources(r.Context(), src); err != nil {
 				writeAuthError(w, http.StatusInternalServerError, "desk sources not saved")
 				return

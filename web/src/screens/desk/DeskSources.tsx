@@ -11,6 +11,8 @@ export default function DeskSources({ onClose, onSaved, onUnauthorized }: { onCl
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const [f, setF] = useState<Sources>({ ics_feeds: [{ label: 'Calendar', url: '' }] });
+  const [clearTavily, setClearTavily] = useState(false);
+  const [clearTicket, setClearTicket] = useState(false);
 
   useEffect(() => {
     void getSources().then((r) => {
@@ -32,7 +34,12 @@ export default function DeskSources({ onClose, onSaved, onUnauthorized }: { onCl
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    const body: Sources = { ...f, ics_feeds: (f.ics_feeds || []).filter((fd) => fd.url.trim()) };
+    const body: Sources = {
+      ...f,
+      ics_feeds: (f.ics_feeds || []).filter((fd) => fd.url.trim()),
+      ...(clearTavily ? { tavily_clear: true } : {}),
+      ...(clearTicket ? { ticket_clear: true } : {}),
+    } as Sources;
     const r = await putSources(body);
     setSaving(false);
     if (r === 'unauthorized') { onUnauthorized?.(); return; }
@@ -71,7 +78,14 @@ export default function DeskSources({ onClose, onSaved, onUnauthorized }: { onCl
           <label className="flex flex-col gap-1 text-body text-text">Tech<input className="min-h-11 rounded bg-base px-3 text-body text-text" value={String(f.news_tech_query ?? '')} onChange={set('news_tech_query')} placeholder="AI releases" /></label>
           <label className="flex flex-col gap-1 text-body text-text">Your own feed<input className="min-h-11 rounded bg-base px-3 text-body text-text" value={String(f.news_custom_query ?? '')} onChange={set('news_custom_query')} placeholder="kubernetes" /></label>
           <label className="flex flex-col gap-1 text-body text-text">
-            Tavily key {cur.has_tavily ? <span className="text-tab text-muted">(stored — leave blank to keep)</span> : <span className="text-tab text-muted">(optional — without it the feeds use free public search)</span>}
+            <span className="flex items-center justify-between gap-2">
+              <span>Tavily key {cur.has_tavily && !clearTavily ? <span className="text-tab text-muted">(stored — leave blank to keep)</span> : <span className="text-tab text-muted">(optional — without it the feeds use free public search)</span>}</span>
+              {cur.has_tavily && (
+                <button type="button" className="text-tab text-red-400 hover:underline" onClick={() => setClearTavily((c) => !c)}>
+                  {clearTavily ? 'keep it after all' : 'remove stored key'}
+                </button>
+              )}
+            </span>
             <input type="password" className="min-h-11 rounded bg-base px-3 font-mono text-body text-text" value={String(f.tavily_key ?? '')} onChange={set('tavily_key')} placeholder="tvly-…" autoComplete="off" />
           </label>
         </fieldset>
@@ -100,7 +114,14 @@ export default function DeskSources({ onClose, onSaved, onUnauthorized }: { onCl
             <label className="flex flex-col gap-1 text-body text-text">Team key (optional)<input className="min-h-11 rounded bg-base px-3 text-body text-text" value={String(f.ticket_project ?? '')} onChange={set('ticket_project')} placeholder="ENG" /></label>
           )}
           <label className="flex flex-col gap-1 text-body text-text">
-            Token {cur.has_ticket_token ? <span className="text-tab text-muted">(stored — leave blank to keep)</span> : ''}
+            <span className="flex items-center justify-between gap-2">
+              <span>Token {cur.has_ticket_token && !clearTicket ? <span className="text-tab text-muted">(stored — leave blank to keep)</span> : ''}</span>
+              {cur.has_ticket_token && (
+                <button type="button" className="text-tab text-red-400 hover:underline" onClick={() => setClearTicket((c) => !c)}>
+                  {clearTicket ? 'keep it after all' : 'remove stored token'}
+                </button>
+              )}
+            </span>
             <input type="password" className="min-h-11 rounded bg-base px-3 font-mono text-body text-text" value={String(f.ticket_token ?? '')} onChange={set('ticket_token')} autoComplete="off" placeholder="API token" />
           </label>
           <p className="text-tab text-muted">The token never leaves the server. Blank keeps the stored one; it lives in the vault, sealed, and the browser never reads it back — manage the raw names in Secrets.</p>

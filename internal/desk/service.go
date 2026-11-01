@@ -37,9 +37,14 @@ type Sources struct {
 	TicketToken    string `json:"ticket_token,omitempty"`
 	TicketJQL      string `json:"ticket_jql,omitempty"`
 	TicketProject  string `json:"ticket_project,omitempty"`
-	// Masked mirrors, never input: GET answers set only these.
+	// Masked mirrors, never input: GET answers set only these. The Clear
+	// flags are the one way the drawer removes a stored token — a blank
+	// value keeps it (so a PUT never round-trips a secret), but
+	// X_clear:true wipes it.
 	HasTavily     bool `json:"has_tavily,omitempty"`
 	HasTicketTok  bool `json:"has_ticket_token,omitempty"`
+	ClearTavily   bool `json:"tavily_clear,omitempty"`
+	ClearTicket   bool `json:"ticket_clear,omitempty"`
 }
 
 type ICSFeed struct {
@@ -119,11 +124,12 @@ func (s *Service) readSources(ctx context.Context) (Sources, error) {
 func (s *Service) ReadSources(ctx context.Context) (Sources, error) { return s.readSources(ctx) }
 
 // Masked answers the document the browser may see: every secret field
-// dropped to a presence flag, never the value.
+// dropped to a presence flag, never the value. A whitespace-only token
+// counts as absent — it can never authorise a call, so it never claims to.
 func (s Sources) Masked() Sources {
 	out := s
-	out.HasTavily = out.TavilyKey != ""
-	out.HasTicketTok = out.TicketToken != ""
+	out.HasTavily = strings.TrimSpace(out.TavilyKey) != ""
+	out.HasTicketTok = strings.TrimSpace(out.TicketToken) != ""
 	out.TavilyKey = ""
 	out.TicketToken = ""
 	return out
@@ -243,15 +249,23 @@ func (s *Service) News(ctx context.Context, which string, refresh bool) (json.Ra
 	entry := s.newsC.Get(ctx, which, refresh, func(ctx context.Context) (json.RawMessage, error) {
 		var items []NewsItem
 		var err error
-		if src.TavilyKey != "" {
-			items, err = News(ctx, s.hc, src.TavilyKey, query, 10)
+		usedTavily := false
+		if key := strings.TrimSpace(src.TavilyKey); key != "" {
+			usedTavily = true
+			items, err = News(ctx, s.hc, key, query, 10)
+			if err != nil {
+				// A stored key that no longer works (expired, typo) should
+				// not dead-end the tile: fall back to public search.
+				items, err = RSSNews(ctx, s.hc, query, 10)
+				usedTavily = false
+			}
 		} else {
 			items, err = RSSNews(ctx, s.hc, query, 10)
 		}
 		if err != nil {
 			return nil, err
 		}
-		return json.Marshal(map[string]any{"configured": query != "", "items": items, "tavily": src.TavilyKey != ""})
+		return json.Marshal(map[string]any{"configured": query != "", "items": items, "tavily": usedTavily})
 	})
 	if entry.Value == nil && entry.Error != "" {
 		return nil, errors.New(entry.Error)

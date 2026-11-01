@@ -59,7 +59,7 @@ export default function Tile({
           )}
         </span>
       </header>
-      <div className="d-tile-body min-h-0 flex-1 overflow-y-auto p-3">{children}</div>
+      <div className="d-tile-body flex min-h-0 flex-1 flex-col overflow-y-auto p-3">{children}</div>
     </section>
   );
 }

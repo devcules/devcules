@@ -184,3 +184,20 @@ system font stack keeps the app offline-capable and tracking-free. */
 .d-calendar .fc-daygrid-day-number {
   color: var(--c-text);
 }
+
+/* FullCalendar time-grid (week view): hour labels and slot lines pick up
+   the tokens, and the now-indicator is the accent so today reads live. */
+.d-calendar .fc-timegrid-slot {
+  height: 2.2em;
+  border-color: var(--c-muted);
+}
+.d-calendar .fc-timegrid-slot-label {
+  color: var(--c-muted);
+  font-size: 0.7rem;
+}
+.d-calendar .fc-timegrid-now-indicator-line {
+  border-color: var(--c-accent);
+}
+.d-calendar .fc-timegrid-now-indicator-arrow {
+  border-color: var(--c-accent);
+}

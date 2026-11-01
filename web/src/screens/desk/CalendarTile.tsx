@@ -34,25 +34,32 @@ export default function CalendarTile({ widget, syncKey, arranging, onRemove, onS
 
   return (
     <Tile title={widget.title || 'calendar'} status={status} updatedAt={data?.updated_at as string} arranging={arranging} onRemove={onRemove} onSettings={onSettings} onRefresh={reload}>
-      {items.length === 0 && data ? (
-        <div className="text-body text-muted">
-          {data.configured === false
-            ? 'Add a calendar feed in Desk sources to fill this in.'
-            : 'Nothing in the next 7 days.'}
-        </div>
-      ) : (
-        <div className="d-calendar h-full">
-          <FullCalendar
-            plugins={[dayGridPlugin, timeGridPlugin, listPlugin]}
-            initialView="dayGridMonth"
-            headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,listWeek' }}
-            events={events}
-            height="100%"
-            dayMaxEventRows={3}
-            eventClick={(info) => { info.jsEvent.preventDefault(); setOpen((info.event.extendedProps as { m: Meeting }).m); }}
-          />
-        </div>
-      )}
+      {/* The grid mounts once and stays mounted — events stream into it.
+          No unmount on empty or on first load, so there's no flash: the
+          calendar is always there, "no meetings" just means the grid is
+          quiet, like Kaithos. */}
+      <div className="d-calendar relative h-full min-h-0 flex-1">
+        <FullCalendar
+          plugins={[dayGridPlugin, timeGridPlugin, listPlugin]}
+          initialView="timeGridWeek"
+          headerToolbar={{ left: 'prev,next today', center: 'title', right: 'timeGridWeek,dayGridMonth,listWeek' }}
+          events={events}
+          height="100%"
+          allDaySlot={true}
+          allDayText="all day"
+          nowIndicator={true}
+          scrollTime={`${String(Math.max(0, new Date().getHours() - 1)).padStart(2, '0')}:00:00`}
+          dayMaxEventRows={3}
+          eventClick={(info) => { info.jsEvent.preventDefault(); setOpen((info.event.extendedProps as { m: Meeting }).m); }}
+        />
+        {!loading && items.length === 0 && (
+          <div className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-body text-muted">
+            {data?.configured === false
+              ? 'Add a calendar feed in Desk sources to fill this in.'
+              : 'Nothing in the next 7 days.'}
+          </div>
+        )}
+      </div>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-label={open.title} onClick={() => setOpen(null)}>
           <div className="w-full max-w-sm rounded-lg border border-muted bg-surface p-4" onClick={(e) => e.stopPropagation()}>

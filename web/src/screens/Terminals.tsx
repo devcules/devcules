@@ -195,17 +195,14 @@ export default function Terminals({ onSessionExpired }: { onSessionExpired: () =
       {state.terminals.length > 0 && (
         <ul className="flex flex-col gap-2">
           {state.terminals.map((t) => (
-            <li
-              key={t.term}
-              className="flex min-h-11 items-center justify-between gap-2 rounded-md bg-surface px-3 py-2"
-            >
+            <li key={t.term} className="flex items-stretch gap-0">
               <button
                 type="button"
                 onClick={() => setState({ view: 'open', id: t.term })}
                 aria-label={`Open terminal ${label(t)}`}
-                className="min-h-11 min-w-0 flex-1 truncate text-left font-mono text-body text-text"
+                className="i-row flex min-h-11 min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left text-body text-text"
               >
-                {label(t)}
+                <span className="truncate font-mono">{label(t)}</span>
               </button>
               {confirmClose === t.term ? (
                 <span className="flex items-center gap-2">
@@ -221,7 +218,7 @@ export default function Terminals({ onSessionExpired }: { onSessionExpired: () =
                     type="button"
                     onClick={() => setConfirmClose(null)}
                     aria-label="Keep terminal"
-                    className="min-h-11 rounded-md px-3 text-body text-text"
+                    className="i-control min-h-11 px-3 text-body text-text"
                   >
                     Keep
                   </button>
@@ -231,7 +228,7 @@ export default function Terminals({ onSessionExpired }: { onSessionExpired: () =
                   type="button"
                   onClick={() => setConfirmClose(t.term)}
                   aria-label={`Close terminal ${t.term.slice(0, 8)}`}
-                  className="min-h-11 min-w-11 rounded-md px-3 text-body text-muted"
+                  className="i-control min-h-11 min-w-11 px-3 text-body text-muted"
                 >
                   ✕
                 </button>

@@ -33,7 +33,8 @@ export default function Section({ id, title, summary, open, onToggle, children }
           onClick={toggle}
           aria-expanded={open}
           aria-controls={`section-${id}`}
-          className="flex min-h-11 w-full items-start gap-3 rounded-md px-3 py-2 text-left"
+          data-expanded={open ? 'true' : undefined}
+          className="i-control flex min-h-11 w-full items-start gap-3 px-3 py-2 text-left"
         >
           <span
             aria-hidden="true"

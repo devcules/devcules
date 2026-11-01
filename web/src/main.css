@@ -1,5 +1,43 @@
 @import "./theme/tokens.css";
 
+@layer components {
+  /* Interactive rows (project, terminal, machine): a quiet surface
+     shift on hover, an accent marker on the active row, never the
+     base inverting. It's one rule for everything list-like. */
+  .i-row {
+    @apply relative rounded-md transition-colors duration-100;
+  }
+  .i-row:hover {
+    background-color: var(--c-surface);
+  }
+  .i-row[data-selected="true"]::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    width: 3px;
+    background-color: var(--c-accent);
+    border-radius: 3px 0 0 3px;
+  }
+  .i-row[data-selected="true"] {
+    background-color: var(--c-surface);
+  }
+
+  /* Buttons and chips: text lightens and a ghost of the surface
+     arrives on hover, never a larger change. Focus stays the
+     accent ring from the base layer. */
+  .i-control {
+    @apply rounded-md transition-colors duration-100 hover:text-text;
+  }
+  .i-control:hover {
+    background-color: color-mix(in srgb, var(--c-surface) 72%, transparent);
+  }
+  .i-control[data-selected="true"] {
+    color: var(--c-text);
+    background-color: var(--c-surface);
+  }
+}
+
 /* Base only: every colour, size and space comes from the tokens. The
 system font stack keeps the app offline-capable and tracking-free. */
 @layer base {

@@ -267,20 +267,20 @@ export default function Machines({ onSessionExpired }: { onSessionExpired: () =>
               {m.online && (terms[m.name]?.length ?? 0) > 0 && (
                 <ul aria-label={`Terminals on ${m.name}`} className="flex flex-col gap-1">
                   {terms[m.name].map((t) => (
-                    <li key={t.term} className="flex min-h-11 items-center gap-2 rounded-md bg-base px-3">
+                    <li key={t.term} className="flex gap-0">
                       <button
                         type="button"
                         onClick={() => setView({ view: 'terminal', machine: m.name, id: t.term })}
                         aria-label={`Open terminal ${t.term.slice(0, 8)} on ${m.name}`}
-                        className="min-h-11 min-w-0 flex-1 truncate text-left font-mono text-body text-text"
+                        className="i-row flex min-h-11 min-w-0 flex-1 items-center gap-2 px-3 text-left text-body text-text"
                       >
-                        {t.dir ? `${t.term.slice(0, 8)} · ${t.dir}` : t.term.slice(0, 8)}
+                        <span className="truncate font-mono">{t.dir ? `${t.term.slice(0, 8)} · ${t.dir}` : t.term.slice(0, 8)}</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => void closeTerm(m.name, t.term)}
                         aria-label={`Close terminal ${t.term.slice(0, 8)} on ${m.name}`}
-                        className="min-h-11 min-w-11 rounded-md px-3 text-body text-muted"
+                        className="i-control min-h-11 min-w-11 px-3 text-body text-muted"
                       >
                         ✕
                       </button>

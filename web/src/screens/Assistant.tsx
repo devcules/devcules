@@ -119,7 +119,8 @@ export default function Assistant({ onSessionExpired }: { onSessionExpired: () =
           type="button"
           onClick={() => setActive(null)}
           aria-pressed={active === null}
-          className={`flex min-h-11 items-center gap-1.5 rounded-md px-3 text-body ${active === null ? 'bg-text text-base' : 'text-text'}`}
+          data-selected={active === null ? 'true' : undefined}
+          className={`i-row flex min-h-11 items-center gap-1.5 px-3 text-body ${active === null ? 'text-text' : 'text-muted'}`}
         >
           ◈ Assistants
           <span className="text-body opacity-70">{list.length}</span>
@@ -127,14 +128,15 @@ export default function Assistant({ onSessionExpired }: { onSessionExpired: () =
         {list.map((t) => (
           <span
             key={t.term}
-            className={`flex items-center rounded-md text-body ${active === t.term ? 'bg-text text-base' : 'text-text'}`}
+            className="flex items-center"
           >
             <button
               type="button"
               onClick={() => setActive(t.term)}
               aria-pressed={active === t.term}
               title={t.name ?? t.term}
-              className="flex min-h-11 items-center gap-1.5 px-3 text-body"
+              data-selected={active === t.term ? 'true' : undefined}
+              className="i-row flex min-h-11 items-center gap-1.5 px-3 text-body text-muted data-[selected=true]:text-text"
             >
               <span aria-hidden="true" className={t.agent ? 'text-accent' : 'text-muted'}>
                 ⌭
@@ -146,7 +148,7 @@ export default function Assistant({ onSessionExpired }: { onSessionExpired: () =
               onClick={() => void drop(t.term)}
               aria-label={`Close ${t.name ?? t.term}`}
               title={`Close ${t.name ?? t.term}`}
-              className="min-h-11 min-w-9 px-1 text-body opacity-70"
+              className="i-control min-h-11 min-w-9 px-1 text-body opacity-70"
             >
               ✕
             </button>
@@ -160,7 +162,7 @@ export default function Assistant({ onSessionExpired }: { onSessionExpired: () =
           }}
           aria-expanded={showNew}
           aria-label="New assistant terminal"
-          className="min-h-11 rounded-md px-3 text-body text-text"
+          className="i-control min-h-11 px-3 text-body text-text"
         >
           +
         </button>
@@ -170,7 +172,7 @@ export default function Assistant({ onSessionExpired }: { onSessionExpired: () =
               type="button"
               onClick={() => void drop(active_t.term)}
               aria-label={`Stop ${active_t.name ?? active_t.term}`}
-              className="min-h-11 rounded-md px-3 text-body text-muted"
+              className="i-control min-h-11 px-3 text-body text-muted"
             >
               Stop
             </button>

@@ -142,7 +142,8 @@ export default function ProjectTree({
                 onClick={() => toggle(p.id)}
                 aria-expanded={isOpen}
                 aria-label={`${isOpen ? 'Fold' : 'Unfold'} ${p.name}`}
-                className={`flex ${row} min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 text-left text-body text-text`}
+                data-selected={isOpen ? 'true' : undefined}
+                className={`i-row flex ${row} min-w-0 flex-1 items-center gap-1.5 px-2 text-left text-body text-text`}
               >
                 <span aria-hidden="true" className="w-3 text-muted">
                   {isOpen ? '▾' : '▸'}
@@ -159,7 +160,7 @@ export default function ProjectTree({
                 disabled={!up}
                 aria-label={`New terminal in ${p.name}`}
                 title={up ? `New terminal in ${p.name}` : `${p.target} is offline`}
-                className={`${row} min-w-9 rounded-md px-2 text-body text-text disabled:opacity-40`}
+                className={`i-control ${row} min-w-9 px-2 text-body text-text disabled:opacity-40`}
               >
                 +
               </button>
@@ -167,7 +168,7 @@ export default function ProjectTree({
                 type="button"
                 onClick={() => setConfirm(confirm === p.id ? null : p.id)}
                 aria-label={`Forget ${p.name}`}
-                className={`${row} min-w-9 rounded-md px-2 text-body text-muted`}
+                className={`i-control ${row} min-w-9 px-2 text-body text-muted`}
               >
                 ✕
               </button>
@@ -197,7 +198,7 @@ export default function ProjectTree({
                       type="button"
                       onClick={() => onOpen(t.term, projectWhere(p))}
                       aria-label={`Open terminal ${termLabel(t)} in ${p.name}`}
-                      className={`flex ${row} min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 text-left text-body text-text`}
+                      className={`i-row flex ${row} min-w-0 flex-1 items-center gap-1.5 px-2 text-left text-body text-text`}
                     >
                       <span aria-hidden="true" className="text-muted">
                         ⌨

@@ -167,7 +167,7 @@ func passkeyLoginFinish(svc *auth.Service, rec auditor) http.HandlerFunc {
 				username, _ := svc.Authenticate(r.Context(), value)
 				rec.as(r, username, audit.SignIn, "", map[string]string{"method": "passkey"})
 			}
-			setSessionCookie(w, value)
+			setSessionCookie(w, r, value)
 			w.WriteHeader(http.StatusNoContent)
 		case errors.Is(err, auth.ErrTooManyAttempts):
 			rec.signInFailed(r, "passkey", "throttled")

@@ -76,6 +76,30 @@
   }
 }
 
+/* Mobile: the page is a shell, not a document. Lock body scroll so the
+   xterm surface and the horizontal key strip are the only things that
+   move (Kaithos' pattern): taps focus the pane without the page
+   jumping, and the strip pans with touch-action:pan-x below. */
+html.devcules-mobile,
+body.devcules-mobile {
+  overflow: hidden;
+  height: 100%;
+  touch-action: none;
+  overscroll-behavior: none;
+}
+body.devcules-mobile .devcules-main {
+  overflow: hidden;
+}
+/* The strip's row is the one allowed pan: sideways, never vertical. */
+.mk-scroll {
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.mk-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 /* Base only: every colour, size and space comes from the tokens. The
 system font stack keeps the app offline-capable and tracking-free. */
 @layer base {

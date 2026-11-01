@@ -2,11 +2,17 @@ import { useCallback, useEffect, useState } from 'react';
 import { me } from './api';
 import SignIn from './screens/SignIn';
 import Shell from './shell/Shell';
+import { useMobile, useMobileBodyClass } from './screens/useMobile';
 
 type Session = 'checking' | 'signed-out' | { user: string };
 
 export default function App() {
   const [session, setSession] = useState<Session>('checking');
+  // The one JS flag for the whole mobile story: a coarse pointer, a
+  // touch point, and a phone-sized edge. It drives the scroll lock and
+  // the docked keyboard through the `devcules-mobile` body class.
+  const mobile = useMobile();
+  useMobileBodyClass(mobile);
 
   // A 401 from me() shows sign-in. So does an unreachable server:
   // the screen then says so on the next try, instead of leaving a

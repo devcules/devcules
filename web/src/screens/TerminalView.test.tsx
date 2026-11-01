@@ -100,9 +100,9 @@ describe('TerminalView', () => {
     expect(ArrayBuffer.isView(last)).toBe(true);
     expect(Array.from(last as unknown as number[])).toEqual(Array.from(new TextEncoder().encode('echo hi\n')));
 
-    // The key strip sends Enter and comes back for more.
-    await user.click(screen.getByRole('button', { name: 'Enter' }));
-    expect(Array.from(s.sent[s.sent.length - 1] as unknown as number[])).toEqual([0x0d]);
+    // The custom strip: Tab lands as a control byte, not a focus move.
+    await user.click(screen.getByRole('button', { name: 'Tab' }));
+    expect(Array.from(s.sent[s.sent.length - 1] as unknown as number[])).toEqual([0x09]);
   });
 
   it('turns an armed Ctrl plus a letter into a control code', async () => {
@@ -110,7 +110,7 @@ describe('TerminalView', () => {
     render(<TerminalView id="0123456789abcdef" onBack={vi.fn()} />);
     const s = socket();
     s.onopen?.({});
-    await user.click(screen.getByRole('button', { name: 'Control (sticky modifier)' }));
+    await user.click(screen.getByRole('button', { name: 'Control (tap for one, hold to keep)' }));
     dataHandler?.('c');
     expect(Array.from(s.sent[s.sent.length - 1] as unknown as number[])).toEqual([0x03]);
   });

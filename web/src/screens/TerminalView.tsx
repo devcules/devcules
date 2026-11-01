@@ -5,9 +5,10 @@ import { FitAddon } from '@xterm/addon-fit';
 // show up as stray glyphs above the prompt. Vite bundles it into our
 // stylesheet, so the CSP needs nothing new for it.
 import '@xterm/xterm/css/xterm.css';
-import KeyStrip, { ctrlLetter, stripBytes, type StripKey } from './KeyStrip';
+import TermKeyboard from './TermKeyboard';
 import { streamURL, type Where } from '../api';
 import { bumpActivity, clearActivity } from './pulse';
+import { registerInput, ctrlState, sendTyped } from './keybus';
 
 type Status = 'connecting' | 'open' | 'reconnecting' | 'offline' | 'gone';
 
@@ -39,7 +40,6 @@ export default function TerminalView({
   const attemptRef = useRef(0);
   const timerRef = useRef<number | null>(null);
   const connectRef = useRef<() => void>(() => undefined);
-  const ctrlRef = useRef(false);
   // Heartbeat bookkeeping: the serve side pings every 15 s; if the
   // pane is "open" but nothing (output or pong) arrived for a few
   // intervals, the socket died silently and sits frozen. The watchdog
@@ -50,7 +50,6 @@ export default function TerminalView({
   // The machine name, not the object: a string keeps connect stable
   // across renders that pass a fresh {machine} literal.
   const machine = where?.machine;
-  const [ctrlArmed, setCtrlArmed] = useState(false);
   const [status, setStatus] = useState<Status>('connecting');
 
   const send = useCallback((bytes: ArrayLike<number>) => {
@@ -189,17 +188,24 @@ export default function TerminalView({
       if (!ws || ws.readyState !== WebSocket.OPEN) {
         return;
       }
-      if (ctrlRef.current) {
-        const code = ctrlLetter(data);
-        ctrlRef.current = false;
-        setCtrlArmed(false);
-        if (code !== null) {
-          ws.send(new Uint8Array([code]));
+      // The cross-pane Ctrl latch lives on the input bus: a one-shot
+      // armed from the custom keyboard transforms this typed letter too
+      // (physical-Ctrl-on-a-strip semantics), and paste blobs pass
+      // through unmodified.
+      if (ctrlState() !== 'off') {
+        if (data.length === 1) {
+          sendTyped(data);
           return;
         }
+        send(new TextEncoder().encode(data));
+        return;
       }
       ws.send(new TextEncoder().encode(data));
     });
+    // The docked keyboard registers here: its keys and Ctrl byte-
+    // sequences land in this pane's stream, and its "raise the OS
+    // keyboard" tap focuses this xterm. It unregisters on unmount.
+    const unregisterKeys = registerInput(send, () => termRef.current?.focus());
     connect();
     const onVisible = () => {
       if (document.visibilityState === 'visible' && !userClosedRef.current && !wsRef.current) {
@@ -232,6 +238,7 @@ export default function TerminalView({
         // Already gone.
       }
       disposeData.dispose();
+      unregisterKeys();
       term.dispose();
       termRef.current = null;
       fitRef.current = null;
@@ -240,22 +247,6 @@ export default function TerminalView({
       clearActivity(id);
     };
   }, [connect]);
-
-  // Back to the terminal after every strip tap: the next typed key
-  // must reach xterm, and on a phone a lost focus closes the keyboard.
-  function toggleCtrl(): void {
-    ctrlRef.current = !ctrlRef.current;
-    setCtrlArmed(ctrlRef.current);
-    termRef.current?.focus();
-  }
-
-  function press(key: StripKey): void {
-    const { bytes } = stripBytes(key, ctrlRef.current);
-    ctrlRef.current = false;
-    setCtrlArmed(false);
-    send(bytes);
-    termRef.current?.focus();
-  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -281,8 +272,14 @@ export default function TerminalView({
         )}
       </div>
       <div ref={hostRef} className="min-h-0 flex-1 px-2" aria-label="Terminal" role="application" />
-      <div className="h-16" aria-hidden="true" />
-      <KeyStrip ctrlArmed={ctrlArmed} onToggleCtrl={toggleCtrl} onKey={press} />
+      {/* The docked keyboard sits right under the pane, in flow: an
+          open OS keyboard shrinks the viewport above it, so the strip
+          rides up without a z-index fight. On desktop it collapses to
+          nothing (a physical keyboard replaces it). */}
+      <div className="hidden md:block" aria-hidden="true" />
+      <div className="md:hidden">
+        <TermKeyboard />
+      </div>
     </div>
   );
 }

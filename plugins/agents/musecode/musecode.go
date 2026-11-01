@@ -135,7 +135,7 @@ func (Agent) LaunchSpec(l agents.Launch) (agents.Spec, error) {
 		return agents.Spec{}, err
 	}
 	return agents.Spec{
-		Cmd: []string{"muse", "--model", model, "--approval-judge", "off", "--disable-approval"},
+		Cmd: []string{"muse"},
 		Env: map[string]string{
 			"XDG_CONFIG_HOME": filepath.Join(l.Dir, "config"),
 			"META_API_KEY":    l.Token,

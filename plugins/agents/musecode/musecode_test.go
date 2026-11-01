@@ -45,6 +45,30 @@ func TestSettings(t *testing.T) {
 	}
 }
 
+// A launch can ask for a different profile than Muse Code's own
+// "meta" — the settings say that provider and its /llm base URL, so
+// a second Meta-compatible endpoint (the Baseten deployment, for
+// example) powers the launch without renaming the profile.
+func TestLaunchOtherProvider(t *testing.T) {
+	spec, err := New().LaunchSpec(agents.Launch{ServeURL: "http://serve:7659", Token: "tok", Dir: "/run/l", Hook: "HOOK", Provider: "meta2", Model: "meta-models/muse-spark-open-1026"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var s map[string]any
+	if err := json.Unmarshal(spec.Files["config/muse/settings.json"], &s); err != nil {
+		t.Fatal(err)
+	}
+	if s["provider"] != "meta2" {
+		t.Fatalf("provider = %v, want meta2", s["provider"])
+	}
+	var wanted = map[string]any{"auth": "bearer", "base_url": "http://serve:7659/llm/meta2/v1"}
+	got, _ := json.Marshal(s["endpoint_transport"])
+	w, _ := json.Marshal(wanted)
+	if string(got) != string(w) {
+		t.Fatalf("endpoint_transport = %s, want %s", got, w)
+	}
+}
+
 func TestHookCallShapes(t *testing.T) {
 	a := New()
 	for in, want := range map[string]string{

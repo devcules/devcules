@@ -508,9 +508,22 @@ func offers(ctx context.Context, info terminals.AgentInfo, rt *router.Router, pr
 	})
 	out := []string{}
 	for _, p := range list {
-		if providers.Speaks(p, info.Wire) && (len(info.Only) == 0 || slices.Contains(info.Only, p.ID)) {
+		if providers.Speaks(p, info.Wire) && (len(info.Only) == 0 || hasPrefixOf(info.Only, p.ID)) {
 			out = append(out, p.ID)
 		}
 	}
 	return out
+}
+
+// hasPrefixOf reports whether an Only entry is a prefix of id — so
+// `meta` admits meta, meta2, meta-prod: an agent's Only list names a
+// family, not one literal row. Entries stay exact when there is no
+// longer id, so a specific id still gates itself as before.
+func hasPrefixOf(only []string, id string) bool {
+	for _, o := range only {
+		if strings.HasPrefix(id, o) {
+			return true
+		}
+	}
+	return false
 }

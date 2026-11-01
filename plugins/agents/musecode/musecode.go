@@ -23,10 +23,10 @@ const (
 	hookTimeout = 960
 	// maxCommand caps the command text sent to serve (it keeps 4 KiB).
 	maxCommand = 60 << 10
-	// routerPath is the base Muse's Meta provider calls. Muse appends
-	// only "/responses" (checked against 1.4.14), so the base carries
-	// the router's /v1.
-	routerPath = "/llm/meta/v1"
+	// routerPathOf turns the launch's provider into its /llm/<id>
+	// base: it appends only "/responses" (checked against 1.4.14), so
+	// the base carries the router's /v1.
+	routerPathOf = "/llm/%s/v1"
 )
 
 // Agent is the Muse Code adapter.
@@ -112,7 +112,8 @@ func (Agent) LaunchSpec(l agents.Launch) (agents.Spec, error) {
 	if l.ServeURL == "" || l.Token == "" || l.Dir == "" || l.Hook == "" {
 		return agents.Spec{}, fmt.Errorf("musecode: incomplete launch")
 	}
-	if _, err := agents.ProviderFor(Agent{}, l.Provider); err != nil {
+	provider, err := agents.ProviderFor(Agent{}, l.Provider)
+	if err != nil {
 		return agents.Spec{}, err
 	}
 	model := l.Model
@@ -121,9 +122,9 @@ func (Agent) LaunchSpec(l agents.Launch) (agents.Spec, error) {
 	}
 	s := settings{
 		SchemaVersion:     1,
-		Provider:          "meta",
+		Provider:          provider,
 		Model:             model,
-		EndpointTransport: endpoint{BaseURL: l.ServeURL + routerPath, Auth: "bearer"},
+		EndpointTransport: endpoint{BaseURL: l.ServeURL + fmt.Sprintf(routerPathOf, provider), Auth: "bearer"},
 		MCPServers: map[string]mcpServer{"devcules": {Type: "streamable-http", URL: l.ServeURL + "/mcp",
 			Headers: map[string]string{"Authorization": "Bearer " + l.Token}}},
 		Hooks: map[string][]matcher{"PreToolUse": {{Matcher: "*", Hooks: []handler{{Type: "command",

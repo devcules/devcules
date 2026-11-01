@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
@@ -124,10 +123,23 @@ func ProviderFor(a Agent, p string) (string, error) {
 	if !terminals.ValidAgentID(p) {
 		return "", fmt.Errorf("%s: %q is not a provider id", a.ID(), p)
 	}
-	if only := a.Only(); len(only) > 0 && !slices.Contains(only, p) {
+	if only := a.Only(); len(only) > 0 && !hasPrefixOf(only, p) {
 		return "", fmt.Errorf("%s: cannot use provider %q (it only speaks to %s)", a.ID(), p, strings.Join(only, ", "))
 	}
 	return p, nil
+}
+
+// hasPrefixOf matches an entry in the Only list as a prefix of p —
+// so an adapter that says "Meta" admits meta, meta2, meta-prod. The
+// check reads the same as the API's offers() gate: the family, not
+// one literal profile id.
+func hasPrefixOf(only []string, p string) bool {
+	for _, o := range only {
+		if strings.HasPrefix(p, o) {
+			return true
+		}
+	}
+	return false
 }
 
 // Registry holds the adapters a runner offers.

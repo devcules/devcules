@@ -11,6 +11,9 @@ import {
 } from '../api';
 import TerminalView from './TerminalView';
 import { Empty } from './Empty';
+import Renameable from './Renameable';
+import { useAlive } from './pulse';
+import { renameTerminal } from '../api';
 
 const AUTO = 'auto';
 
@@ -126,33 +129,25 @@ export default function Assistant({ onSessionExpired }: { onSessionExpired: () =
           <span className="text-body opacity-70">{list.length}</span>
         </button>
         {list.map((t) => (
-          <span
+          <AssistantTab
             key={t.term}
-            className="flex items-center"
-          >
-            <button
-              type="button"
-              onClick={() => setActive(t.term)}
-              aria-pressed={active === t.term}
-              title={t.name ?? t.term}
-              data-selected={active === t.term ? 'true' : undefined}
-              className="i-row flex min-h-11 items-center gap-1.5 px-3 text-body text-muted data-[selected=true]:text-text"
-            >
-              <span aria-hidden="true" className={t.agent ? 'text-accent' : 'text-muted'}>
-                ⌭
-              </span>
-              <span className="max-w-36 truncate">{t.name ?? t.term.slice(0, 8)}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => void drop(t.term)}
-              aria-label={`Close ${t.name ?? t.term}`}
-              title={`Close ${t.name ?? t.term}`}
-              className="i-control min-h-11 min-w-9 px-1 text-body opacity-70"
-            >
-              ✕
-            </button>
-          </span>
+            t={t}
+            selected={active === t.term}
+            onSelect={() => setActive(t.term)}
+            onRename={async (next) => {
+              const ok = await renameTerminal(t.term, next);
+              if (ok === 'unauthorized') {
+                onSessionExpired();
+                return false;
+              }
+              if (ok !== true) {
+                return false;
+              }
+              refresh();
+              return true;
+            }}
+            onClose={() => void drop(t.term)}
+          />
         ))}
         <button
           type="button"
@@ -218,6 +213,57 @@ export default function Assistant({ onSessionExpired }: { onSessionExpired: () =
         </div>
       )}
     </section>
+  );
+}
+
+// AssistantTab is one live terminal in the strip: a live-dot that
+// pulses while its pane emits, a right-click-to-rename label, and a
+// close control. The label shrinks a step so a long name truncates
+// instead of shoving the strip wide.
+function AssistantTab({
+  t,
+  selected,
+  onSelect,
+  onRename,
+  onClose,
+}: {
+  t: TerminalSummary;
+  selected: boolean;
+  onSelect: () => void;
+  onRename: (next: string) => Promise<boolean>;
+  onClose: () => void;
+}) {
+  const label = t.name ?? t.term.slice(0, 8);
+  // The dot pulses only while this tab's pane is the one streaming.
+  const alive = useAlive(t.term, selected);
+  return (
+    <span className="flex items-center">
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-pressed={selected}
+        title={t.name ?? t.term}
+        data-selected={selected ? 'true' : undefined}
+        className="i-row flex min-h-11 items-center gap-1.5 px-3 text-body text-muted data-[selected=true]:text-text"
+      >
+        <span aria-hidden="true" className="i-live" data-on={alive ? 'true' : 'false'} />
+        <Renameable
+          value={label}
+          onCommit={onRename}
+          className="max-w-28 text-tab"
+          inputClassName="text-tab"
+        />
+      </button>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label={`Close ${label}`}
+        title={`Close ${label}`}
+        className="i-control min-h-11 min-w-9 px-1 text-body opacity-70"
+      >
+        ✕
+      </button>
+    </span>
   );
 }
 

@@ -7,6 +7,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import KeyStrip, { ctrlLetter, stripBytes, type StripKey } from './KeyStrip';
 import { streamURL, type Where } from '../api';
+import { bumpActivity } from './pulse';
 
 type Status = 'connecting' | 'open' | 'reconnecting' | 'offline' | 'gone';
 
@@ -97,6 +98,8 @@ export default function TerminalView({
       }
       const bytes = ev.data instanceof ArrayBuffer ? new Uint8Array(ev.data) : new Uint8Array(ev.data as ArrayBuffer);
       term.write(bytes);
+      // A frame landing means the pane is working — pulse its tab.
+      bumpActivity(id);
     };
     ws.onclose = (ev: CloseEvent) => {
       wsRef.current = null;

@@ -10,6 +10,9 @@ import {
   type Where,
 } from '../api';
 import RemoteIcon from './RemoteIcon';
+import Renameable from './Renameable';
+import { useAlive } from './pulse';
+import { renameTerminal } from '../api';
 
 // ProjectTree lists the projects, each folding open to its own
 // terminals: the sidebar shows it on desktop and the Projects tab on
@@ -117,6 +120,21 @@ export default function ProjectTree({
     refresh();
   }
 
+  // renameTerm mirrors close: a machine terminal rides its link, the
+  // runner's ride no query. True tells the row to keep the new label.
+  async function renameTerm(p: Project, t: TerminalSummary, next: string): Promise<boolean> {
+    const res = await renameTerminal(t.term, next, projectWhere(p).machine ? projectWhere(p) : undefined);
+    if (res === 'unauthorized') {
+      onSessionExpired();
+      return false;
+    }
+    if (res !== true) {
+      return false;
+    }
+    refresh();
+    return true;
+  }
+
   if (projects === null) {
     return failed ? <p className="px-3 text-body text-muted">Projects did not load.</p> : null;
   }
@@ -151,8 +169,10 @@ export default function ProjectTree({
                 <span aria-hidden="true" className={up ? 'text-text' : 'text-muted'}>
                   {p.git ? <RemoteIcon remote={p.remote} size={13} /> : '▢'}
                 </span>
-                <span className="min-w-0 flex-1 truncate">{p.name}</span>
-                <span className="text-body text-muted">{list.length}</span>
+                {/* Long project names shrink a step so the fold arrow and
+                    count keep their seats on a narrow sidebar. */}
+                <span className="min-w-0 flex-1 truncate text-tab md:text-body" title={p.name}>{p.name}</span>
+                <span className="shrink-0 text-body text-muted">{list.length}</span>
               </button>
               <button
                 type="button"
@@ -193,27 +213,15 @@ export default function ProjectTree({
                   </li>
                 )}
                 {list.map((t) => (
-                  <li key={t.term} className={`flex ${row} items-center gap-1 pl-6`}>
-                    <button
-                      type="button"
-                      onClick={() => onOpen(t.term, projectWhere(p))}
-                      aria-label={`Open terminal ${termLabel(t)} in ${p.name}`}
-                      className={`i-row flex ${row} min-w-0 flex-1 items-center gap-1.5 px-2 text-left text-body text-text`}
-                    >
-                      <span aria-hidden="true" className="text-muted">
-                        ⌨
-                      </span>
-                      <span className="truncate">{termLabel(t)}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void close(p, t)}
-                      aria-label={`Close terminal ${termLabel(t)}`}
-                      className={`${row} min-w-9 rounded-md px-2 text-body text-muted`}
-                    >
-                      ✕
-                    </button>
-                  </li>
+                  <TermRow
+                    key={t.term}
+                    t={t}
+                    p={p}
+                    row={row}
+                    onOpen={() => onOpen(t.term, projectWhere(p))}
+                    onClose={() => void close(p, t)}
+                    onRename={(next) => renameTerm(p, t, next)}
+                  />
                 ))}
               </ul>
             )}
@@ -231,6 +239,52 @@ export default function ProjectTree({
 // termLabel names a terminal: its name, else its agent, else its id.
 export function termLabel(t: TerminalSummary): string {
   return t.name ?? (t.agent ? `${t.agent} · ${t.term.slice(0, 6)}` : t.term.slice(0, 8));
+}
+
+// TermRow is one terminal under a project: an open button with the
+// live-dot, the right-click-to-rename label, and the close control.
+// The label shrinks a step like the project's so a long name folds
+// instead of pushing the row (or the close button) off the sidebar.
+function TermRow({
+  t,
+  p,
+  row,
+  onOpen,
+  onClose,
+  onRename,
+}: {
+  t: TerminalSummary;
+  p: Project;
+  row: string;
+  onOpen: () => void;
+  onClose: () => void;
+  onRename: (next: string) => Promise<boolean>;
+}) {
+  const label = termLabel(t);
+  // The stream lives on the project tab, not here: the dot rests until
+  // this row's pane is the open one (and therefore streaming).
+  const alive = useAlive(t.term, false);
+  return (
+    <li className={`flex ${row} items-center gap-1 pl-6`}>
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={`Open terminal ${label} in ${p.name}`}
+        className={`i-row flex ${row} min-w-0 flex-1 items-center gap-1.5 px-2 text-left text-body text-text`}
+      >
+        <span aria-hidden="true" className="i-live shrink-0" data-on={alive ? 'true' : 'false'} />
+        <Renameable value={label} onCommit={onRename} className="flex-1 text-tab md:text-body" inputClassName="text-tab md:text-body" />
+      </button>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label={`Close terminal ${label}`}
+        className={`${row} min-w-9 shrink-0 rounded-md px-2 text-body text-muted`}
+      >
+        ✕
+      </button>
+    </li>
+  );
 }
 
 const foldKey = 'devcules.projects.folded';

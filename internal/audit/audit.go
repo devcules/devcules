@@ -31,6 +31,7 @@ const (
 	PasskeyRemove   = "passkey.remove"
 	TerminalOpen    = "terminal.open"
 	TerminalClose   = "terminal.close"
+	TerminalRename  = "terminal.rename"
 	RedactPolicy    = "redact.policy"
 	LaunchMint      = "launch.mint"
 	LaunchRevoke    = "launch.revoke"

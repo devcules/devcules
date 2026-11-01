@@ -46,6 +46,7 @@ func Serve(ctx context.Context, d *dial.Client, m *Manager, agents Launcher) {
 	d.On(terminals.TypeResize, h.resize)
 	d.On(terminals.TypeDetach, h.async(h.detach))
 	d.On(terminals.TypeClose, h.async(h.close))
+	d.On(terminals.TypeRename, h.async(h.rename))
 	d.On(terminals.TypeList, h.async(h.list))
 	d.On(terminals.TypeAgents, h.async(h.agentList))
 	d.On(terminals.TypeBrowse, h.async(h.browse))
@@ -262,6 +263,22 @@ func (h *linkRunner) close(ctx context.Context, req link.Frame) {
 		return
 	}
 	if err := h.m.Close(ctx, c.Term); err != nil {
+		h.reply(req, false, reasonFor(err))
+		return
+	}
+	h.reply(req, true, "")
+}
+
+func (h *linkRunner) rename(ctx context.Context, req link.Frame) {
+	var rn terminals.Rename
+	if !h.decode(req, &rn) {
+		return
+	}
+	if err := terminals.CheckRename(rn); err != nil {
+		h.reply(req, false, "invalid request")
+		return
+	}
+	if err := h.m.Rename(ctx, rn.Term, rn.Name); err != nil {
 		h.reply(req, false, reasonFor(err))
 		return
 	}

@@ -20,6 +20,9 @@ const (
 	TypeResize = "term.resize"
 	TypeDetach = "term.detach"
 	TypeClose  = "term.close"
+	// TypeRename re-labels a terminal the owner keeps ("api server"): it
+	// updates the name option the list reads, nothing about the session.
+	TypeRename = "term.rename"
 	TypeList   = "term.list"
 	TypeAgents = "term.agents"
 	// TypeBrowse asks for the subdirectories of one directory, for the
@@ -231,6 +234,13 @@ type Close struct {
 	Term string `json:"term"`
 }
 
+// Rename re-labelsTerm: Name obeys ValidName, so the list keeps one
+// clean label and a bad one never reaches tmux.
+type Rename struct {
+	Term string `json:"term"`
+	Name string `json:"name"`
+}
+
 // Failure answers a request the runner refused. Reason is a fixed
 // string chosen at the call site, never command output: stderr can
 // hold paths.
@@ -404,6 +414,18 @@ func CheckStream(stream string) error {
 func CheckClose(c Close) error {
 	if !ValidID(c.Term) {
 		return fmt.Errorf("term: want 16 hex chars")
+	}
+	return nil
+}
+
+// CheckRename validates term.rename: the target id is one of ours
+// and the label passes the same rule as an open-time name.
+func CheckRename(r Rename) error {
+	if !ValidID(r.Term) {
+		return fmt.Errorf("term: want 16 hex chars")
+	}
+	if !ValidName(r.Name) {
+		return fmt.Errorf("name: 1-40 chars, no control characters")
 	}
 	return nil
 }

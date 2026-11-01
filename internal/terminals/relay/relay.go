@@ -391,6 +391,25 @@ func (r *Relay) Delete(ctx context.Context, runner, id string) *Error {
 	return nil
 }
 
+// Rename re-labels one terminal on the runner. A bad id or label is
+// 400; anything else rides the round trip like Delete.
+func (r *Relay) Rename(ctx context.Context, runner, id, termName string) *Error {
+	if !terminals.ValidID(id) {
+		return &Error{Status: 400, Msg: "terminal: want 16 hex chars"}
+	}
+	if !terminals.ValidName(termName) {
+		return &Error{Status: 400, Msg: "name: 1-40 chars, no control characters"}
+	}
+	name, aerr := r.PickRunner(runner)
+	if aerr != nil {
+		return aerr
+	}
+	if err := r.ok(ctx, name, terminals.TypeRename, terminals.Rename{Term: id, Name: termName}); err != nil {
+		return roundTripError(err)
+	}
+	return nil
+}
+
 // roundTripError maps runner replies and timeouts to API errors: a
 // silent runner is 504, a refusal carries its fixed reason.
 func roundTripError(err error) *Error {

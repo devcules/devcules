@@ -372,6 +372,23 @@ func (m *Manager) hasSession(ctx context.Context, id string) bool {
 	return err == nil
 }
 
+// Rename re-labels a live session: the name option the list reads,
+// on the session itself. Renaming a missing session is an error — the
+// owner renamed something it's looking at, so silence would mislead.
+func (m *Manager) Rename(ctx context.Context, id, name string) error {
+	if !terminals.ValidID(id) {
+		return fmt.Errorf("term: want 16 hex chars")
+	}
+	if !terminals.ValidName(name) {
+		return fmt.Errorf("name: 1-40 chars, no control characters")
+	}
+	if !m.hasSession(ctx, id) {
+		return fmt.Errorf("unknown terminal")
+	}
+	_, err := m.run(ctx, "set-option", "-t", terminals.SessionName(id), nameOption, name)
+	return err
+}
+
 // Attach starts an attach client for one browser stream in a PTY sized
 // cols×rows. Each browser gets its own client, so phone and desktop
 // share one terminal.

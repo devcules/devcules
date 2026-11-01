@@ -36,6 +36,44 @@
     color: var(--c-text);
     background-color: var(--c-surface);
   }
+
+  /* The "alive" mark on a terminal / assistant tab: a small accent
+     dot that breathes while the pane is emitting output. It replaces
+     the placeholder glyphs, so it reads the same in every theme. */
+  .i-live {
+    display: inline-block;
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 9999px;
+    background-color: var(--c-accent);
+    animation: i-live-pulse 1.15s ease-in-out infinite;
+    box-shadow: 0 0 6px color-mix(in srgb, var(--c-accent) 70%, transparent);
+  }
+  @keyframes i-live-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.35; transform: scale(0.72); }
+  }
+  /* A stopped (or never-started) pane shows the mark at rest. */
+  .i-live[data-on="false"] {
+    animation: none;
+    opacity: 0.25;
+    box-shadow: none;
+  }
+
+  /* Inline rename: the label becomes an input in place, sized like
+     the label it replaced so the row doesn't jump. */
+  .i-rename {
+    @apply min-w-0 flex-1 rounded-sm bg-base px-1 text-text;
+  }
+  .i-rename:focus-visible {
+    outline-offset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .i-live {
+    animation: none;
+  }
 }
 
 /* Base only: every colour, size and space comes from the tokens. The

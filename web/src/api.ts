@@ -390,6 +390,30 @@ export async function closeTerminal(id: string, where?: Where): Promise<true | T
   return 'unreachable';
 }
 
+// renameTerminal re-labels a terminal the owner keeps. 400 means the
+// label failed validation server-side (so the client shows it); the
+// list refresh that follows is what lands the change.
+export async function renameTerminal(id: string, name: string, where?: Where): Promise<true | TerminalError> {
+  const res = await terminalFetch(`/api/terminals/${id}${whereQuery(where)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  if (typeof res === 'string') {
+    return res;
+  }
+  if (res.status === 204) {
+    return true;
+  }
+  if (res.status === 403 || res.status === 404) {
+    return 'unauthorized';
+  }
+  if (res.status === 503) {
+    return 'offline';
+  }
+  return 'unreachable';
+}
+
 // Agents (M3.3): the coding agent CLIs a runner offers, started in a
 // terminal of their own with a fresh launch token.
 export type AgentInfo = {

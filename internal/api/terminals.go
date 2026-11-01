@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/coder/websocket"
 
@@ -80,8 +81,23 @@ func terminalOne(relay *relay.Relay, publicURL string, rec auditor) http.Handler
 			streamTerminal(relay, w, r, id)
 			return
 		}
+		if r.Method == http.MethodPatch {
+			csrf(publicURL, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				name, ok := renameName(w, r)
+				if !ok {
+					return
+				}
+				if rerr := relay.Rename(r.Context(), linkTarget(r), id, name); rerr != nil {
+					writeAuthError(w, rerr.Status, rerr.Msg)
+					return
+				}
+				rec.record(r, audit.TerminalRename, id, map[string]string{"name": name})
+				w.WriteHeader(http.StatusNoContent)
+			})).ServeHTTP(w, r)
+			return
+		}
 		if r.Method != http.MethodDelete {
-			w.Header().Set("Allow", "DELETE")
+			w.Header().Set("Allow", "DELETE, PATCH")
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
@@ -94,6 +110,24 @@ func terminalOne(relay *relay.Relay, publicURL string, rec auditor) http.Handler
 			w.WriteHeader(http.StatusNoContent)
 		})).ServeHTTP(w, r)
 	})
+}
+
+// renameName reads the {"name"} body of a PATCH. Unlike openName an
+// empty label is a rejection, not an omission: you sent a rename.
+func renameName(w http.ResponseWriter, r *http.Request) (string, bool) {
+	var body struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&body); err != nil {
+		writeAuthError(w, http.StatusBadRequest, `body must be {"name": "<label>"}`)
+		return "", false
+	}
+	body.Name = strings.TrimSpace(body.Name)
+	if !terminals.ValidName(body.Name) {
+		writeAuthError(w, http.StatusBadRequest, "name: 1-40 characters, no control characters")
+		return "", false
+	}
+	return body.Name, true
 }
 
 // terminalPath splits /api/terminals/{id} from

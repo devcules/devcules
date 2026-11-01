@@ -234,8 +234,8 @@ type Close struct {
 	Term string `json:"term"`
 }
 
-// Rename re-labelsTerm: Name obeys ValidName, so the list keeps one
-// clean label and a bad one never reaches tmux.
+// Rename re-labels a terminal: Name obeys ValidName, so the list
+// keeps one clean label and a bad one never reaches tmux.
 type Rename struct {
 	Term string `json:"term"`
 	Name string `json:"name"`

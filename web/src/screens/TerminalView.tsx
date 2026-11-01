@@ -7,7 +7,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import KeyStrip, { ctrlLetter, stripBytes, type StripKey } from './KeyStrip';
 import { streamURL, type Where } from '../api';
-import { bumpActivity } from './pulse';
+import { bumpActivity, clearActivity } from './pulse';
 
 type Status = 'connecting' | 'open' | 'reconnecting' | 'offline' | 'gone';
 
@@ -203,6 +203,9 @@ export default function TerminalView({
       term.dispose();
       termRef.current = null;
       fitRef.current = null;
+      // A pane that unmounts is no longer streaming here; drop its
+      // pulse so a hidden tab never holds a stale glow.
+      clearActivity(id);
     };
   }, [connect]);
 

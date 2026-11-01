@@ -16,6 +16,7 @@ import (
 	"github.com/devcules/devcules/internal/auth"
 	"github.com/devcules/devcules/internal/bus"
 	"github.com/devcules/devcules/internal/config"
+	"github.com/devcules/devcules/internal/desk"
 	"github.com/devcules/devcules/internal/launch"
 	"github.com/devcules/devcules/internal/link/hub"
 	"github.com/devcules/devcules/internal/machines"
@@ -177,8 +178,11 @@ func runServe(cfg config.Config, stdout, stderr io.Writer, ln net.Listener, sigs
 	machinesRelay := machrelay.New(h)
 	machinesRelay.Run()
 	assistantReg := setupAssistants(cfg, profiles, v, llm, mcpServer, launches, approvalSvc, redactor, redactSettings, auditLog, log)
+	// Desk: weather/news/tickets/meetings proxied from vault-sealed
+	// sources over an SSRF-guarded client; feeds get a longer budget.
+	deskSvc := desk.NewService(v, desk.NewHardenedClient(12*time.Second), desk.NewHardenedClient(30*time.Second))
 	srv := &http.Server{
-		Handler:           api.Handler(api.Options{Store: s, Auth: authSvc, Web: web.Embedded(), PublicURL: cfg.PublicURL, Link: h, Terminals: terms, Redact: redactor, RedactSettings: redactSettings, Router: llm, Launches: launches, AuditLog: auditLog, TraceStore: traces, MCP: mcpServer, ApprovalQueue: approvalSvc, Push: pushSvc, Enrol: machines.NewIssuer(s), MachineStore: machineStore, Machines: machinesRelay, Projects: s.Projects(), ProviderKeys: v, Profiles: profiles, Assistants: assistantReg}),
+		Handler:           api.Handler(api.Options{Store: s, Auth: authSvc, Web: web.Embedded(), PublicURL: cfg.PublicURL, Link: h, Terminals: terms, Redact: redactor, RedactSettings: redactSettings, Router: llm, Launches: launches, AuditLog: auditLog, TraceStore: traces, MCP: mcpServer, ApprovalQueue: approvalSvc, Push: pushSvc, Enrol: machines.NewIssuer(s), MachineStore: machineStore, Machines: machinesRelay, Projects: s.Projects(), ProviderKeys: v, Profiles: profiles, Assistants: assistantReg, Vault: v, Desk: deskSvc}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,

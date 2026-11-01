@@ -65,6 +65,12 @@ const (
 	ProviderEdit    = "provider.edit"
 	ProviderRemove  = "provider.remove"
 	ProviderDefault = "provider.default"
+	// Desk: source and layout writes (reads are 30s polls — not audited).
+	DeskPrefs   = "desk.prefs"
+	DeskSources = "desk.sources"
+	// Secrets: a name put or deleted in the vault (never the value).
+	SecretPut    = "secret.put"
+	SecretDelete = "secret.delete"
 	maxField        = 200
 	maxDetailItems  = 16
 )

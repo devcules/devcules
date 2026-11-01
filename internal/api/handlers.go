@@ -15,6 +15,7 @@ import (
 	"github.com/devcules/devcules/internal/assistants"
 	"github.com/devcules/devcules/internal/audit"
 	"github.com/devcules/devcules/internal/auth"
+	"github.com/devcules/devcules/internal/desk"
 	"github.com/devcules/devcules/internal/hostinfo"
 	"github.com/devcules/devcules/internal/launch"
 	"github.com/devcules/devcules/internal/link/hub"
@@ -27,6 +28,7 @@ import (
 	"github.com/devcules/devcules/internal/store"
 	"github.com/devcules/devcules/internal/terminals/relay"
 	"github.com/devcules/devcules/internal/trace"
+	"github.com/devcules/devcules/internal/vault"
 )
 
 // Options wires the mux. Store serves readiness, Auth serves the auth
@@ -63,6 +65,12 @@ type Options struct {
 	// MCP serves POST /mcp, the MCP server agents reach with their
 	// launch token (internal/mcp). Nil answers it with 503.
 	MCP http.Handler
+	// Vault seals desk sources and the Secrets screen. Nil answers
+	// those routes with 503.
+	Vault *vault.Vault
+	// Desk proxies weather/news/tickets/email for the Desk tab from
+	// sources stored in the vault. Nil answers /api/desk/ with 503.
+	Desk *desk.Service
 	// ApprovalQueue serves the approval queue and its settings, and the
 	// hook side at /hook/approvals (launch tokens). Push serves Web
 	// Push subscriptions. Nil answers their routes with 503.
@@ -233,6 +241,20 @@ func Handler(o Options) http.Handler {
 	// in ~200ms, cheap on a 5s tick, and every value the OS won't
 	// say is absent from the JSON (never a guess).
 	mux.Handle("/api/host-info", requireSession(o.Auth, hostInfo()))
+	// Desk: prefs and sources are session-guarded JSON the vault
+	// seals; the data routes proxy weather/news/tickets/email from
+	// the stored sources, so API keys never reach the browser.
+	if o.Desk != nil {
+		registerDesk(mux, o, rec)
+	} else {
+		mux.HandleFunc("/api/desk/", func(w http.ResponseWriter, r *http.Request) {
+			writeAuthError(w, http.StatusServiceUnavailable, "desk not configured")
+		})
+	}
+	// Secrets: name-only management of the vault (never reads a value
+	// back). The frontend's Secrets screen drives these.
+	mux.Handle("/api/secrets", csrf(o.PublicURL, requireSession(o.Auth, secretsListPut(o.Vault, rec))))
+	mux.Handle("/api/secrets/", csrf(o.PublicURL, requireSession(o.Auth, secretsGetDelete(o.Vault, rec))))
 	mux.Handle("/", root(o.Web, o.Auth))
 	return secureHeaders(mux)
 }

@@ -162,6 +162,9 @@ func (s *sqliteStore) Projects() store.ProjectsRepo { return projectsRepo{db: s.
 // Providers returns the provider profile repo.
 func (s *sqliteStore) Providers() store.ProvidersRepo { return providersRepo{db: s.db} }
 
+// Calendar returns the desk calendar repo.
+func (s *sqliteStore) Calendar() store.CalendarRepo { return calendarRepo{db: s.db} }
+
 // Audit returns audit's append-only repo.
 func (s *sqliteStore) Audit() store.AuditRepo {
 	return auditRepo{db: s.db}

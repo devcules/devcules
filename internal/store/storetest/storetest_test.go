@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"maps"
 	"os"
 	"os/exec"
 	"slices"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -37,6 +39,7 @@ type memDB struct {
 	enrol     map[string]store.EnrolCode
 	projects  map[string]store.Project
 	providers map[string]store.ProviderProfile
+	calendar  map[string]store.CalendarEvent
 	closed    map[*memStore]bool
 }
 
@@ -62,6 +65,7 @@ func newMemDB() *memDB {
 		enrol:     map[string]store.EnrolCode{},
 		projects:  map[string]store.Project{},
 		providers: map[string]store.ProviderProfile{},
+		calendar:  map[string]store.CalendarEvent{},
 		closed:    map[*memStore]bool{},
 	}
 }
@@ -106,6 +110,63 @@ func (s *memStore) EnrolCodes() store.EnrolCodesRepo { return memEnrol{memLaunch
 func (s *memStore) Projects() store.ProjectsRepo     { return memProjects{memLaunches{db: s.db, s: s}} }
 
 func (s *memStore) Providers() store.ProvidersRepo { return memProviders{memLaunches{db: s.db, s: s}} }
+
+func (s *memStore) Calendar() store.CalendarRepo { return memCalendar{memLaunches{db: s.db, s: s}} }
+
+type memCalendar struct{ memLaunches }
+
+func (r memCalendar) List(ctx context.Context, from, to time.Time) ([]*store.CalendarEvent, error) {
+	if err := r.lock(ctx); err != nil {
+		return nil, err
+	}
+	defer r.db.mu.Unlock()
+	var out []*store.CalendarEvent
+	for _, e := range r.db.calendar {
+		if !e.End.Before(from) && !e.Start.After(to) {
+			cp := e
+			out = append(out, &cp)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Start.Before(out[j].Start) })
+	return out, nil
+}
+
+func (r memCalendar) Get(ctx context.Context, id string) (*store.CalendarEvent, error) {
+	if err := r.lock(ctx); err != nil {
+		return nil, err
+	}
+	defer r.db.mu.Unlock()
+	e, ok := r.db.calendar[id]
+	if !ok {
+		return nil, store.ErrNotFound
+	}
+	cp := e
+	return &cp, nil
+}
+
+func (r memCalendar) Upsert(ctx context.Context, e *store.CalendarEvent) error {
+	if e.ID == "" || e.Title == "" {
+		return errors.New("store: calendar event id/title must not be empty")
+	}
+	if err := r.lock(ctx); err != nil {
+		return err
+	}
+	defer r.db.mu.Unlock()
+	r.db.calendar[e.ID] = *e
+	return nil
+}
+
+func (r memCalendar) Delete(ctx context.Context, id string) error {
+	if err := r.lock(ctx); err != nil {
+		return err
+	}
+	defer r.db.mu.Unlock()
+	if _, ok := r.db.calendar[id]; !ok {
+		return store.ErrNotFound
+	}
+	delete(r.db.calendar, id)
+	return nil
+}
 
 type memProjects struct{ memLaunches }
 

@@ -77,6 +77,39 @@ type Store interface {
 	// push's repo: only internal/push and the store backends may use
 	// it.
 	PushSubscriptions() PushSubscriptionsRepo
+	// Calendar returns the desk calendar repo: the user's own plans
+	// (click-to-create, quick-add, recurring), merged at serve time with
+	// the read-only ICS feeds.
+	Calendar() CalendarRepo
+}
+
+// CalendarEvent is one desk plan. Recurrence (RRule) is expanded per
+// requested range at read time, so a recurring event is stored once.
+type CalendarEvent struct {
+	ID          string    `json:"id"`
+	Title       string    `json:"title"`
+	Start       time.Time `json:"start"`
+	End         time.Time `json:"end"`
+	AllDay      bool      `json:"all_day"`
+	Location    string    `json:"location,omitempty"`
+	URL         string    `json:"url,omitempty"`
+	Notes       string    `json:"notes,omitempty"`
+	ReminderMin int       `json:"reminder_min"`
+	RRule       string    `json:"rrule,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// CalendarRepo stores desk plans.
+type CalendarRepo interface {
+	// List answers the plans (unexpanded — recurrence expands at read).
+	List(ctx context.Context, from, to time.Time) ([]*CalendarEvent, error)
+	// Get answers one plan, or ErrNotFound.
+	Get(ctx context.Context, id string) (*CalendarEvent, error)
+	// Upsert inserts or replaces a plan by id.
+	Upsert(ctx context.Context, e *CalendarEvent) error
+	// Delete removes a plan, or errors ErrNotFound.
+	Delete(ctx context.Context, id string) error
 }
 
 // ErrConflict reports a write that lost a race: an audit append whose

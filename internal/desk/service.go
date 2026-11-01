@@ -299,8 +299,19 @@ func (s *Service) Tickets(ctx context.Context, refresh bool) (json.RawMessage, e
 }
 
 // Meetings merges every stored ICS feed over the next 7 days, each
-// meeting stamped with its feed label so the tile can say "Work".
+// meeting stamped with its feed label so the tile can say "Work".  The
+// calendar grid reads FeedMeetings over a wider window instead: this
+// narrow list is the "next up" telescope, the grid wants the horizon.
 func (s *Service) Meetings(ctx context.Context, refresh bool) (json.RawMessage, error) {
+	from := time.Now().Add(-2 * time.Hour)
+	to := time.Now().Add(7 * 24 * time.Hour)
+	return s.FeedMeetings(ctx, from, to, refresh, 25)
+}
+
+// FeedMeetings answers the ICS feeds expanded over [from, to], sorted,
+// capped at limit (0 = no cap). Read-only sources; a feed that fails is
+// skipped unless every feed failed.
+func (s *Service) FeedMeetings(ctx context.Context, from, to time.Time, refresh bool, limit int) (json.RawMessage, error) {
 	src, err := s.readSources(ctx)
 	if err != nil {
 		return nil, err
@@ -308,10 +319,10 @@ func (s *Service) Meetings(ctx context.Context, refresh bool) (json.RawMessage, 
 	if len(src.ICSFeeds) == 0 {
 		return json.RawMessage(`{"configured":false,"items":[]}`), nil
 	}
-	entry := s.meetC.Get(ctx, "m", refresh, func(ctx context.Context) (json.RawMessage, error) {
-		now := time.Now()
-		from := now.Add(-2 * time.Hour)
-		to := now.Add(7 * 24 * time.Hour)
+	// The cache key carries the window, so a week scroll and a month
+	// scroll don't trample each other.
+	key := fmt.Sprintf("m/%d/%d", from.Unix(), to.Unix())
+	entry := s.meetC.Get(ctx, key, refresh, func(ctx context.Context) (json.RawMessage, error) {
 		var all []Meeting
 		var firstErr error
 		for _, f := range src.ICSFeeds {
@@ -331,8 +342,8 @@ func (s *Service) Meetings(ctx context.Context, refresh bool) (json.RawMessage, 
 			return nil, firstErr
 		}
 		sort.Slice(all, func(i, j int) bool { return all[i].Start.Before(all[j].Start) })
-		if len(all) > 25 {
-			all = all[:25]
+		if limit > 0 && len(all) > limit {
+			all = all[:limit]
 		}
 		return json.Marshal(map[string]any{"configured": true, "items": all})
 	})

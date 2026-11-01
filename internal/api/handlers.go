@@ -71,6 +71,10 @@ type Options struct {
 	// Desk proxies weather/news/tickets/email for the Desk tab from
 	// sources stored in the vault. Nil answers /api/desk/ with 503.
 	Desk *desk.Service
+	// DeskCalendar serves the user's own plans merged with the feeds:
+	// the grid's create/update/delete/quick-add and the ICS export.
+	// Nil answers /api/calendar/ with 503.
+	DeskCalendar *desk.CalendarService
 	// ApprovalQueue serves the approval queue and its settings, and the
 	// hook side at /hook/approvals (launch tokens). Push serves Web
 	// Push subscriptions. Nil answers their routes with 503.
@@ -249,6 +253,13 @@ func Handler(o Options) http.Handler {
 	} else {
 		mux.HandleFunc("/api/desk/", func(w http.ResponseWriter, r *http.Request) {
 			writeAuthError(w, http.StatusServiceUnavailable, "desk not configured")
+		})
+	}
+	if o.DeskCalendar != nil {
+		registerCalendar(mux, o, rec)
+	} else {
+		mux.HandleFunc("/api/calendar/", func(w http.ResponseWriter, r *http.Request) {
+			writeAuthError(w, http.StatusServiceUnavailable, "calendar not configured")
 		})
 	}
 	// Secrets: name-only management of the vault (never reads a value

@@ -10,6 +10,9 @@ import { useEffect, useState } from 'react';
 export function useMobile(): boolean {
   const [mobile, setMobile] = useState(readMobile);
   useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return undefined; // test/SSR DOM: stays desktop, nothing to attach
+    }
     const mq = window.matchMedia('(pointer: coarse)');
     const update = () => setMobile(readMobile());
     update();
@@ -26,7 +29,10 @@ export function useMobile(): boolean {
 }
 
 function readMobile(): boolean {
-  if (typeof window === 'undefined') {
+  // jsdom and SSR lack matchMedia / visualViewport; treat them as
+  // desktop (the strip hides, no scroll lock) so tests and first paint
+  // never crash on the phone path.
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
     return false;
   }
   const coarse = window.matchMedia('(pointer: coarse)').matches;
@@ -60,8 +66,11 @@ export function useMobileBodyClass(mobile: boolean): void {
 // lands at once so the prompt lifts before the first keystroke; grow
 // (bar/keys retreating) debounces 150 ms against URL-bar flicker.
 export function useVisibleHeight(): number {
-  const [height, setHeight] = useState(() => window.innerHeight);
+  const [height, setHeight] = useState(() => (typeof window === 'undefined' ? 800 : window.innerHeight));
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
     const vv = window.visualViewport;
     if (!vv) {
       const onResize = () => setHeight(window.innerHeight);

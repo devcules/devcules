@@ -7,6 +7,7 @@ import ProjectTree from '../screens/ProjectTree';
 import Settings from '../screens/Settings';
 import Activity from '../screens/Activity';
 import Assistant from '../screens/Assistant';
+import { useMobile, useVisibleHeight } from '../screens/useMobile';
 import ThemePicker from '../theme/ThemePicker';
 import StatusBar from './StatusBar';
 import UserMenu from './UserMenu';
@@ -22,8 +23,9 @@ type Tab = 'home' | 'projects' | 'terminals' | 'machines' | 'assistant' | 'activ
 
 const tabs: Array<{ id: Tab; label: string }> = [
   { id: 'home', label: 'Home' },
-  { id: 'machines', label: 'Machines' },
+  { id: 'projects', label: 'Projects' },
   { id: 'assistant', label: 'Assistant' },
+  { id: 'machines', label: 'Machines' },
   { id: 'activity', label: 'Activity' },
   { id: 'settings', label: 'Settings' },
 ];
@@ -40,6 +42,16 @@ export default function Shell({
   const [tab, setTab] = useState<Tab>('home');
   const [pending, setPending] = useState<PendingState>('loading');
   const [focus, setFocus] = useState<string | null>(takeApprovalLink);
+  // Mobile-first run mode: while a terminal pane is focused the shell
+  // chrome (header, sidebar, footer, bottom tabs) folds away and the
+  // terminal takes the visible viewport. Kaithos calls this fs; the ☰
+  // on the strip or the page's own back step drops back out. The pane
+  // column is sized to the *visible* height so an open OS keyboard
+  // pushes content instead of covering it.
+  const [termFs, setTermFs] = useState(false);
+  const mobile = useMobile();
+  const visH = useVisibleHeight();
+  const fs = mobile && termFs;
   // The sidebar's project tree asks the Projects tab to show things;
   // treeReload tells the tree the list changed.
   const [intent, setIntent] = useState<ProjectIntent | undefined>(undefined);
@@ -97,6 +109,71 @@ export default function Shell({
 
   const waiting = Array.isArray(pending) ? pending.length : 0;
 
+  if (fs) {
+    // Mobile fullscreen terminal: the top/side chrome folds and the
+    // pane column sizes to the *visible* height so an open OS keyboard
+    // shrinks content instead of covering it (visualViewport). The
+    // bottom tab bar STAYS on screen — it's how you leave the terminal
+    // for another screen without first exiting — and it sits above the
+    // safe area so a home-indicator phone keeps the taps reachable.
+    const keyboardUp = window.innerHeight - visH > 120;
+    return (
+      <div
+        className="flex flex-col bg-base text-text"
+        style={{
+          height: visH,
+          paddingTop: 'env(safe-area-inset-top)',
+          boxSizing: 'border-box',
+        }}
+      >
+        <div className="flex min-h-0 flex-1 flex-col">
+          <Assistant
+            onSessionExpired={onSessionExpired}
+            fs
+            onExitFs={() => setTermFs(false)}
+            onEnterFs={() => setTermFs(true)}
+          />
+        </div>
+        {/* Static bottom bar, same one as normal mode: the user can hop
+            to Home/Projects/etc. straight out of the terminal. Exiting
+            fs happens on pick. No bottom safe-area pad while the OS
+            keyboard is up — the keys cover that zone already. */}
+        <nav
+          aria-label="Tabs"
+          className="shrink-0 border-t border-muted bg-surface"
+          style={{ paddingBottom: keyboardUp ? 0 : 'env(safe-area-inset-bottom)' }}
+        >
+          <ul className="flex">
+            {tabs.map((t) => (
+              <li key={t.id} className="min-w-0 flex-1">
+                <button
+                  type="button"
+                  aria-current={tab === t.id ? 'page' : undefined}
+                  onClick={() => {
+                    setTermFs(false);
+                    setTab(t.id);
+                  }}
+                  className={`flex min-h-11 min-w-0 w-full flex-1 flex-col items-center justify-center px-0.5 text-tab transition-colors duration-150 ${
+                    tab === t.id ? 'text-accent font-semibold' : 'text-muted'
+                  }`}
+                >
+                  <span className="max-w-full truncate">
+                    {t.label}
+                    {t.id === 'home' && <Badge count={waiting} />}
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className={`mt-1 h-1 w-5 rounded-full ${tab === t.id ? 'bg-accent' : ''}`}
+                  />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-dvh flex-col bg-base text-text">
       {/* Top bar: the brand and, on the right, the theme drop-down.
@@ -152,7 +229,13 @@ export default function Shell({
           <Projects intent={intent} onChanged={() => setTreeReload((n) => n + 1)} onSessionExpired={onSessionExpired} />
         )}
         {tab === 'machines' && <Machines onSessionExpired={onSessionExpired} />}
-        {tab === 'assistant' && <Assistant onSessionExpired={onSessionExpired} />}
+        {tab === 'assistant' && (
+          <Assistant
+            onSessionExpired={onSessionExpired}
+            onEnterFs={mobile ? () => setTermFs(true) : undefined}
+            onExitFs={() => setTermFs(false)}
+          />
+        )}
         {tab === 'activity' && <Activity onSessionExpired={onSessionExpired} />}
         {tab === 'settings' && (
           <Settings username={username} onSignedOut={onSignedOut} onSessionExpired={onSessionExpired} />

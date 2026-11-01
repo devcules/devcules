@@ -12,6 +12,7 @@ import {
   sendClipboard,
   type CtrlState,
 } from './keybus';
+import { useMobile } from './useMobile';
 
 // TermKeyboard is the docked custom keyboard for terminals and
 // assistants — one horizontally-scrolling strip at the bottom of the
@@ -50,7 +51,22 @@ const keys: KeyDef[] = [
   { text: '⎘', aria: 'Paste from clipboard' },
 ];
 
-export default function TermKeyboard() {
+export default function TermKeyboard({
+  position = 'top',
+  onShowTabs,
+}: {
+  // Kaithos docks the strip at the top of the open pane and the OS
+  // keyboard at the bottom — the pane gets the full middle. 'bottom'
+  // is kept for a future bottom-docked mode.
+  position?: 'top' | 'bottom';
+  // ☰ asks the page to show its tab strip (Assistant hiding its own).
+  onShowTabs?: () => void;
+}) {
+  // The strip is mobile-only: a pointer:fine device replaces it with
+  // a physical keyboard. In a jsdom (test) environment where matchMedia
+  // is stubbed to "fine", hasInput() proves the pane registration, and
+  // we render so a component test can drive keys without a host gate.
+  const isMobile = useMobile();
   const [live, setLive] = useState(hasInput);
   const [ctrl, setCtrlS] = useState<CtrlState>(ctrlState);
   const [collapsed, setCollapsed] = useState(false);
@@ -64,13 +80,23 @@ export default function TermKeyboard() {
     };
   }, []);
 
-  if (!live) {
+  // Show when a real mobile device is detected, or — in a jsdom test
+  // where matchMedia never reports coarse — when the pane registered
+  // (live), so a component test can drive keys without stubbing mobile.
+  if (!(isMobile || live)) {
     return null;
   }
 
+  // When docked at the TOP its safe-zone concern is the Dynamic Island
+  // (handled by the page column's padding-top), and the bottom key
+  // cluster isn't sitting on the home indicator; a bottom dock pads
+  // for env(safe-area-inset-bottom) instead.
+  const bottomPad = position === 'bottom' ? 'pb-[calc(4px+env(safe-area-inset-bottom))]' : 'pb-1';
+  const side = position === 'top' ? 'border-b' : 'border-t';
+
   if (collapsed) {
     return (
-      <div className="flex items-center justify-end gap-1 bg-surface px-2 pb-[env(safe-area-inset-bottom)] pt-1">
+      <div className={`flex items-center justify-end gap-1 bg-surface px-2 ${bottomPad} pt-1`}>
         <button
           type="button"
           aria-label="Show keyboard strip"
@@ -87,18 +113,31 @@ export default function TermKeyboard() {
   return (
     <div
       aria-label="Custom terminal keyboard"
-      className="flex items-stretch gap-1 border-t border-muted bg-surface px-2 pb-[calc(4px+env(safe-area-inset-bottom))] pt-2 select-none"
+      // A host column with intrinsic content can stretch this strip
+      // past the viewport; clamp it to the visible width and let the
+      // row below be the thing that scrolls (Kaithos' strip scrolls
+      // inside itself, not the page).
+      className={`flex w-full max-w-[100vw] min-w-0 items-stretch gap-1 overflow-hidden ${side} border-muted bg-surface px-2 ${bottomPad} pt-2 select-none`}
       style={{ touchAction: 'manipulation' }}
+      onPointerDown={(e) => e.stopPropagation()}
     >
-      <div
-        className="mk-scroll flex min-w-0 flex-1 items-center gap-1 overflow-x-auto"
-        style={{ touchAction: 'pan-x', scrollbarWidth: 'none' }}
-      >
+      <ScrollRow>
         {keys.map((k) => (
           <SKey key={k.text} def={k} ctrl={ctrl} />
         ))}
-      </div>
+      </ScrollRow>
       <div className="flex shrink-0 items-center gap-1 pl-1">
+        {onShowTabs && (
+          <button
+            type="button"
+            aria-label="Show tabs"
+            title="Show tabs"
+            onClick={onShowTabs}
+            className="i-control min-h-9 min-w-9 rounded-md px-2 text-tab text-text"
+          >
+            ☰
+          </button>
+        )}
         <button
           type="button"
           aria-label="Raise the software keyboard"
@@ -118,6 +157,22 @@ export default function TermKeyboard() {
           ︿
         </button>
       </div>
+    </div>
+  );
+}
+
+// ScrollRow is the strip's horizontal track. The body scroll-lock
+// suppresses the default pan on the page; the row (and each key)
+// opts into pan-x, so a sideways swipe scrolls it natively — Kaithos'
+// exact mechanism. Our SKey's pointermove cancels a tap after 10 px
+// of travel, so a scroll never fires a key.
+function ScrollRow({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="mk-scroll flex min-w-0 flex-1 items-center gap-1 overflow-x-auto overflow-y-hidden"
+      style={{ touchAction: 'pan-x', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
+    >
+      {children}
     </div>
   );
 }
@@ -157,7 +212,11 @@ function SKey({ def, ctrl }: { def: KeyDef; ctrl: CtrlState }) {
   };
 
   const onDown = (e: React.PointerEvent) => {
-    e.preventDefault();
+    // Kaithos does not preventDefault on pointerdown: doing so
+    // suppresses the browser's native pan gesture, and a sideways
+    // swipe fails to scroll the strip. We track the point and only
+    // cancel the key when the browser hasn't already taken over the
+    // gesture (the pointer-move drag threshold handles the scroll).
     start.current = { x: e.clientX, y: e.clientY };
     if (def.mod === 'ctrl') {
       // Long-press = held Ctrl; a short tap arms one-shot (handled on up).
@@ -220,7 +279,12 @@ function SKey({ def, ctrl }: { def: KeyDef; ctrl: CtrlState }) {
         }
       }}
       onContextMenu={(e) => e.preventDefault()}
-      className={`i-control min-h-9 min-w-10 shrink-0 touch-none rounded-md px-2.5 text-tab font-semibold transition-colors ${
+      // touch-pan-y (not none): a horizontal swipe lands on the row's
+      // pan-x scroll (the strip scrolls); our pointermove cancels the
+      // key at 10px travel, so a scroll never fires a key. Kaithos
+      // keys use no touch-action at all; this is the minimal hint that
+      // still lets the parent pan-x claim a sideways drag.
+      className={`i-control min-h-9 min-w-10 shrink-0 touch-pan-y rounded-md px-2.5 text-tab font-semibold transition-colors ${
         active
           ? 'bg-accent text-on-accent'
           : def.danger

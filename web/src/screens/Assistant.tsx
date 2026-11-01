@@ -24,7 +24,20 @@ const AUTO = 'auto';
 // the CLIs the runner has (Hermes, OpenClaw, anything detected on the
 // machine); each Start launches that assistant inside a fresh named
 // terminal.
-export default function Assistant({ onSessionExpired }: { onSessionExpired: () => void }) {
+export default function Assistant({
+  onSessionExpired,
+  fs = false,
+  onEnterFs,
+  onExitFs,
+}: {
+  onSessionExpired: () => void;
+  // fs = the shell's mobile fullscreen: the page renders only this
+  // section, sized to the visible height. The tab strip folds away
+  // (the ☰ key on the custom keyboard, or this pane's back, shows it).
+  fs?: boolean;
+  onEnterFs?: () => void;
+  onExitFs?: () => void;
+}) {
   const [terms, setTerms] = useState<TerminalSummary[] | 'loading' | 'unreachable'>('loading');
   const [agents, setAgents] = useState<AgentInfo[] | 'loading' | 'unreachable'>('loading');
   const [active, setActive] = useState<string | null>(null);
@@ -117,7 +130,7 @@ export default function Assistant({ onSessionExpired }: { onSessionExpired: () =
     <section aria-label="Assistant" className="flex h-full min-h-0 flex-col gap-2">
       {/* The tab strip: every live assistant terminal, one tap to
           focus its pane. The newest opens selected. */}
-      <div className="flex flex-wrap items-center gap-1">
+      <div className={`flex flex-wrap items-center gap-1 ${fs ? 'hidden' : ''}`}>
         <button
           type="button"
           onClick={() => setActive(null)}
@@ -133,7 +146,13 @@ export default function Assistant({ onSessionExpired }: { onSessionExpired: () =
             key={t.term}
             t={t}
             selected={active === t.term}
-            onSelect={() => setActive(t.term)}
+            onSelect={() => {
+              setActive(t.term);
+              // Mobile: focusing a pane pulls the whole view to it —
+              // the shell folds and the pane takes the viewport. ☰ or
+              // the pane's back puts the tabs back.
+              onEnterFs?.();
+            }}
             onRename={async (next) => {
               const ok = await renameTerminal(t.term, next);
               if (ok === 'unauthorized') {
@@ -193,7 +212,15 @@ export default function Assistant({ onSessionExpired }: { onSessionExpired: () =
           sense to start from — which the + button lands back on. */}
       {active !== null && active_t && (
         <div className="flex min-h-0 flex-1 flex-col">
-          <TerminalView id={active_t.term} onBack={() => setActive(null)} onSessionExpired={onSessionExpired} />
+          <TerminalView
+            id={active_t.term}
+            onShowTabs={onExitFs}
+            onBack={() => {
+              setActive(null);
+              onExitFs?.();
+            }}
+            onSessionExpired={onSessionExpired}
+          />
         </div>
       )}
       {active === null && (

@@ -31,3 +31,4 @@ internal/web/dist/*
 e2e/test-results/
 /devcules
 /machine-dist/
+.playwright-mcp/

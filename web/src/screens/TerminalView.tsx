@@ -5,10 +5,10 @@ import { FitAddon } from '@xterm/addon-fit';
 // show up as stray glyphs above the prompt. Vite bundles it into our
 // stylesheet, so the CSP needs nothing new for it.
 import '@xterm/xterm/css/xterm.css';
-import TermKeyboard from './TermKeyboard';
 import { streamURL, type Where } from '../api';
 import { bumpActivity, clearActivity } from './pulse';
 import { registerInput, ctrlState, sendTyped } from './keybus';
+import TermKeyboard from './TermKeyboard';
 
 type Status = 'connecting' | 'open' | 'reconnecting' | 'offline' | 'gone';
 
@@ -24,6 +24,7 @@ export default function TerminalView({
   where,
   onBack,
   onSessionExpired,
+  onShowTabs,
 }: {
   id: string;
   // where is the link the terminal lives on: a machine's shell
@@ -31,6 +32,9 @@ export default function TerminalView({
   where?: Where;
   onBack: () => void;
   onSessionExpired?: () => void;
+  // The strip's ☰ asks the host page to reveal its tab strip. On a
+  // fs assistant that's "exit fullscreen"; default goes back.
+  onShowTabs?: () => void;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
@@ -205,7 +209,59 @@ export default function TerminalView({
     // The docked keyboard registers here: its keys and Ctrl byte-
     // sequences land in this pane's stream, and its "raise the OS
     // keyboard" tap focuses this xterm. It unregisters on unmount.
-    const unregisterKeys = registerInput(send, () => termRef.current?.focus());
+    const unregisterKeys = registerInput(
+      send,
+      () => {
+        termRef.current?.focus();
+        // Tapping to type raises the OS keyboard; the visualViewport
+        // shrink that lifts into view is debounced, so don't wait —
+        // pull the prompt to the last line right away.
+        if (document.body.classList.contains('devcules-mobile')) {
+          term.scrollToBottom();
+        }
+      },
+      {
+        // After any container reflow (OS keyboard, rotation, tab
+        // switch), keep the prompt at the last line instead of the
+        // scrollback.
+        afterReflow: () => {
+          if (document.body.classList.contains('devcules-mobile')) {
+            term.scrollToBottom();
+          }
+        },
+      },
+    );
+    // The pane element is the size source of truth (Kaithos): on any
+    // change — OS keyboard pushing the page column, rotation, a fs
+    // toggle — fit() the canvas and tell the PTY, so lines rewrap
+    // instead of clipping. Debounce a hair so a resize storm of
+    // layout passes doesn't slash the socket.
+    let resizeTimer: number | null = null;
+    // ResizeObserver needs a real layout engine; a test/SSR DOM has
+    // none, so the pane still connects at its open size without one.
+    const ro = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(() => {
+      if (resizeTimer !== null) {
+        window.clearTimeout(resizeTimer);
+      }
+      resizeTimer = window.setTimeout(() => {
+        resizeTimer = null;
+        try {
+          fit.fit();
+          const dims = fit.proposeDimensions();
+          if (dims && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({ type: 'resize', cols: dims.cols, rows: dims.rows }));
+          }
+        } catch {
+          // host is mid-layout; the next observation lands it.
+        }
+        if (document.body.classList.contains('devcules-mobile')) {
+          term.scrollToBottom();
+        }
+      }, 150);
+    });
+    ro?.observe(host);
     connect();
     const onVisible = () => {
       if (document.visibilityState === 'visible' && !userClosedRef.current && !wsRef.current) {
@@ -239,6 +295,10 @@ export default function TerminalView({
       }
       disposeData.dispose();
       unregisterKeys();
+      if (resizeTimer !== null) {
+        window.clearTimeout(resizeTimer);
+      }
+      ro?.disconnect();
       term.dispose();
       termRef.current = null;
       fitRef.current = null;
@@ -250,6 +310,12 @@ export default function TerminalView({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {/* The custom keyboard docks at the TOP of the pane (Kaithos):
+          the OS keyboard stays at the bottom and the pane takes the
+          middle. It appears once the pane's stream registers on
+          keybus — on mobile that's the whole point; on desktop a very
+          tall screen that's scrolled to a pane gets the same strip. */}
+      <TermKeyboard onShowTabs={onShowTabs} />
       <div className="flex min-h-11 items-center gap-2 px-4 py-2">
         <button
           type="button"
@@ -271,15 +337,10 @@ export default function TerminalView({
           </span>
         )}
       </div>
-      <div ref={hostRef} className="min-h-0 flex-1 px-2" aria-label="Terminal" role="application" />
-      {/* The docked keyboard sits right under the pane, in flow: an
-          open OS keyboard shrinks the viewport above it, so the strip
-          rides up without a z-index fight. On desktop it collapses to
-          nothing (a physical keyboard replaces it). */}
-      <div className="hidden md:block" aria-hidden="true" />
-      <div className="md:hidden">
-        <TermKeyboard />
-      </div>
+      {/* The pane: the host owns the size; its ResizeObserver in the
+          effect above runs fit() + a PTY resize so lines rewrap on any
+          shrink/rotation instead of clipping off the right or bottom. */}
+      <div ref={hostRef} className="min-h-0 flex-1 overflow-hidden px-2" aria-label="Terminal" role="application" />
     </div>
   );
 }

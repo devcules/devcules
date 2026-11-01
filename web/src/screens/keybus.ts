@@ -11,9 +11,13 @@
 
 type Sender = (bytes: Uint8Array) => void;
 type Focuser = () => void;
+// Opts carries the per-pane extras the keyboard needs beyond raw
+// bytes: scroll-to-bottom after a reflow, and the like.
+type Opts = { afterReflow?: () => void };
 
 let sender: Sender | null = null;
 let focuser: Focuser | null = null;
+let afterReflow: (() => void) | null = null;
 const listeners = new Set<() => void>();
 
 // Ctrl is 'off', a one-shot 'armed' latch, or 'held' across many keys.
@@ -24,14 +28,16 @@ const ctrlListeners = new Set<() => void>();
 // registerInput binds the keyboard to one pane's stream; the pane's
 // cleanup unregisters. Only ever one pane is live (the active tab), so
 // a single sender suffices — a fresh mount of the same pane rebinds.
-export function registerInput(send: Sender, focus: Focuser): () => void {
+export function registerInput(send: Sender, focus: Focuser, opts: Opts = {}): () => void {
   sender = send;
   focuser = focus;
+  afterReflow = opts.afterReflow ?? null;
   notify();
   return () => {
     if (sender === send) {
       sender = null;
       focuser = null;
+      afterReflow = null;
       notify();
     }
   };
@@ -150,6 +156,13 @@ export function sendCtrl(ch: string): void {
 // focusFocused raises the OS keyboard on the live pane.
 export function focusFocused(): void {
   focuser?.();
+}
+
+// afterReflowNow asks the live pane to pull its prompt to the last
+// line — called after a container reflow (keyboard, rotation) so the
+// cursor is where the eye is.
+export function afterReflowNow(): void {
+  afterReflow?.();
 }
 
 // sendClipboard reads the clipboard and pastes its text into the live

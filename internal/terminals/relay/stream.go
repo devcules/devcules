@@ -24,6 +24,15 @@ const (
 	codeUnknownTerm   uint16 = 4404
 )
 
+const (
+	// pingEveryBrowser matches the runner link's 15 s heartbeat: the
+	// browser pings serve sends to keep a silent-idle socket alive.
+	pingEveryBrowser = 15 * time.Second
+	// browserPingTimeout matches the runner link's 5 s: a pong slower
+	// than that means the browser is as good as gone.
+	browserPingTimeout = 5 * time.Second
+)
+
 // onOutput routes runner bytes to the browser's bounded queue. It
 // never blocks the link read loop: a full queue closes that browser
 // with 1013 (in the background) and tells the runner to detach the
@@ -218,12 +227,28 @@ func (r *Relay) AttachStream(ctx context.Context, runner, term string, cols, row
 	writerDone := make(chan struct{})
 	go func() {
 		defer close(writerDone)
+		// The serve→browser hop has no transport heartbeat of its own
+		// (unlike the runner link). Without one a socket that died
+		// silently — NAT idle-timeout, a phone switching networks, a
+		// sleeping laptop — is only noticed when there's output to
+		// write, so an idle shell would sit frozen forever. Ping on a
+		// ticker with a bounded write: a dead pane errs and closes,
+		// which the browser sees and reconnects from.
+		ping := time.NewTicker(pingEveryBrowser)
+		defer ping.Stop()
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-s.closed:
 				return
+			case <-ping.C:
+				wctx, stop := context.WithTimeout(ctx, browserPingTimeout)
+				err := conn.Ping(wctx)
+				stop()
+				if err != nil {
+					return
+				}
 			case chunk, ok := <-s.toUI:
 				if !ok {
 					return

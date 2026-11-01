@@ -40,6 +40,13 @@ export default function TerminalView({
   const timerRef = useRef<number | null>(null);
   const connectRef = useRef<() => void>(() => undefined);
   const ctrlRef = useRef(false);
+  // Heartbeat bookkeeping: the serve side pings every 15 s; if the
+  // pane is "open" but nothing (output or pong) arrived for a few
+  // intervals, the socket died silently and sits frozen. The watchdog
+  // below closes it so the reconnect path runs — this is the fix for a
+  // pane that hangs on a flap the kernel never told us about.
+  const lastFrameRef = useRef(0);
+  const watchdogRef = useRef<number | null>(null);
   // The machine name, not the object: a string keeps connect stable
   // across renders that pass a fresh {machine} literal.
   const machine = where?.machine;
@@ -81,7 +88,22 @@ export default function TerminalView({
     wsRef.current = ws;
     ws.onopen = () => {
       attemptRef.current = 0;
+      lastFrameRef.current = Date.now();
       setStatus('open');
+      if (watchdogRef.current !== null) {
+        window.clearInterval(watchdogRef.current);
+      }
+      watchdogRef.current = window.setInterval(() => {
+        const wsNow = wsRef.current;
+        if (!wsNow || wsNow.readyState !== WebSocket.OPEN) {
+          return;
+        }
+        // A visible pane that heard nothing for several ping intervals
+        // is hung, not idle: serve pings every 15 s.
+        if (document.visibilityState === 'visible' && Date.now() - lastFrameRef.current > 45000) {
+          wsNow.close(4000, 'stale');
+        }
+      }, 15000);
       try {
         fit.fit();
         const sized = fit.proposeDimensions();
@@ -98,11 +120,17 @@ export default function TerminalView({
       }
       const bytes = ev.data instanceof ArrayBuffer ? new Uint8Array(ev.data) : new Uint8Array(ev.data as ArrayBuffer);
       term.write(bytes);
-      // A frame landing means the pane is working — pulse its tab.
+      // A frame landing means the pane is working — pulse its tab and
+      // fresh-stamp the watchdog.
+      lastFrameRef.current = Date.now();
       bumpActivity(id);
     };
     ws.onclose = (ev: CloseEvent) => {
       wsRef.current = null;
+      if (watchdogRef.current !== null) {
+        window.clearInterval(watchdogRef.current);
+        watchdogRef.current = null;
+      }
       if (userClosedRef.current) {
         return;
       }
@@ -191,6 +219,10 @@ export default function TerminalView({
       userClosedRef.current = true;
       if (timerRef.current !== null) {
         window.clearTimeout(timerRef.current);
+      }
+      if (watchdogRef.current !== null) {
+        window.clearInterval(watchdogRef.current);
+        watchdogRef.current = null;
       }
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('online', onOnline);

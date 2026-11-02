@@ -20,19 +20,19 @@ import (
 // meeting, expanded over the requested range by the route. Occurrence marks
 // a recurrence instance so an edit can say "the whole series".
 type calendarItem struct {
-	ID         string    `json:"id"`
-	Title      string    `json:"title"`
-	Start      time.Time `json:"start"`
-	End        time.Time `json:"end"`
-	AllDay     bool      `json:"all_day"`
-	Location   string    `json:"location,omitempty"`
-	URL        string    `json:"url,omitempty"`
-	Notes      string    `json:"notes,omitempty"`
-	ReminderMin int      `json:"reminder_min,omitempty"`
-	RRule      string    `json:"rrule,omitempty"`
-	Feed       string    `json:"feed,omitempty"`
-	Plan       bool      `json:"plan,omitempty"`
-	Occurrence bool      `json:"occurrence,omitempty"`
+	ID          string    `json:"id"`
+	Title       string    `json:"title"`
+	Start       time.Time `json:"start"`
+	End         time.Time `json:"end"`
+	AllDay      bool      `json:"all_day"`
+	Location    string    `json:"location,omitempty"`
+	URL         string    `json:"url,omitempty"`
+	Notes       string    `json:"notes,omitempty"`
+	ReminderMin int       `json:"reminder_min,omitempty"`
+	RRule       string    `json:"rrule,omitempty"`
+	Feed        string    `json:"feed,omitempty"`
+	Plan        bool      `json:"plan,omitempty"`
+	Occurrence  bool      `json:"occurrence,omitempty"`
 }
 
 // CalendarService adds the user's own plans (stored) on top of the desk

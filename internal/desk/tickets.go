@@ -115,11 +115,11 @@ func asanaTickets(ctx context.Context, hc *http.Client, q TicketQuery) ([]Ticket
 		return nil, ErrNoTicketSource
 	}
 	vals := url.Values{
-		"assignee":     {"me"},
-		"workspace":    {q.Project}, // Asana wants a workspace gid; Project field carries it.
+		"assignee":        {"me"},
+		"workspace":       {q.Project}, // Asana wants a workspace gid; Project field carries it.
 		"completed_since": {"now"},
-		"opt_fields":   {"name,permalink_url,completed,due_on,modified_at,memberships.section.name,priority"},
-		"limit":        {fmt.Sprint(q.Limit)},
+		"opt_fields":      {"name,permalink_url,completed,due_on,modified_at,memberships.section.name,priority"},
+		"limit":           {fmt.Sprint(q.Limit)},
 	}
 	u := "https://app.asana.com/api/1.0/tasks?" + vals.Encode()
 	var raw struct {
@@ -183,12 +183,12 @@ func linearTickets(ctx context.Context, hc *http.Client, q TicketQuery) ([]Ticke
 			Viewer struct {
 				AssignedIssues struct {
 					Nodes []struct {
-						Identifier    string `json:"identifier"`
-						Title         string `json:"title"`
-						URL           string `json:"url"`
+						Identifier    string                `json:"identifier"`
+						Title         string                `json:"title"`
+						URL           string                `json:"url"`
 						State         struct{ Name string } `json:"state"`
-						PriorityLabel string                   `json:"priorityLabel"`
-						UpdatedAt     string                   `json:"updatedAt"`
+						PriorityLabel string                `json:"priorityLabel"`
+						UpdatedAt     string                `json:"updatedAt"`
 					} `json:"nodes"`
 				} `json:"assignedIssues"`
 			} `json:"viewer"`

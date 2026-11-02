@@ -87,7 +87,7 @@ func cpuSample() float64 {
 	two := readProcStat()
 	busy := float64(two.user+two.nice+two.system+two.irq+two.softirq+two.steal) -
 		float64(one.user+one.nice+one.system+one.irq+one.softirq+one.steal)
-	total := float64(two.total-one.total)
+	total := float64(two.total - one.total)
 	if total <= 0 || busy < 0 {
 		return 0
 	}
@@ -100,7 +100,7 @@ func cpuSample() float64 {
 
 type procStatLine struct {
 	user, nice, system, idle, iowait, irq, softirq, steal uint64
-	total uint64
+	total                                                 uint64
 }
 
 // readProcStat parses the first (aggregate) "cpu" line of /proc/stat.

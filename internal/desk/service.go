@@ -24,11 +24,11 @@ type Sources struct {
 	Location string `json:"location,omitempty"`
 	// ICSFeeds: [{"label":"Work","url":"https://…ics"}] — Google/Outlook
 	// published calendars, no OAuth.
-	ICSFeeds []ICSFeed `json:"ics_feeds,omitempty"`
-	NewsSecurity string `json:"news_security_query,omitempty"`
-	NewsTech     string `json:"news_tech_query,omitempty"`
-	NewsCustom   string `json:"news_custom_query,omitempty"`
-	TavilyKey    string `json:"tavily_key,omitempty"`
+	ICSFeeds     []ICSFeed `json:"ics_feeds,omitempty"`
+	NewsSecurity string    `json:"news_security_query,omitempty"`
+	NewsTech     string    `json:"news_tech_query,omitempty"`
+	NewsCustom   string    `json:"news_custom_query,omitempty"`
+	TavilyKey    string    `json:"tavily_key,omitempty"`
 	// Tickets: pick a provider. Jira uses Email+Token+Site+JQL; Asana
 	// Token+Project(workspace gid); Linear Token(+Project team filter).
 	TicketProvider string `json:"ticket_provider,omitempty"`
@@ -41,10 +41,10 @@ type Sources struct {
 	// flags are the one way the drawer removes a stored token — a blank
 	// value keeps it (so a PUT never round-trips a secret), but
 	// X_clear:true wipes it.
-	HasTavily     bool `json:"has_tavily,omitempty"`
-	HasTicketTok  bool `json:"has_ticket_token,omitempty"`
-	ClearTavily   bool `json:"tavily_clear,omitempty"`
-	ClearTicket   bool `json:"ticket_clear,omitempty"`
+	HasTavily    bool `json:"has_tavily,omitempty"`
+	HasTicketTok bool `json:"has_ticket_token,omitempty"`
+	ClearTavily  bool `json:"tavily_clear,omitempty"`
+	ClearTicket  bool `json:"ticket_clear,omitempty"`
 }
 
 type ICSFeed struct {
@@ -55,10 +55,10 @@ type ICSFeed struct {
 // Prefs is the desk layout document: widget list and per-breakpoint
 // layouts, exactly what the webapp's deskPrefs.js module reads/writes.
 type Prefs struct {
-	Version int                      `json:"version"`
-	Widgets []json.RawMessage        `json:"widgets"`
+	Version int                        `json:"version"`
+	Widgets []json.RawMessage          `json:"widgets"`
 	Layouts map[string]json.RawMessage `json:"layouts"`
-	Seen    map[string]string        `json:"seen,omitempty"`
+	Seen    map[string]string          `json:"seen,omitempty"`
 }
 
 const (
@@ -70,8 +70,8 @@ const (
 // 30s tile refresh never hammers the provider; a stale cached answer is
 // served with stale:true rather than an error when the provider is down.
 type Service struct {
-	vault *vault.Vault
-	hc    *http.Client
+	vault  *vault.Vault
+	hc     *http.Client
 	feedHC *http.Client
 
 	mu       sync.Mutex

@@ -69,10 +69,10 @@ const (
 	DeskPrefs   = "desk.prefs"
 	DeskSources = "desk.sources"
 	// Secrets: a name put or deleted in the vault (never the value).
-	SecretPut    = "secret.put"
-	SecretDelete = "secret.delete"
-	maxField        = 200
-	maxDetailItems  = 16
+	SecretPut      = "secret.put"
+	SecretDelete   = "secret.delete"
+	maxField       = 200
+	maxDetailItems = 16
 )
 
 // Event is what a caller records. Actor is a username, or "system" or

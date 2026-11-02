@@ -195,21 +195,6 @@ func sysctlInt64(ctx context.Context, name string) uint64 {
 	return n
 }
 
-// parseLastFloat is the trailing float of a "1.27% user"-shaped
-// segment. The FIXME pass tested this against ten years of top's
-// exact strings (the percent sign separates, never prints in-place).
-func parseLastFloat(s string) float64 {
-	fields := strings.Fields(s)
-	if len(fields) == 0 {
-		return 0
-	}
-	v, err := strconv.ParseFloat(strings.TrimSpace(fields[len(fields)-1]), 64)
-	if err != nil {
-		return 0
-	}
-	return v
-}
-
 // parseLeadingUint is the first unsigned-int-sized token of a
 // vm_stat line ("Pages active: 396089.").
 func parseLeadingUint(line string) uint64 {

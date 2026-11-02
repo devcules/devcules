@@ -12,7 +12,6 @@ package hostinfo
 import (
 	"context"
 	"os/exec"
-	"runtime"
 	"strings"
 	"time"
 )
@@ -88,8 +87,3 @@ func repoRoot(ctx context.Context, dir string) string {
 	}
 	return strings.TrimSpace(string(out))
 }
-
-// runtimeOSArch shorthand keeps snapshot() short; the tests pin
-// the OS/arch strings serve reports so the bar never joins on
-// "darwin(arm64)" written a second way.
-func runtimeOSArch() (string, string) { return runtime.GOOS, runtime.GOARCH }

@@ -210,3 +210,25 @@ system font stack keeps the app offline-capable and tracking-free. */
 .d-calendar .fc-event.d-cal-plan {
   border-left-width: 3px;
 }
+
+/* Small screens: the three-part toolbar wraps into rows so the title and
+   the view picker stop squeezing the nav buttons, and hit targets grow. */
+@media (max-width: 640px) {
+  .d-calendar .fc .fc-toolbar {
+    flex-wrap: wrap;
+    row-gap: 0.4rem;
+  }
+  .d-calendar .fc .fc-toolbar-chunk {
+    display: flex;
+    align-items: center;
+  }
+  .d-calendar .fc .fc-toolbar-title {
+    font-size: 0.85rem;
+  }
+  .d-calendar .fc .fc-button {
+    padding: 0.35em 0.6em;
+  }
+  .d-calendar .fc-timegrid-slot {
+    height: 2.6em;
+  }
+}

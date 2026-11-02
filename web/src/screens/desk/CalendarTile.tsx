@@ -13,7 +13,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import listPlugin from '@fullcalendar/list';
 import interactionPlugin from '@fullcalendar/interaction';
-import type { DateSelectArg, EventChangeArg, EventClickArg } from '@fullcalendar/core';
+import type { DateSelectArg, DatesSetArg, EventChangeArg, EventClickArg } from '@fullcalendar/core';
 import Tile, { statusOf, CopyButton } from './Tile';
 import {
   createCalendar, deleteCalendar, deskError, getCalendar, quickAddCalendar, updateCalendar, type CalEvent,
@@ -21,6 +21,11 @@ import {
 import type { TileProps } from './tiles';
 
 type Range = { from: string; to: string };
+
+// The backend parses every timestamp with RFC3339 strictly. FullCalendar's
+// startStr/endStr are ISO strings without a zone when no timeZone is set, so
+// marshal through Date and emit toISOString() (full RFC3339) everywhere.
+const toRfc = (s: string) => new Date(s).toISOString();
 
 export default function CalendarTile({ widget, syncKey, arranging, onRemove, onSettings, onUnauthorized }: TileProps) {
   const [range, setRange] = useState<Range | null>(null);
@@ -33,6 +38,9 @@ export default function CalendarTile({ widget, syncKey, arranging, onRemove, onS
   const [busy, setBusy] = useState(false);
   const calRef = useRef<FullCalendar>(null);
   const lastSync = useRef(syncKey);
+  // Week/month grids need width; land phones on the week list on first mount.
+  const [initialView] = useState(() =>
+    (typeof window !== 'undefined' && window.innerWidth < 768 ? 'listWeek' : 'timeGridWeek'));
 
   // Load the visible window: plans + feeds merged by the route. Called on
   // mount, whenever the grid navigates, when Sync bumps, and after a write.
@@ -54,8 +62,8 @@ export default function CalendarTile({ widget, syncKey, arranging, onRemove, onS
 
   // FullCalendar asks the grid which window to render; we fetch for it.
   // The datesSet arg carries the start/end of what's on screen.
-  const onDatesSet = useCallback((arg: { startStr: string; endStr: string }) => {
-    const r = { from: arg.startStr, to: arg.endStr };
+  const onDatesSet = useCallback((arg: DatesSetArg) => {
+    const r = { from: toRfc(arg.startStr), to: toRfc(arg.endStr) };
     setRange(r);
     void load(r, lastSync.current !== syncKey);
     lastSync.current = syncKey;
@@ -89,7 +97,7 @@ export default function CalendarTile({ widget, syncKey, arranging, onRemove, onS
   const onSelect = useCallback(async (sel: DateSelectArg) => {
     const title = '';
     setDraft({
-      id: '', title, start: sel.startStr, end: sel.endStr, all_day: sel.allDay, plan: true,
+      id: '', title, start: toRfc(sel.startStr), end: toRfc(sel.endStr), all_day: sel.allDay, plan: true,
     });
     sel.view.calendar.unselect();
   }, []);
@@ -101,8 +109,8 @@ export default function CalendarTile({ widget, syncKey, arranging, onRemove, onS
     if (!m.plan) { arg.revert(); return; }
     const next: CalEvent = {
       ...m,
-      start: arg.event.startStr,
-      end: arg.event.endStr || new Date(arg.event.start!.getTime() + 30 * 60000).toISOString(),
+      start: toRfc(arg.event.startStr),
+      end: arg.event.endStr ? toRfc(arg.event.endStr) : new Date(arg.event.start!.getTime() + 30 * 60000).toISOString(),
       all_day: arg.event.allDay,
     };
     const res = await updateCalendar(m.id, next);
@@ -162,8 +170,10 @@ export default function CalendarTile({ widget, syncKey, arranging, onRemove, onS
           <FullCalendar
             ref={calRef}
             plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
-            initialView="timeGridWeek"
+            initialView={initialView}
             headerToolbar={{ left: 'prev,next today', center: 'title', right: 'timeGridWeek,dayGridMonth,listWeek' }}
+            selectLongPressDelay={450}
+            eventLongPressDelay={450}
             events={events}
             height="100%"
             allDaySlot={true}
@@ -179,11 +189,9 @@ export default function CalendarTile({ widget, syncKey, arranging, onRemove, onS
             eventClick={onClick}
             datesSet={onDatesSet}
           />
-          {!loading && items.length === 0 && (
+          {!loading && items.length === 0 && data?.configured === false && (
             <div className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-body text-muted">
-              {data?.configured === false
-                ? 'Drag across a day to plan it. Add a calendar feed in Desk sources to see your meetings.'
-                : 'Nothing here yet — drag across a day to plan it, or quick-add above.'}
+              Add a calendar feed in Desk sources to see your meetings.
             </div>
           )}
         </div>

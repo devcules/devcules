@@ -3,7 +3,7 @@
 // drag grips and resize corners; layouts persist per breakpoint to
 // /api/desk/prefs and are merged with any newer copy another device wrote.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Responsive, useContainerWidth, verticalCompactor, type Layout, type ResponsiveLayouts } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -18,6 +18,15 @@ import CalendarTile from './CalendarTile';
 import { LinksTile, NextUpTile, ScratchTile, TimerTile, TodosTile } from './localTiles';
 import DeskSources from './DeskSources';
 import { toast, type ToastEvent } from '../../lib/toast';
+
+// Geometry-only equality (i/x/y/w/h): ignores minW/minH and array identity
+// so a round-trip through the grid counts as "unchanged".
+function sameLayout(a: readonly { i: string; x: number; y: number; w: number; h: number }[] | undefined,
+  b: readonly { i: string; x: number; y: number; w: number; h: number }[] | undefined): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  return a.every((l, k) => { const m = b[k]; return l.i === m.i && l.x === m.x && l.y === m.y && l.w === m.w && l.h === m.h; });
+}
 
 function Clock() {
   const [now, setNow] = useState(() => new Date());
@@ -44,6 +53,10 @@ export default function DeskPage({ onSessionExpired, onOpenApprovals }: { onSess
   const saveTimer = useRef<number | null>(null);
 
   const { width, containerRef, mounted } = useContainerWidth();
+  // Mirror the current breakpoint from the container width (the same pick
+  // the grid makes), so props that shape it can react.
+  const bp = width >= BREAKPOINTS.lg ? 'lg' : width >= BREAKPOINTS.md ? 'md'
+    : width >= BREAKPOINTS.sm ? 'sm' : width >= BREAKPOINTS.xs ? 'xs' : 'xxs';
 
   // Boot: read the server document and normalize. On a fresh desk the
   // server has nothing, so normalizePrefs answers the default starter set.
@@ -76,18 +89,24 @@ export default function DeskPage({ onSessionExpired, onOpenApprovals }: { onSess
     });
   }, [persist]);
 
+  // The grid fires onLayoutChange when the USER drags or resizes a tile —
+  // but also echoes it on mount and on every breakpoint switch. Writing the
+  // echoes back changes the layouts prop, and rgl's refresh-from-props effect
+  // then freezes that layout for every breakpoint, killing responsiveness.
+  // So persist only when the current-breakpoint layout actually differs.
   const onLayoutChange = useCallback((_: Layout, all: ResponsiveLayouts<string>) => {
-    update((p) => setLayouts(p, all as never));
+    update((p) => {
+      const next = setLayouts(p, all as never);
+      const same = Object.keys(COLS).every((bp) => sameLayout(p.layouts[bp], next.layouts[bp]));
+      return same ? p : next;
+    });
   }, [update]);
 
-  const grids = useMemo(() => {
-    if (!prefs) return null;
-    return WIDGET_TYPES && prefs;
-  }, [prefs]);
-
-  if (!prefs || !grids) {
-    return <div className="flex flex-1 items-center justify-center p-6 text-body text-muted">{loaded ? 'Waking your desk…' : 'Loading your desk…'}</div>;
-  }
+  // NOTE: no early return when !prefs — the loading line renders INSIDE the
+  // ref'd scroll container below. useContainerWidth's observer attaches in a
+  // one-shot effect, so that container must exist on the very first render;
+  // if it mounts late, the effect sees a null node, never observes, and the
+  // grid stays frozen at the hook's initial 1280px no matter the screen.
 
   const renderWidget = (w: Widget) => {
     const common = {
@@ -112,7 +131,7 @@ export default function DeskPage({ onSessionExpired, onOpenApprovals }: { onSess
     }
   };
 
-  const absent = (type: string) => !prefs.widgets.some((w) => w.type === type);
+  const absent = (type: string) => !(prefs?.widgets.some((w) => w.type === type) ?? false);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -141,7 +160,10 @@ export default function DeskPage({ onSessionExpired, onOpenApprovals }: { onSess
       </div>
 
       <div ref={containerRef as React.RefObject<HTMLDivElement>} className="min-h-0 flex-1 overflow-y-auto">
-        {mounted && (
+        {!prefs && (
+          <div className="flex h-full items-center justify-center p-6 text-body text-muted">{loaded ? 'Waking your desk…' : 'Loading your desk…'}</div>
+        )}
+        {mounted && prefs && (
           <Responsive
             width={width}
             breakpoints={BREAKPOINTS as never}
@@ -151,7 +173,9 @@ export default function DeskPage({ onSessionExpired, onOpenApprovals }: { onSess
             layouts={prefs.layouts as never}
             dragConfig={{ enabled: arranging, handle: '.d-tile-grip' }}
             resizeConfig={{ enabled: arranging, handles: ['se'] }}
-            compactor={verticalCompactor}
+            /* narrow tiles can be wider than the column count (a min-3-wide
+               tile in 2 columns); let those overlap rather than overflow */
+            compactor={{ ...verticalCompactor, allowOverlap: COLS[bp] < 4 }}
             onLayoutChange={onLayoutChange}
           >
             {prefs.widgets.map((w) => (
@@ -161,7 +185,7 @@ export default function DeskPage({ onSessionExpired, onOpenApprovals }: { onSess
             ))}
           </Responsive>
         )}
-        {prefs.widgets.length === 0 && (
+        {prefs && prefs.widgets.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center gap-3 p-8">
             <p className="text-body text-muted">An empty desk.</p>
             <button type="button" className="min-h-11 rounded bg-accent px-4 text-body text-on-accent" onClick={() => setDrawer('add')}>Add a widget</button>
@@ -209,7 +233,7 @@ export default function DeskPage({ onSessionExpired, onOpenApprovals }: { onSess
       )}
       {typeof drawer === 'object' && drawer !== null && 'widget' in drawer && (
         <WidgetConfigSheet
-          widget={prefs.widgets.find((w) => w.id === (drawer as { widget: string }).widget)}
+          widget={prefs?.widgets.find((w) => w.id === (drawer as { widget: string }).widget)}
           onClose={() => setDrawer(null)}
           onSave={(title, config) => { update((p) => updateWidget(p, (drawer as { widget: string }).widget, { title, config })); setDrawer(null); }}
         />

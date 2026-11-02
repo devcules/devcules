@@ -7,6 +7,7 @@ import ProjectTree from '../screens/ProjectTree';
 import Settings from '../screens/Settings';
 import Activity from '../screens/Activity';
 import Assistant from '../screens/Assistant';
+import Extensions from '../screens/Extensions';
 import DeskPage from '../screens/desk/DeskPage';
 import { useMobile, useVisibleHeight } from '../screens/useMobile';
 import ThemePicker from '../theme/ThemePicker';
@@ -20,7 +21,7 @@ import UserMenu from './UserMenu';
 // still exist: ask() below still lands project intents on the
 // Projects host, and open tabs' state keeps "projects" in the union
 // for that host.
-type Tab = 'desk' | 'home' | 'projects' | 'terminals' | 'machines' | 'assistant' | 'activity' | 'settings';
+type Tab = 'desk' | 'home' | 'projects' | 'terminals' | 'machines' | 'assistant' | 'extensions' | 'activity' | 'settings';
 
 // Desk leads: the instrument panel is the landing tab (Kaithos' Desk),
 // before the Home inbox.
@@ -30,6 +31,7 @@ const tabs: Array<{ id: Tab; label: string }> = [
   { id: 'projects', label: 'Projects' },
   { id: 'assistant', label: 'Assistant' },
   { id: 'machines', label: 'Machines' },
+  { id: 'extensions', label: 'Extensions' },
   { id: 'activity', label: 'Activity' },
   { id: 'settings', label: 'Settings' },
 ];
@@ -246,6 +248,7 @@ export default function Shell({
             onExitFs={() => setTermFs(false)}
           />
         )}
+        {tab === 'extensions' && <Extensions onSessionExpired={onSessionExpired} />}
         {tab === 'activity' && <Activity onSessionExpired={onSessionExpired} />}
         {tab === 'settings' && (
           <Settings username={username} onSignedOut={onSignedOut} onSessionExpired={onSessionExpired} />

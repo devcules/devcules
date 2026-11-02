@@ -100,6 +100,11 @@ type Options struct {
 	// Assistants serves the assistant picker and chat; nil answers its
 	// routes with 503.
 	Assistants *assistants.Registry
+	// ClaudeBin and CodexBin are the CLIs the extensions registry shells
+	// out to for MCP install/remove (default "claude" / "codex" from PATH
+	// when empty). The fleet reads plain config files and needs neither.
+	ClaudeBin string
+	CodexBin  string
 }
 
 // Handler returns the M3.2 mux. /healthz, /readyz, GET /link, /llm/,
@@ -262,6 +267,11 @@ func Handler(o Options) http.Handler {
 			writeAuthError(w, http.StatusServiceUnavailable, "calendar not configured")
 		})
 	}
+	// Extensions registry: browse/inspect/install MCP servers and Skills
+	// against the local coding agents (Claude Code, Codex); fleet routes
+	// read the on-disk truth. Session-guarded like the desk/settings
+	// surface — the operator managing their own machine's agents.
+	registerRegistry(mux, o.Auth, newRegistryBag(o.ClaudeBin, o.CodexBin))
 	// Secrets: name-only management of the vault (never reads a value
 	// back). The frontend's Secrets screen drives these.
 	mux.Handle("/api/secrets", csrf(o.PublicURL, requireSession(o.Auth, secretsListPut(o.Vault, rec))))

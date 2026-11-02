@@ -35,6 +35,12 @@ function route(pending: unknown[][]): void {
       const list = pending[Math.min(n++, pending.length - 1)];
       return Response.json({ approvals: list, pending: list.length }, { status: 200 });
     }
+    // The Extensions tab (or a Shell landing on it) polls the two fleet
+    // routes and the two installed lists; all read-once arrays.
+    if (url.startsWith('/api/mcp/fleet') || url.startsWith('/api/skills/fleet')
+      || url.startsWith('/api/registry/mcp/installed') || url.startsWith('/api/registry/skill/installed')) {
+      return Response.json([], { status: 200 });
+    }
     return Response.json({ terminals: [] }, { status: 200 });
   }) as typeof fetch;
 }
@@ -121,5 +127,16 @@ describe('Shell', () => {
     const card = await screen.findByRole('listitem', { name: 'Recursive delete from Claude Code on laptop' });
     expect(card.className).toContain('border-2');
     delete (navigator as unknown as Record<string, unknown>).serviceWorker;
+  });
+
+  it('shows Extensions in the tabs and opens the registry screen', async () => {
+    const user = userEvent.setup();
+    route([[]]);
+    render(<Shell username="admin" onSignedOut={vi.fn()} onSessionExpired={vi.fn()} />);
+    // Both navs listing the tab is what puts it one click away on desktop
+    // (sidebar) and phone (bottom bar) alike.
+    expect(within(screen.getByRole('navigation', { name: 'Primary' })).getByRole('button', { name: 'Extensions' })).toBeDefined();
+    await user.click(tabs().getByRole('button', { name: 'Extensions' }));
+    expect((await screen.findAllByText('MCP registry')).length).toBeGreaterThan(0);
   });
 });

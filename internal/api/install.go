@@ -1,7 +1,6 @@
 package api
 
 import (
-	"bufio"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -44,41 +43,6 @@ func distDir() string {
 		}
 	}
 	return ""
-}
-
-// distTargets lists the targets actually built, for "no build yet".
-func distTargets() []string {
-	d := distDir()
-	if d == "" {
-		return nil
-	}
-	f, err := os.Open(filepath.Join(d, "SHA256SUMS"))
-	if err != nil {
-		return nil
-	}
-	defer f.Close()
-	out := []string{}
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		fields := strings.Fields(sc.Text())
-		if len(fields) == 2 {
-			out = append(out, strings.SplitN(fields[1], "/", 2)[0])
-		}
-	}
-	return out
-}
-
-// distVersion reports the VERSION the helpers carry.
-func distVersion() string {
-	d := distDir()
-	if d == "" {
-		return ""
-	}
-	b, err := os.ReadFile(filepath.Join(d, "VERSION"))
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(b))
 }
 
 // registerMachineDist serves /install/machine.sh, /install/bin/SHA256SUMS

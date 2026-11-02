@@ -27,7 +27,7 @@ type Range = { from: string; to: string };
 // marshal through Date and emit toISOString() (full RFC3339) everywhere.
 const toRfc = (s: string) => new Date(s).toISOString();
 
-export default function CalendarTile({ widget, syncKey, arranging, onRemove, onSettings, onUnauthorized }: TileProps) {
+export default function CalendarTile({ widget, arranging, onRemove, onSettings, onUnauthorized }: TileProps) {
   const [range, setRange] = useState<Range | null>(null);
   const [data, setData] = useState<{ events: CalEvent[]; configured: boolean; stale?: boolean } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,7 +37,6 @@ export default function CalendarTile({ widget, syncKey, arranging, onRemove, onS
   const [quick, setQuick] = useState('');
   const [busy, setBusy] = useState(false);
   const calRef = useRef<FullCalendar>(null);
-  const lastSync = useRef(syncKey);
   // Week/month grids need width; land phones on the week list on first mount.
   const [initialView] = useState(() =>
     (typeof window !== 'undefined' && window.innerWidth < 768 ? 'listWeek' : 'timeGridWeek'));
@@ -65,18 +64,11 @@ export default function CalendarTile({ widget, syncKey, arranging, onRemove, onS
   const onDatesSet = useCallback((arg: DatesSetArg) => {
     const r = { from: toRfc(arg.startStr), to: toRfc(arg.endStr) };
     setRange(r);
-    void load(r, lastSync.current !== syncKey);
-    lastSync.current = syncKey;
-  }, [load, syncKey]);
+    void load(r, false);
+  }, [load]);
 
-  // The Sync button bumped: refetch the current window, bypassing caches.
-  // Read during render (not in an effect) so a bump while mounted
-  // refetches before paint.
-  if (lastSync.current !== syncKey) {
-    lastSync.current = syncKey;
-    if (range) void load(range, true);
-  }
-
+  // On a Sync bump the grid re-renders and onDatesSet refetches the visible
+  // window; Tile's ⟳ button also calls reload() for a manual refresh.
   const items = useMemo(() => (Array.isArray(data?.events) ? data.events : []), [data]);
   const events = useMemo(() => items.map((m) => ({
     id: (m.plan ? m.id : m.feed + ':' + m.id),

@@ -3,7 +3,7 @@
 // shared Tile frame with its own status LED, copy ⧉ on every link, and a
 // refresh ⟳ that bypasses the server cache.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Tile, { statusOf, CopyButton } from './Tile';
 import { useDeskFetch } from '../../lib/useDeskFetch';
 import { deskError, getMeetings, getNews, getTickets, getWeather } from '../../lib/deskApi';
@@ -83,7 +83,7 @@ function whenLabel(m: Meeting, now = Date.now()): { text: string; now: boolean }
 export function MeetingsTile({ syncKey, arranging, onRemove, onSettings, onNext, onUnauthorized }: TileProps & { onNext?: (m: Meeting | null) => void }) {
   const fetcher = useCallback((r: boolean) => getMeetings(r) as Promise<never>, []);
   const { data, loading, error, reload } = useDeskFetch(fetcher, syncKey, onUnauthorized);
-  const items = (Array.isArray(data?.items) ? data?.items : []) as Meeting[];
+  const items = useMemo(() => (Array.isArray(data?.items) ? data?.items : []) as Meeting[], [data]);
   useEffect(() => {
     const now = Date.now();
     onNext?.(items.find((m) => new Date(m.end).getTime() > now) ?? null);

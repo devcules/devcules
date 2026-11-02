@@ -19,7 +19,6 @@ export function NextUpTile({ syncKey, arranging, onRemove, onSettings, onUnautho
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     let alive = true;
-    setLoading(true);
     void Promise.all([listApprovals('pending', 20), getMeetings(false)]).then(([a, m]) => {
       if (!alive) return;
       if (a === 'unauthorized' || m === 'unauthorized') { onUnauthorized?.(); setLoading(false); return; }

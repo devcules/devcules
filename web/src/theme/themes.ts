@@ -15,8 +15,7 @@ export interface Theme {
   swatch: [string, string, string];
 }
 
-// Kaithos's palettes joined the list: one home set above, then
-// theirs, grouped dark then light in the dropdown.
+// One home set above, then the extra palettes, grouped dark then light in the dropdown.
 export const THEMES: Theme[] = [
   { id: 'arc', label: 'arc', scheme: 'dark', swatch: ['#101418', '#1a212b', '#e0a63f'] },
   { id: 'slate', label: 'slate', scheme: 'dark', swatch: ['#11151c', '#1b222e', '#9fb8d4'] },

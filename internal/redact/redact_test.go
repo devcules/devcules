@@ -105,8 +105,8 @@ func TestModes(t *testing.T) {
 }
 
 // The desk's own keys mask even when no gitleaks rule names their
-// shape — the "known" set serve feeds from the vault, Kaithos's "its
-// key is now a known value".
+// shape — the "known" set serve feeds from the vault ("its key is
+// now a known value").
 func TestKnownSecrets(t *testing.T) {
 	r := newTestRedactor(t)
 	const patternless = "▓▓not-a-vendor-key-42▓▓" // no rule matches this

@@ -24,8 +24,8 @@ type KeyWriter interface {
 }
 
 // KeyVault reads back the keys the store holds so they become values
-// the redactor must never send a model (Kaithos's "its key is now a
-// known value"). The vault is the only holder of plaintext, so it
+// the redactor must never send a model ("its key is now a known
+// value"). The vault is the only holder of plaintext, so it
 // implements both this and KeyWriter.
 type KeyVault interface {
 	KeyWriter
@@ -35,7 +35,7 @@ type KeyVault interface {
 
 // refreshKnownKeys seeds the redactor with every provider key the
 // vault holds. Redaction that misses the desk's own key is the
-// failure Kaithos's "its key is now a known value" closes: a stored
+// failure "its key is now a known value" closes: a stored
 // key need not match a vendor's gitleaks pattern to be masked, so
 // every write or removal re-reads the whole set. A refusal leaves the
 // last good set rather than masking nothing or everything.

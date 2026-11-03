@@ -16,7 +16,7 @@ import { useMobile } from './useMobile';
 
 // TermKeyboard is the docked custom keyboard for terminals and
 // assistants — one horizontally-scrolling strip at the bottom of the
-// open pane. It mirrors the Kaithos mobile keyboard: a single scroll
+// open pane. It is a single scroll
 // row (pan-x only, under the body's scroll lock), tap-vs-drag
 // disambiguation so a sideways swipe scrolls instead of firing a key,
 // a three-state Ctrl (off / armed one-shot / held), hold-repeat
@@ -55,7 +55,7 @@ export default function TermKeyboard({
   position = 'top',
   onShowTabs,
 }: {
-  // Kaithos docks the strip at the top of the open pane and the OS
+  // The strip docks at the top of the open pane and the OS
   // keyboard at the bottom — the pane gets the full middle. 'bottom'
   // is kept for a future bottom-docked mode.
   position?: 'top' | 'bottom';
@@ -115,7 +115,7 @@ export default function TermKeyboard({
       aria-label="Custom terminal keyboard"
       // A host column with intrinsic content can stretch this strip
       // past the viewport; clamp it to the visible width and let the
-      // row below be the thing that scrolls (Kaithos' strip scrolls
+      // row below be the thing that scrolls (the strip scrolls
       // inside itself, not the page).
       className={`flex w-full max-w-[100vw] min-w-0 items-stretch gap-1 overflow-hidden ${side} border-muted bg-surface px-2 ${bottomPad} pt-2 select-none`}
       style={{ touchAction: 'manipulation' }}
@@ -163,8 +163,7 @@ export default function TermKeyboard({
 
 // ScrollRow is the strip's horizontal track. The body scroll-lock
 // suppresses the default pan on the page; the row (and each key)
-// opts into pan-x, so a sideways swipe scrolls it natively — Kaithos'
-// exact mechanism. Our SKey's pointermove cancels a tap after 10 px
+// opts into pan-x, so a sideways swipe scrolls it natively. Our SKey's pointermove cancels a tap after 10 px
 // of travel, so a scroll never fires a key.
 function ScrollRow({ children }: { children: React.ReactNode }) {
   return (
@@ -212,7 +211,7 @@ function SKey({ def, ctrl }: { def: KeyDef; ctrl: CtrlState }) {
   };
 
   const onDown = (e: React.PointerEvent) => {
-    // Kaithos does not preventDefault on pointerdown: doing so
+    // No preventDefault on pointerdown: doing so
     // suppresses the browser's native pan gesture, and a sideways
     // swipe fails to scroll the strip. We track the point and only
     // cancel the key when the browser hasn't already taken over the
@@ -281,8 +280,7 @@ function SKey({ def, ctrl }: { def: KeyDef; ctrl: CtrlState }) {
       onContextMenu={(e) => e.preventDefault()}
       // touch-pan-y (not none): a horizontal swipe lands on the row's
       // pan-x scroll (the strip scrolls); our pointermove cancels the
-      // key at 10px travel, so a scroll never fires a key. Kaithos
-      // keys use no touch-action at all; this is the minimal hint that
+      // key at 10px travel, so a scroll never fires a key. This is the minimal hint that
       // still lets the parent pan-x claim a sideways drag.
       className={`i-control min-h-9 min-w-10 shrink-0 touch-pan-y rounded-md px-2.5 text-tab font-semibold transition-colors ${
         active

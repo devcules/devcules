@@ -11,8 +11,8 @@ import { copyText } from '../../lib/toast';
 import { fmtClock, isFinished, pauseTimer, PRESETS_MIN, readTimer, remainingMs, resumeTimer, startTimer, writeTimer, type Timer } from '../../lib/deskTimer';
 import type { TileProps } from './tiles';
 
-// ---- Next up (brief): pending approvals + the next meeting. Devcules'
-// answer to Kaithos' AI brief — the things that actually need you, ranked. ----
+// ---- Next up (brief): pending approvals + the next meeting — the
+// things that actually need you, ranked. ----
 export function NextUpTile({ syncKey, arranging, onRemove, onSettings, onUnauthorized, onOpenApprovals }: TileProps & { onOpenApprovals?: () => void }) {
   const [pending, setPending] = useState<Approval[]>([]);
   const [next, setNext] = useState<{ title: string; start: string; url?: string } | null>(null);

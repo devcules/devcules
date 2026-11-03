@@ -10,8 +10,8 @@
 //    searches skills.sh and installs to every agent via the skills CLI.
 //
 // The installed lists live under the matching search tab (install there,
-// remove there); the glance strip is read-only. Ported from kaithos'
-// Extensions page — devcules-native cookie session (401 → onSessionExpired)
+// remove there); the glance strip is read-only. It uses the
+// devcules cookie session (401 → onSessionExpired)
 // and theme tokens. The "ask the assistant" affordance is out: the backend
 // answers it 409 (not wired to devcules' router).
 

@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// ExportEvent is what the ICS export needs from a Kaithos plan.
+// ExportEvent is what the ICS export needs from a desk plan.
 type ExportEvent struct {
 	UID, Title, Location, URL, Notes, RRule string
 	Start, End                              time.Time
@@ -14,14 +14,14 @@ type ExportEvent struct {
 	Updated                                 time.Time
 }
 
-// ICSExport renders Kaithos plans as a calendar other apps can subscribe to.
+// ICSExport renders desk plans as a calendar other apps can subscribe to.
 func ICSExport(name string, events []ExportEvent) string {
 	var b strings.Builder
-	b.WriteString("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Kaithos//Desk calendar//EN\r\nCALSCALE:GREGORIAN\r\nMETHOD:PUBLISH\r\n")
+	b.WriteString("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Devcules//Desk calendar//EN\r\nCALSCALE:GREGORIAN\r\nMETHOD:PUBLISH\r\n")
 	b.WriteString("X-WR-CALNAME:" + icsEscape(name) + "\r\n")
 	for _, e := range events {
 		b.WriteString("BEGIN:VEVENT\r\n")
-		b.WriteString("UID:" + icsEscape(e.UID) + "@kaithos\r\n")
+		b.WriteString("UID:" + icsEscape(e.UID) + "@devcules\r\n")
 		stamp := e.Updated
 		if stamp.IsZero() {
 			stamp = time.Now()

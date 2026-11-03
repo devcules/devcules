@@ -78,7 +78,7 @@
 
 /* Mobile: the page is a shell, not a document. Lock body scroll so the
    xterm surface and the horizontal key strip are the only things that
-   move (Kaithos' pattern): taps focus the pane without the page
+   move: taps focus the pane without the page
    jumping, and the strip pans with touch-action:pan-x below. */
 html.devcules-mobile,
 body.devcules-mobile {

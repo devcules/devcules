@@ -11,13 +11,13 @@ import (
 	ics "github.com/arran4/golang-ical"
 )
 
-// Opt-in: KAITHOS_ICS_URL=<secret address> go test -run TestLiveICS -v
+// Opt-in: DEVCULES_ICS_URL=<secret address> go test -run TestLiveICS -v
 // Prints what a real feed contains so parsing can be checked against it.
 // Nothing about the feed is stored; the URL comes from the environment only.
 func TestLiveICS(t *testing.T) {
-	u := os.Getenv("KAITHOS_ICS_URL")
+	u := os.Getenv("DEVCULES_ICS_URL")
 	if u == "" {
-		t.Skip("set KAITHOS_ICS_URL to run against a real feed")
+		t.Skip("set DEVCULES_ICS_URL to run against a real feed")
 	}
 	AllowPrivateHosts = false
 	hc := NewClient(40 * time.Second)

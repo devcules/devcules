@@ -108,7 +108,7 @@ func TestMCPInspectorHandlesInterleavedNotifications(t *testing.T) {
 func TestMCPInspectorReportsWarningWhenCommandMissing(t *testing.T) {
 	ins := &MCPInspector{Timeout: 2 * time.Second}
 	entry := CatalogEntry{Kind: KindMCP, Install: MCPInstallSpec{
-		Type: "stdio", Command: "this-binary-does-not-exist-kaithos-test",
+		Type: "stdio", Command: "this-binary-does-not-exist-devcules-test",
 	}}
 	insp, err := ins.Inspect(context.Background(), entry)
 	if err != nil {

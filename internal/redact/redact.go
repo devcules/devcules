@@ -106,7 +106,7 @@ type Redactor struct {
 	key    []byte
 	counts map[Type]*counters
 	// known is the holder's live set of credentials it must never send
-	// a model (Kaithos's "known" values): the placeholder key, runner
+	// a model (the "known" values): the placeholder key, runner
 	// link tokens, every provider key. find masks them always, off the
 	// policy: masking a key the desk holds is never wrong, and the
 	// secret rules only catch keys that match a vendor's pattern.
@@ -183,7 +183,7 @@ type span struct {
 
 // find runs every detector whose mode is not off. The desk's own
 // credentials are matches under Secret whatever the mode says: they
-// are the values the holder must never send a model (Kaithos's
+// are the values the holder must never send a model (the
 // "known" detector), so the policy only decides whether to mask or
 // block one, never whether to miss it.
 func (r *Redactor) find(text string, p Policy) []span {

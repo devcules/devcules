@@ -5,7 +5,7 @@
 // module-level modifier (armed = next char, held = until released), so
 // both the strip keys and the OS keyboard's typed letters can carry it.
 //
-// This is the Kaithos pattern: module state, not component state, so a
+// Module state, not component state, so a
 // pane swap mid-typing keeps the modifier and the keyboard instantly
 // rebinds to the new pane's input path.
 

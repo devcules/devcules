@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { hostInfo, type HostInfo } from '../api';
 
 // The bottom bar: one muted monospaced strip of the machine serve
-// itself is on, in the same shape as kaithos's and the same
+// itself is on, with the same
 // mutability as the token system (no bespoke colour). A value serve
 // didn't say is absent: no "unknown", no dashes; a failed fetch hides
 // the whole bar instead of a stale panel. The 5s cadence matches the

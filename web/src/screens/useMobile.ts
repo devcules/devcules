@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
-// useMobile is the single JS flag that drives the whole mobile story,
-// the way Kaithos does it: no CSS media queries on the terminal path,
+// useMobile is the single JS flag that drives the whole mobile story:
+// no CSS media queries on the terminal path,
 // because a coarse pointer alone is unreliable (emulators, iPads).
 // Mobile means a coarse pointer AND at least one touch point AND a
 // phone-sized edge (portrait width or landscape height). The value is

@@ -3,7 +3,7 @@ import { THEMES, currentTheme, setTheme } from '../theme/themes';
 
 // The top-bar theme picker: one button that reads "◑ <theme>" and
 // opens a dropdown, dark items then light, each with its accent dot.
-// Kaithos keeps this in the title bar so the theme is reachable from
+// It sits in the title bar so the theme is reachable from
 // every screen; the pick persists per browser and applies at once.
 export default function ThemePicker() {
   const [theme, setThemeState] = useState(currentTheme);

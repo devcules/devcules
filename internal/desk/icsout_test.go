@@ -10,7 +10,7 @@ import (
 func TestICSExport_RoundTrip(t *testing.T) {
 	ams, _ := time.LoadLocation("Europe/Amsterdam")
 	start := time.Date(2026, 11, 3, 10, 0, 0, 0, ams)
-	out := ICSExport("Kaithos plans", []ExportEvent{
+	out := ICSExport("Devcules plans", []ExportEvent{
 		{UID: "e1", Title: "Standup, team A; daily", Start: start, End: start.Add(30 * time.Minute), Location: "https://meet.google.com/x", Notes: "line1\nline2"},
 		{UID: "e2", Title: "Offsite", Start: time.Date(2026, 11, 12, 0, 0, 0, 0, ams), End: time.Date(2026, 11, 13, 0, 0, 0, 0, ams), AllDay: true},
 		{UID: "e3", Title: "Weekly", Start: start, End: start.Add(time.Hour), RRule: "FREQ=WEEKLY;BYDAY=TU"},

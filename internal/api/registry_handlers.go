@@ -2,11 +2,9 @@ package api
 
 // registry_handlers.go — the extensions registry HTTP surface for
 // devcules: browse/inspect/install/remove MCP servers and Skills against
-// the local coding agents (Claude Code, Codex) on this machine. Ported
-// from kaithos' control-plane registry handler (same names, same flow),
-// adapted to devcules: path-prefix routes on the one mux, cookie-session
-// auth via requireSession, and writeJSON/writeErr/wantJSON from this
-// package instead of the kaithos Server's own.
+// the local coding agents (Claude Code, Codex) on this machine. Routes
+// are path-prefixed on the one mux, with cookie-session auth via
+// requireSession and writeJSON/writeErr/wantJSON from this package.
 //
 // The kind-agnostic core lives in internal/registry; this file only
 // decodes {kind, body}, picks the right Source/Inspector/Installer, and
@@ -14,8 +12,8 @@ package api
 // ~/.codex/config.toml, ~/.claude/skills, ~/.agents/skills) — never a
 // devcules-side record of what was installed.
 //
-// handleRegistryExplain is not ported: in kaithos it answered through the
-// control-plane's llmConfig (the gateway its Assistants chat uses).
+// There is no "explain" route: answering it would need a model
+// gateway the registry does not otherwise depend on.
 // Devcules' inference goes through internal/router's provider mesh with a
 // different call shape, so until the UI needs it, explain answers 409
 // with a pointer instead of a half-wired guess.
@@ -65,8 +63,7 @@ type registryBag struct {
 	codexBin  string
 }
 
-// newRegistryBag wires the same default sources/installers kaithos
-// uses: the official MCP registry for MCP, skills.sh for skills. Agents
+// newRegistryBag wires the default sources and installers: the official MCP registry for MCP, skills.sh for skills. Agents
 // stay kind-routed to a 501 until a Source/Installer exists for them.
 func newRegistryBag(claudeBin, codexBin string) *registryBag {
 	if claudeBin == "" {

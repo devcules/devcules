@@ -20,7 +20,7 @@ func requireClaudeCLI(t *testing.T) {
 func TestMCPInstallerLifecycle(t *testing.T) {
 	requireClaudeCLI(t)
 	in := &MCPInstaller{Scope: "user"}
-	name := "kaithos-test-probe-registry"
+	name := "devcules-test-probe-registry"
 	t.Cleanup(func() { _ = in.Remove(context.Background(), name) })
 
 	entry := CatalogEntry{Kind: KindMCP, Install: MCPInstallSpec{

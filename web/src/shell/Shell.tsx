@@ -23,7 +23,7 @@ import UserMenu from './UserMenu';
 // for that host.
 type Tab = 'desk' | 'home' | 'projects' | 'terminals' | 'machines' | 'assistant' | 'extensions' | 'activity' | 'settings';
 
-// Desk leads: the instrument panel is the landing tab (Kaithos' Desk),
+// Desk leads: the instrument panel is the landing tab,
 // before the Home inbox.
 const tabs: Array<{ id: Tab; label: string }> = [
   { id: 'desk', label: 'Desk' },
@@ -53,7 +53,7 @@ export default function Shell({
   const [focus, setFocus] = useState<string | null>(initialApproval);
   // Mobile-first run mode: while a terminal pane is focused the shell
   // chrome (header, sidebar, footer, bottom tabs) folds away and the
-  // terminal takes the visible viewport. Kaithos calls this fs; the ☰
+  // terminal takes the visible viewport. This is "fs"; the ☰
   // on the strip or the page's own back step drops back out. The pane
   // column is sized to the *visible* height so an open OS keyboard
   // pushes content instead of covering it.
@@ -186,7 +186,7 @@ export default function Shell({
   return (
     <div className="flex min-h-dvh flex-col bg-base text-text">
       {/* Top bar: the brand and, on the right, the theme drop-down.
-          Kaithos keeps the picker in the header so the theme is
+          The picker sits in the header so the theme is
           reachable from every screen; the pick persists per browser
           and applies at once. The safe-area top inset moves into the
           bar so the body's `pt` stays zero. */}
@@ -255,8 +255,8 @@ export default function Shell({
         )}
       </main>
       </div>
-      {/* The footer strip: after the sidebar+main row, where kaithos
-          keeps its machine line. Flow, not fixed, so content runs
+      {/* The footer strip: after the sidebar+main row, holding the
+          machine line. Flow, not fixed, so content runs
           right down to it; on mobile it sits above the fixed
           bottom tabs. */}
       <StatusBar username={username} />

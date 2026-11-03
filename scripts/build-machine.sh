@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # build-machine.sh — cross-compiles the machine helper `devcules`
 # serves at /install, so a fresh computer adds itself without having
-# Go or the repo. Mirrors Kaithos's build-machine.sh: one binary per
+# Go or the repo: one binary per
 # target, a SHA256SUMS the installer checks, and a VERSION stamp.
 #
 #   scripts/build-machine.sh            # every target below

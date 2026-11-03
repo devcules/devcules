@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// install.go hands out the machine helper itself, Kaithos-style: a
+// install.go hands out the machine helper itself: a
 // fresh computer asks the box it is joining for the binary, check its
 // SHA-256, enrol and install at login — one pasted command, nothing
 // fetched from anywhere else.

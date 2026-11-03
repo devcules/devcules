@@ -26,14 +26,14 @@ func TestScanMCPFleetMergesHarnesses(t *testing.T) {
 
 	writef(t, filepath.Join(home, ".claude.json"), `{
 		"mcpServers": {
-			"kaithos-antro": {"type": "http", "url": "http://127.0.0.1:7659/api/v1/mcp"},
+			"devcules-mcp": {"type": "http", "url": "http://127.0.0.1:7659/api/v1/mcp"},
 			"claude-only": {"type": "stdio", "command": "uvx", "args": ["some-server"]}
 		}
 	}`)
 	writef(t, filepath.Join(home, ".codex", "config.toml"), `
-[mcp_servers.kaithos-antro]
+[mcp_servers.devcules-mcp]
 url = "http://127.0.0.1:7659/api/v1/mcp"
-bearer_token_env_var = "KAITHOS_MCP_TOKEN"
+bearer_token_env_var = "DEVCULES_MCP_TOKEN"
 
 [mcp_servers.codex-only]
 command = "npx"
@@ -51,9 +51,9 @@ args = ["-y", "codex-server"]
 	if len(fleet) != 4 {
 		t.Fatalf("fleet: %+v", fleet)
 	}
-	both := byName["kaithos-antro"]
+	both := byName["devcules-mcp"]
 	if len(both.Harnesses) != 2 {
-		t.Fatalf("kaithos-antro should be in both harnesses: %+v", both)
+		t.Fatalf("devcules-mcp should be in both harnesses: %+v", both)
 	}
 	if byName["claude-only"].Harnesses[0] != "claude-code" {
 		t.Fatalf("claude-only: %+v", byName["claude-only"])

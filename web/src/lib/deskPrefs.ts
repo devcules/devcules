@@ -13,7 +13,7 @@ export type WidgetType = {
   needs?: 'tavily' | 'ticket'; multiple?: boolean; configurable?: boolean;
 };
 
-// The catalog. Devcules has no FullCalendar suite, so Kaithos' big calendar
+// The catalog. Devcules has no FullCalendar suite, so a big calendar
 // tile collapses into Meetings (the ICS-backed list) and the email tile
 // surfaces as Meetings too; tickets is the Jira/Asana/Linear union.
 export const WIDGET_TYPES: Record<string, WidgetType> = {

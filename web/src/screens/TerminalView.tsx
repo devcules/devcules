@@ -231,7 +231,7 @@ export default function TerminalView({
         },
       },
     );
-    // The pane element is the size source of truth (Kaithos): on any
+    // The pane element is the size source of truth: on any
     // change — OS keyboard pushing the page column, rotation, a fs
     // toggle — fit() the canvas and tell the PTY, so lines rewrap
     // instead of clipping. Debounce a hair so a resize storm of
@@ -310,7 +310,7 @@ export default function TerminalView({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* The custom keyboard docks at the TOP of the pane (Kaithos):
+      {/* The custom keyboard docks at the TOP of the pane:
           the OS keyboard stays at the bottom and the pane takes the
           middle. It appears once the pane's stream registers on
           keybus — on mobile that's the whole point; on desktop a very

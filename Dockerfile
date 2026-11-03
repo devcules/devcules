@@ -5,7 +5,7 @@
 # M1.2 web stage. Node builds the PWA into internal/web/dist, which
 # the Go stage embeds; web/ depends on nothing else in the repo.
 # node:24-bookworm-slim, matching the Node version CI tests with.
-FROM node:24-bookworm-slim@sha256:be8204d4bd327363357f532187b752ff62759c31bedf98e9e18fc08c9cbd605c AS web
+FROM node:26-bookworm-slim@sha256:bc0a2afd3b74ce12222fc8bab99271e66257f021078f5f4a5d687a77d280c1d9 AS web
 WORKDIR /web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --no-audit --no-fund

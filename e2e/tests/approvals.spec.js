@@ -38,6 +38,9 @@ test('an agent asks and the owner allows from Home', async ({ page, request }, t
   expect(ask.decision).toBe('ask');
 
   await page.goto('/');
+  // Desk is the landing tab; approval cards live on Home (whose tab
+  // name carries the waiting count).
+  await page.getByRole('button', { name: /^Home\b/ }).first().click();
   const card = page.getByRole('listitem', { name: `A tool call from e2e on ${runner}` });
   await expect(card.getByText(command)).toBeVisible();
   await card.getByRole('button', { name: 'Allow once' }).click();

@@ -26,18 +26,21 @@ async function signIn(page) {
   await expect(page.getByRole('button', { name: 'Settings', exact: true }).first()).toBeVisible();
 }
 
-async function openTerminals(page) {
-  await page.getByRole('button', { name: 'Terminals', exact: true }).first().click();
+// Plain terminals open from the Assistant tab: its overview lists the
+// live ones as a tab strip and offers a shell to start.
+async function openAssistant(page) {
+  await page.getByRole('button', { name: 'Assistant', exact: true }).first().click();
+  await expect(page.getByRole('region', { name: 'Assistant', exact: true })).toBeVisible();
 }
 
-// newTerminal clicks New terminal and returns the id the server
-// minted, read from the POST itself: both projects run in parallel
-// against one stack, so the list may hold other tests' terminals.
+// newTerminal starts a shell and returns the id the server minted,
+// read from the POST itself: both projects run in parallel against
+// one stack, so the strip may hold other tests' terminals.
 async function newTerminal(page) {
   const created = page.waitForResponse(
     (res) => res.url().endsWith('/api/terminals') && res.request().method() === 'POST',
   );
-  await page.getByRole('button', { name: 'New terminal' }).click();
+  await page.getByRole('button', { name: 'Start a shell' }).click();
   const res = await created;
   expect(res.status()).toBe(201);
   const { id } = await res.json();
@@ -47,6 +50,15 @@ async function newTerminal(page) {
   await expect(page.getByRole('status')).toHaveCount(0);
   opened.push(id);
   return id;
+}
+
+// nameTerminal gives id a name no parallel test shares, so its tab in
+// the strip can be found again (every shell starts as "assistant").
+async function nameTerminal(page, id) {
+  const name = `e2e-${id.slice(0, 8)}`;
+  const res = await page.request.patch(`/api/terminals/${id}`, { data: { name } });
+  expect(res.status()).toBe(204);
+  return name;
 }
 
 // Every test closes what it opened, so reruns against the same stack
@@ -95,7 +107,7 @@ async function terminalText(page) {
 test('new terminal, type echo, see the output', async ({ page }) => {
   await watchCSP(page);
   await signIn(page);
-  await openTerminals(page);
+  await openAssistant(page);
   const id = await newTerminal(page);
   const waitFor = await attachReader(page, id);
 
@@ -110,7 +122,7 @@ test('new terminal, type echo, see the output', async ({ page }) => {
 test('reload the page and the output is still there', async ({ page }) => {
   await watchCSP(page);
   await signIn(page);
-  await openTerminals(page);
+  await openAssistant(page);
   const id = await newTerminal(page);
   const waitFor = await attachReader(page, id);
   await page.evaluate(() => window.__ws.send(new TextEncoder().encode('echo persist-$((20+22))\n')));
@@ -119,10 +131,11 @@ test('reload the page and the output is still there', async ({ page }) => {
   // A fresh attach redraws the scrollback from tmux: nothing of ours
   // is a replay buffer, the session is the buffer.
   await page.evaluate(() => window.__ws.close());
+  const name = await nameTerminal(page, id);
   await page.reload();
   await expect(page.getByRole('button', { name: 'Settings', exact: true }).first()).toBeVisible();
-  await openTerminals(page);
-  await page.getByRole('button', { name: `Open terminal ${id.slice(0, 8)}` }).click();
+  await openAssistant(page);
+  await page.getByRole('button', { name, exact: true }).click();
   await expect(page.getByLabel('Terminal', { exact: true })).toBeVisible();
   const waitAgain = await attachReader(page, id);
   await waitAgain('persist-42');
@@ -130,9 +143,11 @@ test('reload the page and the output is still there', async ({ page }) => {
 });
 
 test('the key strip sends Ctrl-C', async ({ page }) => {
+  // The docked keyboard strip rides over any open pane; its Ctrl arms
+  // a one-shot that turns the next typed letter into its control code.
   await watchCSP(page);
   await signIn(page);
-  await openTerminals(page);
+  await openAssistant(page);
   const id = await newTerminal(page);
   const waitFor = await attachReader(page, id);
 
@@ -143,8 +158,10 @@ test('the key strip sends Ctrl-C', async ({ page }) => {
   await page.keyboard.press('Enter');
   await page.waitForTimeout(1500);
 
-  // Sticky Ctrl plus a typed letter: the shell must get 0x03.
-  await page.getByRole('button', { name: 'Control (sticky modifier)' }).click();
+  // One-shot Ctrl plus a typed letter: the shell must get 0x03. The
+  // xterm input regains focus without a click, which could disarm it.
+  await page.getByRole('button', { name: 'Control (tap for one, hold to keep)' }).click();
+  await page.locator('.xterm-helper-textarea').focus();
   await page.keyboard.press('c');
   await page.keyboard.type('echo done-$((20+22))');
   await page.keyboard.press('Enter');
@@ -156,12 +173,12 @@ test('the key strip sends Ctrl-C', async ({ page }) => {
 test('close terminal forgets it', async ({ page }) => {
   await watchCSP(page);
   await signIn(page);
-  await openTerminals(page);
+  await openAssistant(page);
   const id = await newTerminal(page);
+  const name = await nameTerminal(page, id);
   await page.getByRole('button', { name: 'Back to terminals' }).click();
-  await page.getByRole('button', { name: `Close terminal ${id.slice(0, 8)}` }).click();
-  await page.getByRole('button', { name: `Confirm close terminal ${id.slice(0, 8)}` }).click();
-  await expect(page.getByRole('button', { name: `Open terminal ${id.slice(0, 8)}` })).toHaveCount(0);
+  await page.getByRole('button', { name: `Close ${name}` }).click();
+  await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0);
 
   const list = await page.request.get('/api/terminals');
   expect(list.status()).toBe(200);

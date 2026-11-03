@@ -66,3 +66,44 @@ func TestContractPassesAGoodAdapter(t *testing.T) {
 		WantOtherTool: "edit",
 	})
 }
+
+// offToy is the smallest off-router assistant: its own binary, no
+// router wire, no hook. It proves the suite's off-router branch
+// passes a good one.
+type offToy struct{}
+
+func (offToy) ID() string                            { return "offtoy" }
+func (offToy) Name() string                          { return "Off Toy" }
+func (offToy) Provider() string                      { return "" }
+func (offToy) Wire() string                          { return "" }
+func (offToy) Only() []string                        { return nil }
+func (offToy) Wired() bool                           { return false }
+func (offToy) Detect(context.Context) (string, bool) { return "", false }
+func (offToy) InstallHint() string                   { return "install offtoy" }
+
+func (offToy) LaunchSpec(l agents.Launch) (agents.Spec, error) {
+	if l.Dir == "" {
+		return agents.Spec{}, errors.New("incomplete launch")
+	}
+	return agents.Spec{Cmd: []string{"offtoy"}}, nil
+}
+
+func (offToy) HookCall([]byte) (agents.Call, error) {
+	return agents.Call{}, errors.New("off-router assistants have no hook")
+}
+
+func (offToy) HookAnswer(agents.Answer) agents.Reply {
+	return agents.Reply{Stderr: "off-router assistants have no hook", Code: 2}
+}
+
+func TestContractPassesAnOffRouterAssistant(t *testing.T) {
+	Run(t, offToy{}, Fixture{})
+}
+
+// TestJSONish: a hook command written into a JSON config escapes
+// backslashes and double quotes, and the suite looks for that form.
+func TestJSONish(t *testing.T) {
+	if got := jsonish(`a "b" \c 'd'`); got != `a \"b\" \\c 'd'` {
+		t.Fatalf("jsonish = %q", got)
+	}
+}

@@ -89,9 +89,15 @@ export default function NewTerminal({
   // Off-router assistants run their own CLI: no router provider, key
   // or model enters the form, so the launch is one tap.
   const direct = agent?.direct === true;
+  // An agent that can run on its own login offers that beside the
+  // profiles: "" is that choice, and it is the default when no profile
+  // has a key.
+  const selfAuth = agent?.selfAuth === true;
   const speaks = agent && !direct ? (agent.providers?.length ? agent.providers : [agent.provider]) : [];
   const served = (id: string) => providers.find((p) => p.id === id);
   const labelOf = (id: string) => served(id)?.name ?? providerLabel(id);
+  const ownLogin = selfAuth && provider === '';
+  const usable = ownLogin || served(provider)?.ready === true;
 
   // pickProvider changes the provider and forgets the old one's model.
   function pickProvider(p: string): void {
@@ -117,7 +123,14 @@ export default function NewTerminal({
       return;
     }
     const own = a.providers?.length ? a.providers : [a.provider];
-    pickProvider(own.find((p) => served(p)?.ready) ?? own[0]);
+    const ready = own.find((p) => served(p)?.ready);
+    // An agent that can log in itself starts that way when no profile
+    // has a key, instead of the picker dead-ending on a disabled set.
+    if (!ready && a.selfAuth === true) {
+      pickProvider('');
+      return;
+    }
+    pickProvider(ready ?? own[0]);
   }
 
   // The model list follows the provider; serve reads it with the key.
@@ -149,7 +162,9 @@ export default function NewTerminal({
   }, [provider, providers, onSessionExpired]);
 
   const chosenModel = model === otherModel || (models !== null && models.length === 0) ? typedModel.trim() : model;
-  const foreign = agent !== undefined && provider !== agent.provider;
+  // Own login has no profile, so a model would be neither needed nor
+  // meaningful: the CLI picks its own.
+  const foreign = agent !== undefined && !ownLogin && provider !== agent.provider;
   // A profile's default model stands in when none is picked.
   const fallback = served(provider)?.model ?? '';
   const needsModel = foreign && fallback === '';
@@ -240,6 +255,17 @@ export default function NewTerminal({
         <fieldset className="flex flex-col gap-1">
           <legend className="text-body text-text">Provider</legend>
           <div className="flex flex-wrap gap-2">
+            {selfAuth && (
+              <button
+                type="button"
+                aria-pressed={ownLogin}
+                onClick={() => pickProvider('')}
+                className={`flex min-h-11 flex-col items-start justify-center rounded-md px-4 py-1 text-left text-body ${ownLogin ? 'bg-text text-base' : 'bg-base text-text'}`}
+              >
+                <span>{agent.name}&apos;s own login</span>
+                <span className="text-body opacity-75">no key needed</span>
+              </button>
+            )}
             {speaks.map((p) => {
               const state = served(p);
               const ok = state?.ready === true;
@@ -263,6 +289,12 @@ export default function NewTerminal({
               );
             })}
           </div>
+          {ownLogin && (
+            <p className="text-body text-muted">
+              {agent.name} uses the login it already has on this runner, and asks for one itself if there is none. Its model calls
+              do not pass through Devcules, so they are not redacted or traced; approvals still apply.
+            </p>
+          )}
           {speaks.some((p) => served(p) && !served(p)?.ready) && (
             <p className="text-body text-muted">A provider with no key is off: add its key in Settings.</p>
           )}
@@ -307,7 +339,7 @@ export default function NewTerminal({
       <div className="flex gap-2">
         <button
           type="submit"
-          disabled={busy || (agent !== undefined && !direct && !served(provider)?.ready)}
+          disabled={busy || (agent !== undefined && !direct && !usable)}
           className="min-h-11 rounded-md bg-accent px-4 text-body text-base disabled:opacity-60"
         >
           {busy ? 'Opening…' : agent ? `Start ${agent.name}` : 'Open shell'}

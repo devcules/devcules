@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -38,6 +39,10 @@ func (fakeAgents) Agents(context.Context) []terminals.AgentInfo {
 		{ID: "other", Name: "Other", Provider: "nope", Installed: true},
 		{ID: "broken", Name: "Broken", Provider: "meta", Installed: true},
 		{ID: "hermes", Name: "Hermes", Direct: true, Installed: true},
+		// selfauth runs on its own CLI login when no profile has a key;
+		// with a profile named it routes like any other agent. Its own
+		// profile (openai) has no key in this fixture.
+		{ID: "selfauth", Name: "Selfauth", Provider: "openai", Wire: terminals.WireResponses, SelfAuth: true, Installed: true},
 	}
 }
 
@@ -134,7 +139,7 @@ func TestAgentsAPI(t *testing.T) {
 		Agents []terminals.AgentInfo
 	}
 	_ = json.Unmarshal(w.Body.Bytes(), &listed)
-	if w.Code != 200 || listed.Runner != "laptop" || listed.Mode != "critical" || len(listed.Agents) != 5 || listed.Agents[0].Version != "1.0.0" {
+	if w.Code != 200 || listed.Runner != "laptop" || listed.Mode != "critical" || len(listed.Agents) != 6 || listed.Agents[0].Version != "1.0.0" {
 		t.Fatalf("list = %d %s", w.Code, w.Body)
 	}
 
@@ -182,7 +187,9 @@ func TestAgentsAPI(t *testing.T) {
 	}
 
 	// The off-router assistant needs no provider: no router check, no
-	// key, no profile default — its own CLI logs in.
+	// key, no profile default — its own CLI logs in. A test runner holds
+	// two terminals and "review bot" stays open for the stream check
+	// below, so each extra launch is closed as soon as it is asserted.
 	w = doJSON(f.mux, http.MethodPost, "/api/agents", `{"agent":"hermes","name":"my assistant"}`, f.session)
 	var direct struct {
 		ID     string
@@ -191,6 +198,36 @@ func TestAgentsAPI(t *testing.T) {
 	_ = json.Unmarshal(w.Body.Bytes(), &direct)
 	if w.Code != http.StatusCreated || direct.ID == "" || direct.Launch.Provider != "" {
 		t.Fatalf("assistant start = %d %s, want 201 with no provider", w.Code, w.Body)
+	}
+	if w := doJSON(f.mux, http.MethodDelete, "/api/terminals/"+direct.ID, "", f.session); w.Code != http.StatusNoContent {
+		t.Fatalf("close assistant = %d %s", w.Code, w.Body)
+	}
+
+	// A self-login agent with no usable profile runs on its own login
+	// instead of dead-ending: the complaint "no compatible provider"
+	// was wrong for Muse, whose CLI asks for a login itself.
+	w = doJSON(f.mux, http.MethodPost, "/api/agents", `{"agent":"selfauth","name":"own login"}`, f.session)
+	var own struct {
+		ID     string
+		Launch launch.Launch
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &own)
+	if w.Code != http.StatusCreated || own.ID == "" || own.Launch.Provider != "" {
+		t.Fatalf("self-auth start = %d %s, want 201 with no provider", w.Code, w.Body)
+	}
+	// It still mints the token the approval hook and MCP use.
+	if list, _ := f.tokens.List(ctx); !slices.ContainsFunc(list, func(l launch.Launch) bool {
+		return l.Label == "Selfauth on laptop" && l.Provider == "" && l.Active
+	}) {
+		t.Fatalf("tokens = %+v, want an active token with no provider", list)
+	}
+	if w := doJSON(f.mux, http.MethodDelete, "/api/terminals/"+own.ID, "", f.session); w.Code != http.StatusNoContent {
+		t.Fatalf("close self-auth = %d %s", w.Code, w.Body)
+	}
+	// Naming a profile that has no key stays a refusal: that is a setup
+	// problem to report, not something to quietly route around.
+	if w := doJSON(f.mux, http.MethodPost, "/api/agents", `{"agent":"selfauth","provider":"openai","name":"x"}`, f.session); w.Code != http.StatusConflict {
+		t.Fatalf("named provider with no key = %d %s, want 409", w.Code, w.Body)
 	}
 
 	w = terminalRequest(t, f.mux, http.MethodGet, "/api/terminals", f.session)

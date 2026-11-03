@@ -130,12 +130,23 @@ func startAgent(w http.ResponseWriter, r *http.Request, rl *relay.Relay, tokens 
 			provider = speaks[0]
 		}
 	}
+	// A self-login agent asked for without a provider and with no
+	// usable profile runs on its own CLI login: no router, no key, and
+	// no model from serve (Muse picks its own). It keeps the approval
+	// hook and MCP, which the launch token still funds. "Usable" means
+	// a saved key: a profile that exists but has none is not a choice.
+	selfAuth := info.SelfAuth && body.Provider == "" && !slices.ContainsFunc(speaks, func(p string) bool {
+		return ready(r.Context(), rt, p)
+	})
+	if selfAuth {
+		provider = ""
+	}
 	model := body.Model
 	// An off-router assistant runs its own CLI: no provider, router or
 	// key takes part, so a profile default or the provider check below
 	// stays out of its way.
 	offRouter := info.Direct
-	if model == "" && profiles != nil && !offRouter {
+	if model == "" && profiles != nil && !offRouter && !selfAuth {
 		if p, err := profiles.Get(r.Context(), provider); err == nil {
 			model = p.Model
 		}
@@ -146,6 +157,9 @@ func startAgent(w http.ResponseWriter, r *http.Request, rl *relay.Relay, tokens 
 		return
 	case offRouter:
 		// Its own login answers for it; nothing here to gate.
+	case selfAuth:
+		// Same: the CLI's own login answers, and it asks itself when
+		// there is none. Nothing here to gate.
 	case !slices.Contains(speaks, provider):
 		served := rt != nil && rt.Serves(r.Context(), provider)
 		switch {
@@ -158,6 +172,8 @@ func startAgent(w http.ResponseWriter, r *http.Request, rl *relay.Relay, tokens 
 		}
 		return
 	case !ready(r.Context(), rt, provider):
+		// A provider was asked for by name: that is a setup problem to
+		// report, not a reason to quietly fall back to another mode.
 		writeAuthError(w, http.StatusConflict, "the "+provider+" provider has no API key yet: add its key in Settings")
 		return
 	case provider != info.Provider && model == "":
@@ -175,7 +191,7 @@ func startAgent(w http.ResponseWriter, r *http.Request, rl *relay.Relay, tokens 
 		return
 	}
 	rec.record(r, audit.LaunchMint, l.ID, map[string]string{"label": l.Label, "provider": l.Provider, "runner": runner, "expires": l.Expires.Format(time.RFC3339)})
-	id, rerr := rl.OpenAgentAt(r.Context(), runner, terminals.AgentLaunch{ID: info.ID, Token: token, Model: model, Provider: provider}, place)
+	id, rerr := rl.OpenAgentAt(r.Context(), runner, terminals.AgentLaunch{ID: info.ID, Token: token, Model: model, Provider: provider, SelfAuth: selfAuth}, place)
 	if rerr != nil {
 		// Detached from the request: a client that gave up must not
 		// leave a live token behind.

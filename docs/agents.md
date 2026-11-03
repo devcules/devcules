@@ -12,7 +12,7 @@ manager behind the small `pty.Launcher` interface.
 
 | Agent | Package | Own provider · wire | Router path | Since |
 |---|---|---|---|---|
-| Muse Code | `plugins/agents/musecode` | `meta` · responses, only `meta` | `/llm/meta/v1` | M3.3 |
+| Muse Code | `plugins/agents/musecode` | `meta` · responses, only `meta`; or its own `muse login` | `/llm/meta/v1` | M3.3 |
 | Claude Code | `plugins/agents/claudecode` | `anthropic` · messages | `/llm/<p>` (it adds `/v1/messages`) | M3.4 |
 | Codex | `plugins/agents/codex` | `openai` · responses | `/llm/<p>/v1` (it adds `/responses`) | M3.4 |
 
@@ -114,16 +114,32 @@ Facts in `docs/integrations.md`. The adapter:
   environment;
 - writes `settings.json` under its own `XDG_CONFIG_HOME` in the
   launch dir, so the owner's `~/.config/muse` is never read or
-  changed: provider `meta`, the model (`muse-spark-1.3` unless the
-  launch names another), the router as the endpoint with bearer auth,
-  Devcules' MCP server as `devcules`, and the hook as a `PreToolUse`
-  command hook for every tool (`matcher: "*"`, timeout 960 s, longer
-  than an approval's 10 minutes);
-- passes the token as `META_API_KEY`;
+  changed: the model (`muse-spark-1.3` unless the launch names
+  another), Devcules' MCP server as `devcules`, and the hook as a
+  `PreToolUse` command hook for every tool (`matcher: "*"`, timeout
+  960 s, longer than an approval's 10 minutes);
+- in a **routed** launch (a `meta`-family profile with a saved key)
+  adds the router as `endpoint_transport` with bearer auth and passes
+  the launch token as `META_API_KEY`, so model calls are redacted and
+  traced like any other agent's;
+- in its **own-login** launch (no profile chosen, or none with a key)
+  writes no `endpoint_transport` and no `META_API_KEY`, and copies
+  the owner's `muse/auth.json` into the private config dir. Muse then
+  uses the account login `muse login` stored (a keychain record is a
+  pointer, so nothing secret is copied), or asks for one itself when
+  there is none. Muse's help is explicit that `META_API_KEY` "always
+  takes priority over the account login", and Muse ignores the
+  account login whenever `endpoint_transport` is set, so the two
+  modes cannot blend. Model calls take no part in Devcules' router,
+  redaction or traces; approvals and MCP still do;
 - runs `muse --approval-judge off --disable-approval` (the model and
   provider are in `settings.json`): Muse's own prompts and its model
   judge are off because Devcules asks instead; Muse's sandbox stays
   on.
+
+`AgentInfo.SelfAuth` marks it (`agents.SelfAuth(a)`, implemented as
+`SelfAuth() bool`), and the new-terminal form offers "Muse Code's own
+login" beside the profiles, preselected when none has a key.
 
 The hook answers Muse the way its docs say: exit `0` with no output
 allows, exit `2` with the reason on stderr blocks. Any other exit

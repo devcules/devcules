@@ -436,6 +436,9 @@ export type AgentInfo = {
   // direct marks an off-router assistant CLI: it runs its own binary
   // under its own login, so no router provider or key takes part.
   direct?: boolean;
+  // selfAuth marks an agent that can run on its own CLI login when no
+  // provider is chosen (Muse Code). It still gets the approval hook.
+  selfAuth?: boolean;
   installed: boolean;
   version?: string;
   install?: string;

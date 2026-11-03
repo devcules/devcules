@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -70,10 +71,12 @@ func (Agent) Detect(ctx context.Context) (string, bool) {
 
 // settings is the launch's ~/.config/muse/settings.json.
 type settings struct {
-	SchemaVersion     int                  `json:"schema_version"`
-	Provider          string               `json:"provider"`
-	Model             string               `json:"model"`
-	EndpointTransport endpoint             `json:"endpoint_transport"`
+	SchemaVersion int    `json:"schema_version"`
+	Provider      string `json:"provider"`
+	Model         string `json:"model"`
+	// EndpointTransport is absent in a self-auth launch: Muse ignores
+	// the account login whenever one is set, even an empty one.
+	EndpointTransport *endpoint            `json:"endpoint_transport,omitempty"`
 	MCPServers        map[string]mcpServer `json:"mcpServers"`
 	Hooks             map[string][]matcher `json:"hooks"`
 }
@@ -102,49 +105,95 @@ type handler struct {
 	StatusMessage string `json:"statusMessage"`
 }
 
+// SelfAuth: Muse can start on the account login `muse login` stored,
+// with no provider profile and no key from serve. Its help is explicit
+// that META_API_KEY "always takes priority over the account login", so
+// the two modes cannot blend: a launch is one or the other.
+func (Agent) SelfAuth() bool { return true }
+
 // LaunchSpec writes a private settings.json and starts `muse` with
 // Muse's own approvals off. The base URL must be pinned in settings
 // with auth "bearer": Muse withholds the key from a --base-url flag
 // that is off its own endpoint. The MCP header is literal (Muse does
 // not expand ${VAR} there), which is why settings.json stays 0600 in
 // the launch dir.
+//
+// A SelfAuth launch (l.SelfAuth) instead leaves the model call to
+// Muse: settings carry no endpoint_transport (Muse ignores the account
+// login whenever one is set) and the environment carries no
+// META_API_KEY. Muse then uses the login the owner already made, and
+// asks for one itself when there is none. MCP and the approval hook
+// stay in both modes: they need only the launch token.
 func (Agent) LaunchSpec(l agents.Launch) (agents.Spec, error) {
 	if l.ServeURL == "" || l.Token == "" || l.Dir == "" || l.Hook == "" {
 		return agents.Spec{}, fmt.Errorf("musecode: incomplete launch")
-	}
-	provider, err := agents.ProviderFor(Agent{}, l.Provider)
-	if err != nil {
-		return agents.Spec{}, err
 	}
 	model := l.Model
 	if model == "" {
 		model = DefaultModel
 	}
 	s := settings{
-		SchemaVersion:     1,
-		Provider:          provider,
-		Model:             model,
-		EndpointTransport: endpoint{BaseURL: l.ServeURL + fmt.Sprintf(routerPathOf, provider), Auth: "bearer"},
+		SchemaVersion: 1,
+		Provider:      "meta",
+		Model:         model,
 		MCPServers: map[string]mcpServer{"devcules": {Type: "streamable-http", URL: l.ServeURL + "/mcp",
 			Headers: map[string]string{"Authorization": "Bearer " + l.Token}}},
 		Hooks: map[string][]matcher{"PreToolUse": {{Matcher: "*", Hooks: []handler{{Type: "command",
 			Command: l.Hook, Timeout: hookTimeout, StatusMessage: "Checking with Devcules"}}}}},
 	}
+	env := map[string]string{"XDG_CONFIG_HOME": filepath.Join(l.Dir, "config")}
+	files := map[string][]byte{}
+	if !l.SelfAuth {
+		provider, err := agents.ProviderFor(Agent{}, l.Provider)
+		if err != nil {
+			return agents.Spec{}, err
+		}
+		s.Provider = provider
+		s.EndpointTransport = &endpoint{BaseURL: l.ServeURL + fmt.Sprintf(routerPathOf, provider), Auth: "bearer"}
+		env["META_API_KEY"] = l.Token
+	} else {
+		// Muse looks for its credentials in the config dir it is given
+		// (here, the private launch dir), not in the owner's. Hand it
+		// the same credential record the owner's Muse has: for a
+		// keychain login that record is a pointer and carries no
+		// secret. Without one Muse prompts for `muse login` itself.
+		if raw, ok := ownerAuth(); ok {
+			files["config/muse/auth.json"] = raw
+		}
+	}
 	raw, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
 		return agents.Spec{}, err
 	}
+	files["config/muse/settings.json"] = append(raw, '\n')
 	return agents.Spec{
 		// The model and provider come from settings.json; the flags
 		// turn Muse's own prompts and model judge off, since Devcules
 		// asks instead (its sandbox stays on).
-		Cmd: []string{"muse", "--approval-judge", "off", "--disable-approval"},
-		Env: map[string]string{
-			"XDG_CONFIG_HOME": filepath.Join(l.Dir, "config"),
-			"META_API_KEY":    l.Token,
-		},
-		Files: map[string][]byte{"config/muse/settings.json": append(raw, '\n')},
+		Cmd:   []string{"muse", "--approval-judge", "off", "--disable-approval"},
+		Env:   env,
+		Files: files,
 	}, nil
+}
+
+// ownerAuth reads the credential record the owner's own Muse wrote
+// ($XDG_CONFIG_HOME/muse/auth.json, else ~/.config/muse/auth.json). A
+// keychain record is a pointer, which is all an isolated config dir
+// needs; the keychain item itself is per-user and stays where it is.
+func ownerAuth() ([]byte, bool) {
+	dir := os.Getenv("XDG_CONFIG_HOME")
+	if dir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return nil, false
+		}
+		dir = filepath.Join(home, ".config")
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "muse", "auth.json"))
+	if err != nil {
+		return nil, false
+	}
+	return raw, true
 }
 
 // hookInput is the part of Muse's PreToolUse stdin the hook needs.

@@ -31,6 +31,11 @@ type Launch struct {
 	// checked that the profile serves the agent's Wire. The router
 	// path is ServeURL + "/llm/" + provider.
 	Provider string
+	// SelfAuth asks for the agent's own login instead of the router:
+	// no /llm base URL, no model key from serve. Only an agent whose
+	// SelfAuth() is true sees it; the token still funds the approval
+	// hook and MCP.
+	SelfAuth bool
 	// Dir is the launch's private dir (0700, removed with the
 	// terminal). Spec.Files paths are relative to it.
 	Dir string
@@ -112,6 +117,23 @@ func Wired(a Agent) bool {
 	return true
 }
 
+// selfAuther is the own-login marker: an agent that can run on the
+// credentials its CLI stores itself (Muse Code's `muse login`) when no
+// provider profile is chosen. It still routes through the approval
+// hook and MCP; only the model call bypasses the router.
+type selfAuther interface {
+	SelfAuth() bool
+}
+
+// SelfAuth reports whether a launch with no provider may run on the
+// agent's own login. Muse Code does (its login and META_API_KEY are
+// mutually exclusive: the key always wins); Claude Code and Codex do
+// not, because a launch with no provider has nowhere to send its calls.
+func SelfAuth(a Agent) bool {
+	s, ok := a.(selfAuther)
+	return ok && s.SelfAuth()
+}
+
 // ProviderFor resolves the provider a launch calls: p, or the agent's
 // own when p is empty. A malformed id, or one outside the agent's
 // Only list, is an error. Whether the profile serves the agent's Wire
@@ -180,7 +202,8 @@ func (r *Registry) Agents(ctx context.Context) []terminals.AgentInfo {
 			defer func() { done <- struct{}{} }()
 			v, ok := a.Detect(ctx)
 			out[i] = terminals.AgentInfo{ID: a.ID(), Name: a.Name(), Provider: a.Provider(),
-				Wire: a.Wire(), Only: a.Only(), Direct: !Wired(a), Installed: ok, Version: v, Install: a.InstallHint()}
+				Wire: a.Wire(), Only: a.Only(), Direct: !Wired(a), SelfAuth: SelfAuth(a),
+				Installed: ok, Version: v, Install: a.InstallHint()}
 		}()
 	}
 	for range r.agents {
@@ -197,7 +220,8 @@ func (r *Registry) Spec(a terminals.AgentLaunch, dir string) (Spec, error) {
 		return Spec{}, fmt.Errorf("unknown agent %q", a.ID)
 	}
 	l := Launch{ServeURL: r.serveURL, Token: a.Token, Model: a.Model, Provider: a.Provider, Dir: dir,
-		Hook: HookCommand(r.serveURL, filepath.Join(dir, TokenFile), r.exe, r.home, a.ID)}
+		SelfAuth: a.SelfAuth,
+		Hook:     HookCommand(r.serveURL, filepath.Join(dir, TokenFile), r.exe, r.home, a.ID)}
 	spec, err := ag.LaunchSpec(l)
 	if err != nil {
 		return Spec{}, err

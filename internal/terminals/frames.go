@@ -157,6 +157,9 @@ type AgentLaunch struct {
 	// Provider is the router provider the agent calls; empty is its
 	// own. The launch token is minted for this provider.
 	Provider string `json:"provider,omitempty"`
+	// SelfAuth runs the agent on its own CLI login: no router base
+	// URL and no model key, though the token still funds the hook.
+	SelfAuth bool `json:"selfAuth,omitempty"`
 }
 
 // AgentInfo describes one agent CLI as the runner sees it. Install is
@@ -181,9 +184,14 @@ type AgentInfo struct {
 	// first. Serve fills it from the saved profiles; a runner from
 	// before profiles sends a fixed list here.
 	Providers []string `json:"providers,omitempty"`
-	Installed bool     `json:"installed"`
-	Version   string   `json:"version,omitempty"`
-	Install   string   `json:"install,omitempty"`
+	// SelfAuth marks an agent that can launch on its own CLI login when
+	// no provider profile is chosen (Muse Code). The picker offers
+	// "its own login" beside the profiles, and the launch skips the
+	// router without skipping the approval hook.
+	SelfAuth  bool   `json:"selfAuth,omitempty"`
+	Installed bool   `json:"installed"`
+	Version   string `json:"version,omitempty"`
+	Install   string `json:"install,omitempty"`
 }
 
 // The model APIs agent CLIs speak.

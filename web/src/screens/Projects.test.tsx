@@ -147,6 +147,39 @@ describe('Projects', () => {
     });
   });
 
+  it('starts Muse on its own login when no profile has a key', async () => {
+    const user = userEvent.setup();
+    const seen = serve((key) => {
+      if (key === 'GET /api/projects') return { status: 200, body: { projects: [api], runners: ['box'], machines: [], host: '', others: ['box'] } };
+      if (key.startsWith('GET /api/terminals')) return { status: 200, body: { terminals: [] } };
+      if (key === 'GET /api/agents?runner=box') {
+        return {
+          status: 200,
+          body: { runner: 'box', mode: 'critical', agents: [{ id: 'musecode', name: 'Muse Code', provider: 'meta', providers: ['meta'], selfAuth: true, installed: true }] },
+        };
+      }
+      if (key === 'GET /api/providers') return { status: 200, body: { providers: [{ id: 'meta', ready: false }] } };
+      if (key === 'POST /api/agents?runner=box') return { status: 201, body: { id: 'ffffffff00000000' } };
+      return undefined;
+    });
+    render(<Projects onSessionExpired={vi.fn()} />);
+    await user.click(await screen.findByRole('button', { name: 'New terminal in api' }));
+    await user.selectOptions(screen.getByLabelText('Runs'), 'musecode');
+    // The own-login choice is offered, preselected, and Start works —
+    // the picker used to dead-end on a disabled, keyless provider.
+    expect(screen.getByRole('button', { name: /Muse Code's own login/ }).getAttribute('aria-pressed')).toBe('true');
+    const start = screen.getByRole('button', { name: 'Start Muse Code' });
+    expect(start.hasAttribute('disabled')).toBe(false);
+    await user.click(start);
+    expect(await screen.findByText('terminal ffffffff00000000 on runner')).toBeDefined();
+    // No provider is sent (empty fields are dropped), which is what
+    // makes the server take the own-login path.
+    expect(JSON.parse(seen.find((s) => s.key === 'POST /api/agents?runner=box')?.body ?? '{}')).toEqual({
+      agent: 'musecode',
+      project: 'p_api',
+    });
+  });
+
   it('starts Codex on a saved profile with its default model, no model picked', async () => {
     const user = userEvent.setup();
     const seen = serve((key) => {

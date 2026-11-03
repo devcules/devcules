@@ -4,6 +4,22 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Fixed (2026-11-04, Muse Code on its own login)
+
+- Muse Code no longer needs a provider profile with a saved key. Its
+  CLI has exactly two credentials — the account login `muse login`
+  stores, or `META_API_KEY`, and Muse's own help says the key always
+  wins — so a launch with no profile now runs on the account login
+  instead of dying with "no compatible provider". The adapter writes
+  no `endpoint_transport` (Muse ignores the account login whenever one
+  is set), omits `META_API_KEY`, and copies the owner's credential
+  record into the private config dir (a keychain record is a pointer,
+  so no secret is copied). The approval hook and MCP stay in both
+  modes. Naming a profile that has no key is still a refusal: that is
+  a setup problem to report. Checked end to end: a launch from the
+  UI with no providers configured reached Muse's prompt and completed
+  a model round-trip.
+
 ### Changed (2026-11-03, Settings folds)
 
 - Settings opens with every section folded (Passkeys, Providers,

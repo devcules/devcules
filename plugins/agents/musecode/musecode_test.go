@@ -2,6 +2,8 @@ package musecode
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -66,6 +68,58 @@ func TestLaunchOtherProvider(t *testing.T) {
 	w, _ := json.Marshal(wanted)
 	if string(got) != string(w) {
 		t.Fatalf("endpoint_transport = %s, want %s", got, w)
+	}
+}
+
+// A SelfAuth launch leaves the model call to Muse: no endpoint, no
+// key, and MCP plus the hook still installed, because those ride the
+// launch token.
+func TestSelfAuthLaunch(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	spec, err := New().LaunchSpec(agents.Launch{ServeURL: "http://serve:7659", Token: "tok", Dir: "/run/l", Hook: "HOOK", SelfAuth: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var s map[string]any
+	if err := json.Unmarshal(spec.Files["config/muse/settings.json"], &s); err != nil {
+		t.Fatal(err)
+	}
+	if _, set := s["endpoint_transport"]; set {
+		t.Fatalf("settings carry an endpoint: %v", s["endpoint_transport"])
+	}
+	if got := spec.Env["META_API_KEY"]; got != "" {
+		t.Fatalf("META_API_KEY = %q: it would take priority over the account login", got)
+	}
+	if spec.Env["XDG_CONFIG_HOME"] != "/run/l/config" {
+		t.Fatalf("env = %v", spec.Env)
+	}
+	// The hook and MCP are what still route through Devcules.
+	if s["hooks"] == nil || s["mcpServers"] == nil {
+		t.Fatalf("hook or MCP dropped in self-auth mode: %v", s)
+	}
+	if _, ok := spec.Files["config/muse/auth.json"]; ok {
+		t.Fatal("wrote an auth.json with no owner login to copy")
+	}
+}
+
+// The owner's Muse credential record is copied into the private config
+// dir, because Muse looks for it there and not in the owner's.
+func TestSelfAuthCopiesOwnerCredential(t *testing.T) {
+	cfg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfg)
+	if err := os.MkdirAll(filepath.Join(cfg, "muse"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	owner := `{"schema_version":2,"providers":{"meta":{"storage":"keychain"}}}`
+	if err := os.WriteFile(filepath.Join(cfg, "muse", "auth.json"), []byte(owner), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	spec, err := New().LaunchSpec(agents.Launch{ServeURL: "http://serve:7659", Token: "tok", Dir: "/run/l", Hook: "HOOK", SelfAuth: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(spec.Files["config/muse/auth.json"]); got != owner {
+		t.Fatalf("auth.json = %q, want the owner's record", got)
 	}
 }
 

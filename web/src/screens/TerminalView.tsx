@@ -54,6 +54,9 @@ export default function TerminalView({
   // The machine name, not the object: a string keeps connect stable
   // across renders that pass a fresh {machine} literal.
   const machine = where?.machine;
+  // Same for the runner: with two runners linked, an untargeted stream
+  // URL is refused, so the pane must name the one it belongs to.
+  const runner = where?.runner;
   const [status, setStatus] = useState<Status>('connecting');
 
   const send = useCallback((bytes: ArrayLike<number>) => {
@@ -86,7 +89,9 @@ export default function TerminalView({
     } catch {
       // proposeDimensions needs layout; fall back to 80x24.
     }
-    const ws = new WebSocket(streamURL(id, dims.cols, dims.rows, machine ? { machine } : undefined));
+    const ws = new WebSocket(
+      streamURL(id, dims.cols, dims.rows, machine ? { machine } : runner ? { runner } : undefined),
+    );
     ws.binaryType = 'arraybuffer';
     wsRef.current = ws;
     ws.onopen = () => {
@@ -166,7 +171,7 @@ export default function TerminalView({
         }
       }, wait);
     };
-  }, [id, machine, onSessionExpired]);
+  }, [id, machine, runner, onSessionExpired]);
 
   useEffect(() => {
     connectRef.current = connect;

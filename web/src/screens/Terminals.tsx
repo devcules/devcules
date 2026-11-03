@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   closeTerminal,
   listAgents,
@@ -10,6 +10,7 @@ import {
   type TerminalSummary,
 } from '../api';
 import TerminalView from './TerminalView';
+import { useRunners } from './useRunners';
 import { Empty } from './Empty';
 
 type State =
@@ -49,16 +50,33 @@ export default function Terminals({ onSessionExpired }: { onSessionExpired: () =
   const [confirmClose, setConfirmClose] = useState<string | null>(null);
   const [agents, setAgents] = useState<RunnerAgents | null>(null);
   const [starting, setStarting] = useState<string | null>(null);
+  // Which runner these terminals live on. With several linked an
+  // untargeted call is a 400, so the screen names one from the live list.
+  const runners = useRunners(onSessionExpired);
+  const runnerList = useMemo(
+    () => (runners.state === 'ready' ? runners.runners : []),
+    [runners],
+  );
+  // No picker on this screen: the first live runner is the target.
+  const picked = '';
+  // Derived, not stored: a pick survives while still linked, else the
+  // first live runner wins ('' when none are).
+  const chosen = runnerList.includes(picked) ? picked : runnerList[0] ?? '';
+  const where = chosen === '' ? undefined : { runner: chosen };
 
   // Promise chains, not await: the session and list states resolve
   // off the effect's synchronous path, the way App.check does.
   const refresh = useCallback((): Promise<void> => {
+    if (chosen === '') {
+      // No runner resolved yet; listing would be the untargeted 400.
+      return Promise.resolve();
+    }
     // The agent list is a side panel: a failure only hides it.
-    void listAgents().then(
+    void listAgents({ runner: chosen }).then(
       (res) => setAgents(typeof res === 'object' ? res : null),
       () => setAgents(null),
     );
-    return listTerminals().then(
+    return listTerminals({ runner: chosen }).then(
       (res) => {
         if (res === 'unauthorized') {
           onSessionExpired();
@@ -78,7 +96,7 @@ export default function Terminals({ onSessionExpired }: { onSessionExpired: () =
         setState({ view: 'list', terminals: [], offline: false, notice: errorWords('unreachable') });
       },
     );
-  }, [onSessionExpired]);
+  }, [onSessionExpired, chosen]);
 
   // Re-check on return: locking the phone pauses the socket, and the
   // list may have changed while we were away.
@@ -98,7 +116,7 @@ export default function Terminals({ onSessionExpired }: { onSessionExpired: () =
   }, [refresh]);
 
   async function create(): Promise<void> {
-    const res = await openTerminal();
+    const res = await openTerminal(where);
     if (res === 'unauthorized') {
       onSessionExpired();
       return;
@@ -112,7 +130,7 @@ export default function Terminals({ onSessionExpired }: { onSessionExpired: () =
 
   async function start(agent: string): Promise<void> {
     setStarting(agent);
-    const res = await startAgent(agent);
+    const res = await startAgent(agent, { where });
     setStarting(null);
     if (res === 'unauthorized') {
       onSessionExpired();
@@ -143,7 +161,7 @@ export default function Terminals({ onSessionExpired }: { onSessionExpired: () =
   }
 
   async function remove(id: string): Promise<void> {
-    const res = await closeTerminal(id);
+    const res = await closeTerminal(id, where);
     if (res === 'unauthorized') {
       onSessionExpired();
       return;
@@ -162,7 +180,7 @@ export default function Terminals({ onSessionExpired }: { onSessionExpired: () =
   if (state.view === 'open') {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
-        <TerminalView id={state.id} onSessionExpired={onSessionExpired} onBack={() => { setState({ view: 'loading' }); void refresh(); }} />
+        <TerminalView id={state.id} where={where} onSessionExpired={onSessionExpired} onBack={() => { setState({ view: 'loading' }); void refresh(); }} />
       </div>
     );
   }

@@ -12,12 +12,32 @@ import (
 	"time"
 
 	"github.com/devcules/devcules/internal/audit"
+	"github.com/devcules/devcules/internal/config"
 	"github.com/devcules/devcules/internal/link/hub"
 	"github.com/devcules/devcules/internal/machines"
 	"github.com/devcules/devcules/internal/store"
 	"github.com/devcules/devcules/internal/terminals"
 	"github.com/devcules/devcules/internal/terminals/relay"
 )
+
+// hostRunner splits the live runner names into the host computer's and
+// the rest. The host is the one named config.HostRunnerName (the
+// in-process runner of `devcules`, local mode); everything else — a
+// compose sandbox, a hand-started runner — goes in others, in their
+// given order. An empty host means this serve is not running beside a
+// host runner at all.
+func hostRunner(runners []string) (host string, others []string) {
+	want, _ := config.HostRunnerName()
+	others = make([]string, 0, len(runners))
+	for _, n := range runners {
+		if n == want {
+			host = n
+			continue
+		}
+		others = append(others, n)
+	}
+	return host, others
+}
 
 // linkTarget reads which link a terminal call is for: ?machine=<name>
 // (a machine's shell, addressed by its hub address) or
@@ -123,7 +143,14 @@ func repoDir(repo string) string {
 // (session plus CSRF). Adding with a repo clones it at once in a new
 // terminal of the project, so progress and any credential prompt are
 // visible; adding a directory just records it.
-func projectsRoot(repo store.ProjectsRepo, rl *relay.Relay, publicURL string, rec auditor) http.Handler {
+//
+// The GET also names the live targets the add form offers, in the
+// order the desk wants them read: the host computer first (the runner
+// serve runs beside, named "host (...)"), then every enrolled machine,
+// then any other live runner. That last group exists so a compose
+// sandbox and a hand-started runner stay reachable; the UI marks them
+// so the host is never mistaken for them.
+func projectsRoot(repo store.ProjectsRepo, rl *relay.Relay, machineStore *machines.Service, publicURL string, rec auditor) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if repo == nil {
 			writeAuthError(w, http.StatusServiceUnavailable, "projects not configured")
@@ -143,13 +170,33 @@ func projectsRoot(repo store.ProjectsRepo, rl *relay.Relay, publicURL string, re
 				j.Remote = remotes[p.ID]
 				out = append(out, j)
 			}
-			// The live runners and machines ride along so the add form
-			// can offer them.
 			runners, machs := []string{}, []string{}
 			if rl != nil {
 				runners, machs = rl.Links()
 			}
-			writeJSON(w, http.StatusOK, map[string]any{"projects": out, "runners": runners, "machines": machs})
+			// An enrolled but offline machine still names a machine: the
+			// add form should say so rather than hide it.
+			if machineStore != nil {
+				if enrolled, err := machineStore.List(r.Context()); err == nil {
+					seen := make(map[string]bool, len(machs))
+					for _, m := range machs {
+						seen[m] = true
+					}
+					for _, m := range enrolled {
+						if !seen[m.Name] {
+							machs = append(machs, m.Name)
+						}
+					}
+				}
+			}
+			host, others := hostRunner(runners)
+			writeJSON(w, http.StatusOK, map[string]any{
+				"projects": out,
+				"runners":  runners,
+				"machines": machs,
+				"host":     host,
+				"others":   others,
+			})
 		case http.MethodPost:
 			csrf(publicURL, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				addProject(w, r, repo, rl, rec)

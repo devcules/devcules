@@ -37,7 +37,7 @@ function serve(handler: (key: string, body: string) => Reply | undefined): Seen[
 
 const shop = { id: 'p_shop', name: 'shop', kind: 'machine', target: 'studio', dir: '/Users/k/shop', git: true, createdAt: '2026-10-29T10:00:00Z' };
 const api = { id: 'p_api', name: 'api', kind: 'runner', target: 'box', dir: '/srv/api', createdAt: '2026-10-29T10:00:00Z' };
-const listed = { projects: [api, shop], runners: ['box'], machines: ['studio'] };
+const listed = { projects: [api, shop], runners: ['box'], machines: ['studio'], host: '', others: ['box'] };
 const agents = {
   runner: 'box',
   mode: 'critical',
@@ -62,8 +62,11 @@ describe('Projects', () => {
   it('lists each project with its own terminals and opens one', async () => {
     const user = userEvent.setup();
     serve((key) => {
+      if (key === 'GET /api/approvals/settings') {
+        return { status: 200, body: { targets: [{ target: 'runner:box', runner: 'box', linked: true, mode: 'critical' }], modes: [], rules: [], timeoutSeconds: 60 } };
+      }
       if (key === 'GET /api/projects') return { status: 200, body: listed };
-      if (key === 'GET /api/terminals') return { status: 200, body: { terminals: [{ term: 'aaaaaaaa00000000', created: 1, project: 'p_api', name: 'server' }] } };
+      if (key === 'GET /api/terminals?runner=box') return { status: 200, body: { terminals: [{ term: 'aaaaaaaa00000000', created: 1, project: 'p_api', name: 'server' }] } };
       if (key === 'GET /api/terminals?machine=studio') {
         return {
           status: 200,
@@ -84,6 +87,9 @@ describe('Projects', () => {
   it('opens a named shell from a project +', async () => {
     const user = userEvent.setup();
     const seen = serve((key) => {
+      if (key === 'GET /api/approvals/settings') {
+        return { status: 200, body: { targets: [{ target: 'runner:box', runner: 'box', linked: true, mode: 'critical' }], modes: [], rules: [], timeoutSeconds: 60 } };
+      }
       if (key === 'GET /api/projects') return { status: 200, body: listed };
       if (key.startsWith('GET /api/terminals')) return { status: 200, body: { terminals: [] } };
       if (key === 'POST /api/projects/p_shop/terminals') return { status: 201, body: { id: 'eeeeeeee00000000' } };
@@ -102,12 +108,15 @@ describe('Projects', () => {
   it('starts Claude Code on Meta with a model from the list', async () => {
     const user = userEvent.setup();
     const seen = serve((key) => {
+      if (key === 'GET /api/approvals/settings') {
+        return { status: 200, body: { targets: [{ target: 'runner:box', runner: 'box', linked: true, mode: 'critical' }], modes: [], rules: [], timeoutSeconds: 60 } };
+      }
       if (key === 'GET /api/projects') return { status: 200, body: listed };
       if (key.startsWith('GET /api/terminals')) return { status: 200, body: { terminals: [] } };
-      if (key === 'GET /api/agents') return { status: 200, body: agents };
+      if (key === 'GET /api/agents?runner=box') return { status: 200, body: agents };
       if (key === 'GET /api/providers') return { status: 200, body: providers };
       if (key === 'GET /api/providers/meta/models') return { status: 200, body: { models: ['muse-lite', 'muse-spark-1.3'] } };
-      if (key === 'POST /api/agents') return { status: 201, body: { id: 'ffffffff00000000' } };
+      if (key === 'POST /api/agents?runner=box') return { status: 201, body: { id: 'ffffffff00000000' } };
       return undefined;
     });
     render(<Projects onSessionExpired={vi.fn()} />);
@@ -129,7 +138,7 @@ describe('Projects', () => {
     await user.type(screen.getByLabelText('Name (optional)'), 'review');
     await user.click(screen.getByRole('button', { name: 'Start Claude Code' }));
     expect(await screen.findByText('terminal ffffffff00000000 on runner')).toBeDefined();
-    expect(JSON.parse(seen.find((s) => s.key === 'POST /api/agents')?.body ?? '{}')).toEqual({
+    expect(JSON.parse(seen.find((s) => s.key === 'POST /api/agents?runner=box')?.body ?? '{}')).toEqual({
       agent: 'claudecode',
       project: 'p_api',
       provider: 'meta',
@@ -141,9 +150,12 @@ describe('Projects', () => {
   it('starts Codex on a saved profile with its default model, no model picked', async () => {
     const user = userEvent.setup();
     const seen = serve((key) => {
+      if (key === 'GET /api/approvals/settings') {
+        return { status: 200, body: { targets: [{ target: 'runner:box', runner: 'box', linked: true, mode: 'critical' }], modes: [], rules: [], timeoutSeconds: 60 } };
+      }
       if (key === 'GET /api/projects') return { status: 200, body: listed };
       if (key.startsWith('GET /api/terminals')) return { status: 200, body: { terminals: [] } };
-      if (key === 'GET /api/agents') {
+      if (key === 'GET /api/agents?runner=box') {
         return {
           status: 200,
           body: { ...agents, agents: [{ id: 'codex', name: 'Codex', provider: 'openai', providers: ['nebius', 'meta'], installed: true }] },
@@ -161,7 +173,7 @@ describe('Projects', () => {
         };
       }
       if (key === 'GET /api/providers/nebius/models') return { status: 200, body: { models: ['gpt-oss-120b'] } };
-      if (key === 'POST /api/agents') return { status: 201, body: { id: 'abababab00000000' } };
+      if (key === 'POST /api/agents?runner=box') return { status: 201, body: { id: 'abababab00000000' } };
       return undefined;
     });
     render(<Projects onSessionExpired={vi.fn()} />);
@@ -177,7 +189,7 @@ describe('Projects', () => {
     expect(screen.getByRole('option', { name: "gpt-oss-120b (the provider's default)" })).toBeDefined();
     await user.click(screen.getByRole('button', { name: 'Start Codex' }));
     expect(await screen.findByText('terminal abababab00000000 on runner')).toBeDefined();
-    expect(JSON.parse(seen.find((s) => s.key === 'POST /api/agents')?.body ?? '{}')).toEqual({
+    expect(JSON.parse(seen.find((s) => s.key === 'POST /api/agents?runner=box')?.body ?? '{}')).toEqual({
       agent: 'codex',
       project: 'p_api',
       provider: 'nebius',
@@ -187,17 +199,17 @@ describe('Projects', () => {
   it('adds a project by picking a git folder, then asks what to run', async () => {
     const user = userEvent.setup();
     const seen = serve((key) => {
-      if (key === 'GET /api/projects') return { status: 200, body: { projects: [], runners: ['box'], machines: [] } };
-      if (key === 'GET /api/browse') {
+      if (key === 'GET /api/projects') return { status: 200, body: { projects: [], runners: ['box'], machines: [], host: '', others: ['box'] } };
+      if (key === 'GET /api/browse?runner=box') {
         return { status: 200, body: { path: '/srv', parent: '/', workspace: '/srv', entries: [{ name: 'notes' }, { name: 'shop', git: true }, { name: '.cache', hidden: true }] } };
       }
-      if (key === 'GET /api/browse?path=%2Fsrv%2Fshop') {
+      if (key === 'GET /api/browse?runner=box&path=%2Fsrv%2Fshop') {
         return { status: 200, body: { path: '/srv/shop', parent: '/srv', workspace: '/srv', git: true, entries: [] } };
       }
       if (key === 'POST /api/projects') {
         return { status: 201, body: { project: { ...api, id: 'p_new', name: 'shop', dir: '/srv/shop', git: true }, terminal: '' } };
       }
-      if (key === 'GET /api/agents') return { status: 200, body: agents };
+      if (key === 'GET /api/agents?runner=box') return { status: 200, body: agents };
       if (key === 'GET /api/providers') return { status: 200, body: providers };
       return undefined;
     });
@@ -224,7 +236,7 @@ describe('Projects', () => {
   it('clones a repo and shows the clone terminal', async () => {
     const user = userEvent.setup();
     serve((key) => {
-      if (key === 'GET /api/projects') return { status: 200, body: { projects: [], runners: ['box'], machines: ['studio'] } };
+      if (key === 'GET /api/projects') return { status: 200, body: { projects: [], runners: ['box'], machines: ['studio'], host: '', others: ['box'] } };
       if (key.startsWith('GET /api/browse')) return { status: 200, body: { path: '/srv', workspace: '/srv', entries: [] } };
       if (key === 'POST /api/projects') return { status: 201, body: { project: shop, terminal: '1111111100000000' } };
       return undefined;
@@ -241,7 +253,7 @@ describe('Projects', () => {
     const user = userEvent.setup();
     let gone = false;
     serve((key) => {
-      if (key === 'GET /api/projects') return { status: 200, body: gone ? { projects: [], runners: ['box'], machines: [] } : listed };
+      if (key === 'GET /api/projects') return { status: 200, body: gone ? { projects: [], runners: ['box'], machines: [], host: '', others: ['box'] } : listed };
       if (key.startsWith('GET /api/terminals')) return { status: 200, body: { terminals: [] } };
       if (key === 'DELETE /api/projects/p_api') {
         gone = true;
@@ -256,9 +268,72 @@ describe('Projects', () => {
     await waitFor(() => expect(gone).toBe(true));
   });
 
+  it('offers the host first, then machines, then other runners', async () => {
+    const user = userEvent.setup();
+    serve((key) => {
+      if (key === 'GET /api/projects') {
+        return { status: 200, body: { projects: [], runners: ['sandbox', 'host (box)'], machines: ['studio'], host: 'host (box)', others: ['sandbox'] } };
+      }
+      if (key.startsWith('GET /api/browse')) return { status: 200, body: { path: '/srv', workspace: '/srv', entries: [] } };
+      return undefined;
+    });
+    render(<Projects onSessionExpired={vi.fn()} />);
+    await user.click(await screen.findByRole('button', { name: 'Add a project' }));
+    const options = within(screen.getByLabelText('On')).getAllByRole('option') as HTMLOptionElement[];
+    expect(options.map((o) => o.textContent)).toEqual([
+      'host (box) — this computer',
+      'studio (machine)',
+      'sandbox (runner)',
+    ]);
+  });
+
+  it('browses the runner it chose, so a second linked runner is not a dead list', async () => {
+    const user = userEvent.setup();
+    const seen: string[] = [];
+    serve((key) => {
+      seen.push(key);
+      if (key === 'GET /api/projects') {
+        return { status: 200, body: { projects: [], runners: ['sandbox', 'host (box)'], machines: [], host: 'host (box)', others: ['sandbox'] } };
+      }
+      if (key.startsWith('GET /api/browse')) return { status: 200, body: { path: '/home/k', workspace: '/home/k', entries: [] } };
+      return undefined;
+    });
+    render(<Projects onSessionExpired={vi.fn()} />);
+    await user.click(await screen.findByRole('button', { name: 'Add a project' }));
+    await user.selectOptions(screen.getByLabelText('On'), '1');
+    await waitFor(() => expect(seen).toContain('GET /api/browse?runner=sandbox'));
+    // Every browse names a runner: the host is never fetched roster-wide.
+    expect(seen.some((k) => k === 'GET /api/browse')).toBe(false);
+  });
+
+  it('browses a typed path without submitting the whole add form', async () => {
+    const user = userEvent.setup();
+    const seen: string[] = [];
+    serve((key) => {
+      seen.push(key);
+      if (key === 'GET /api/projects') return { status: 200, body: { projects: [], runners: ['box'], machines: [], host: '', others: ['box'] } };
+      if (key.startsWith('GET /api/browse')) {
+        return { status: 200, body: { path: '/srv', workspace: '/srv', entries: [{ name: 'deep' }] } };
+      }
+      return undefined;
+    });
+    render(<Projects onSessionExpired={vi.fn()} />);
+    await user.click(await screen.findByRole('button', { name: 'Add a project' }));
+    await user.type(screen.getByLabelText('Go to a folder'), '/srv');
+    await user.click(screen.getByRole('button', { name: 'Go' }));
+    await waitFor(() => expect(seen).toContain('GET /api/browse?runner=box&path=%2Fsrv'));
+    // A nested form would have submitted the outer one instead: the add
+    // form is still up, and no project was posted.
+    expect(screen.getByRole('form', { name: 'Add a project' })).toBeDefined();
+    expect(seen.some((k) => k === 'POST /api/projects')).toBe(false);
+  });
+
   it('keeps a folded project folded across renders', async () => {
     const user = userEvent.setup();
     serve((key) => {
+      if (key === 'GET /api/approvals/settings') {
+        return { status: 200, body: { targets: [{ target: 'runner:box', runner: 'box', linked: true, mode: 'critical' }], modes: [], rules: [], timeoutSeconds: 60 } };
+      }
       if (key === 'GET /api/projects') return { status: 200, body: listed };
       if (key.startsWith('GET /api/terminals')) return { status: 200, body: { terminals: [] } };
       return undefined;

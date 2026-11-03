@@ -127,6 +127,8 @@ describe('api wrappers', () => {
     expect(api.streamURL('aaaaaaaa00000000', 80, 24, where)).toContain('machine=studio');
     expect(api.machineScreenURL('studio')).toContain('studio');
     expect(api.projectWhere({ id: 'p', name: 'p', kind: 'machine', target: 'studio', dir: '/x', createdAt: '' })).toEqual(where);
-    expect(api.projectWhere({ id: 'p', name: 'p', kind: 'runner', target: 'box', dir: '/x', createdAt: '' })).toEqual({});
+    // A runner project names its runner: with more than one link the
+    // terminal cannot be opened on "whichever is free".
+    expect(api.projectWhere({ id: 'p', name: 'p', kind: 'runner', target: 'box', dir: '/x', createdAt: '' })).toEqual({ runner: 'box' });
   });
 });

@@ -23,24 +23,41 @@ function reply(r: Reply): Response {
   return r.body === undefined ? new Response(null, { status: r.status }) : Response.json(r.body, { status: r.status });
 }
 
+// settingsReply is what /api/approvals/settings answers: the runner
+// list the screen resolves its target from. One linked runner by
+// default, so the screen names "laptop" and its calls carry ?runner=.
+const settingsReply: Reply = {
+  status: 200,
+  body: { targets: [{ target: 'runner:laptop', runner: 'laptop', linked: true, mode: 'critical' }], modes: [], rules: [], timeoutSeconds: 60 },
+};
+
+function settle(input: string): Reply | null {
+  const url = input.toString();
+  if (url.startsWith('/api/approvals/settings')) return settingsReply;
+  if (url === '/api/agents' || url.startsWith('/api/agents?')) return agentReply;
+  return null;
+}
+
 // agentReply answers /api/agents; get() answers everything else.
 let agentReply: Reply = { status: 200, body: { runner: 'laptop', mode: 'critical', agents: [] } };
 
 function get(status: number, body: unknown = null): void {
   const r: Reply = body === null ? { status } : { status, body };
-  window.fetch = vi.fn(async (input: string | URL | Request) =>
-    input.toString() === '/api/agents' ? reply(agentReply) : reply(r),
-  ) as typeof fetch;
+  window.fetch = vi.fn(async (input: string | URL | Request) => {
+    const special = settle(input.toString());
+    return reply(special ?? r);
+  }) as typeof fetch;
 }
 
 // routes answers by "METHOD path", for the agent flows.
 function routes(table: Record<string, Reply>): ReturnType<typeof vi.fn> {
   const fn = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const r = table[`${init?.method ?? 'GET'} ${input.toString()}`];
-    if (!r) {
+    const special = settle(input.toString());
+    if (!r && !special) {
       throw new Error(`unexpected fetch ${input.toString()}`);
     }
-    return reply(r);
+    return reply(r ?? special!);
   });
   window.fetch = fn as typeof fetch;
   return fn;
@@ -126,9 +143,9 @@ describe('Terminals', () => {
   it('starts an installed agent in its own terminal', async () => {
     const user = userEvent.setup();
     const fn = routes({
-      'GET /api/terminals': { status: 200, body: { terminals: [] } },
-      'GET /api/agents': { status: 200, body: { runner: 'laptop', mode: 'critical', agents: [muse] } },
-      'POST /api/agents': { status: 201, body: { id: '0123456789abcdef', launch: {} } },
+      'GET /api/terminals?runner=laptop': { status: 200, body: { terminals: [] } },
+      'GET /api/agents?runner=laptop': { status: 200, body: { runner: 'laptop', mode: 'critical', agents: [muse] } },
+      'POST /api/agents?runner=laptop': { status: 201, body: { id: '0123456789abcdef', launch: {} } },
     });
     render(<Terminals onSessionExpired={vi.fn()} />);
     const section = within(await screen.findByRole('region', { name: 'Start an agent' }));
@@ -136,14 +153,14 @@ describe('Terminals', () => {
     expect(screen.queryByRole('note')).toBeNull();
     await user.click(section.getByRole('button', { name: 'Start Muse Code' }));
     expect(await screen.findByText('terminal-view 0123456789abcdef')).toBeDefined();
-    const [, init] = fn.mock.calls.find(([, i]) => (i as RequestInit | undefined)?.method === 'POST') as [string, RequestInit];
+    const [, init] = fn.mock.calls.find(([, i]) => (i as RequestInit | undefined)?.method === "POST") as [string, RequestInit];
     expect(JSON.parse(init.body as string)).toEqual({ agent: 'musecode' });
   });
 
   it('shows how to install a missing agent and warns about the access mode', async () => {
     routes({
-      'GET /api/terminals': { status: 200, body: { terminals: [] } },
-      'GET /api/agents': { status: 200, body: { runner: 'laptop', mode: '', agents: [absent] } },
+      'GET /api/terminals?runner=laptop': { status: 200, body: { terminals: [] } },
+      'GET /api/agents?runner=laptop': { status: 200, body: { runner: 'laptop', mode: '', agents: [absent] } },
     });
     render(<Terminals onSessionExpired={vi.fn()} />);
     const section = within(await screen.findByRole('region', { name: 'Start an agent' }));
@@ -159,8 +176,8 @@ describe('Terminals', () => {
       ['full', /full access/],
     ] as const) {
       routes({
-        'GET /api/terminals': { status: 200, body: { terminals: [] } },
-        'GET /api/agents': { status: 200, body: { runner: 'laptop', mode, agents: [muse] } },
+        'GET /api/terminals?runner=laptop': { status: 200, body: { terminals: [] } },
+        'GET /api/agents?runner=laptop': { status: 200, body: { runner: 'laptop', mode, agents: [muse] } },
       });
       const { unmount } = render(<Terminals onSessionExpired={vi.fn()} />);
       expect((await screen.findByRole('note')).textContent).toMatch(want);
@@ -171,9 +188,9 @@ describe('Terminals', () => {
   it('says why an agent did not start', async () => {
     const user = userEvent.setup();
     routes({
-      'GET /api/terminals': { status: 200, body: { terminals: [] } },
-      'GET /api/agents': { status: 200, body: { runner: 'laptop', mode: 'critical', agents: [muse] } },
-      'POST /api/agents': { status: 409, body: { error: 'Muse Code needs the meta provider, which the router does not serve' } },
+      'GET /api/terminals?runner=laptop': { status: 200, body: { terminals: [] } },
+      'GET /api/agents?runner=laptop': { status: 200, body: { runner: 'laptop', mode: 'critical', agents: [muse] } },
+      'POST /api/agents?runner=laptop': { status: 409, body: { error: 'Muse Code needs the meta provider, which the router does not serve' } },
     });
     render(<Terminals onSessionExpired={vi.fn()} />);
     await user.click(await screen.findByRole('button', { name: 'Start Muse Code' }));
@@ -181,9 +198,9 @@ describe('Terminals', () => {
       "Couldn't start it: Muse Code needs the meta provider, which the router does not serve.",
     );
     routes({
-      'GET /api/terminals': { status: 200, body: { terminals: [] } },
-      'GET /api/agents': { status: 200, body: { runner: 'laptop', mode: 'critical', agents: [muse] } },
-      'POST /api/agents': { status: 504 },
+      'GET /api/terminals?runner=laptop': { status: 200, body: { terminals: [] } },
+      'GET /api/agents?runner=laptop': { status: 200, body: { runner: 'laptop', mode: 'critical', agents: [muse] } },
+      'POST /api/agents?runner=laptop': { status: 504 },
     });
     await user.click(screen.getByRole('button', { name: 'Start Muse Code' }));
     expect((await screen.findByRole('alert')).textContent).toBe('The runner did not answer. Try again.');
@@ -191,11 +208,11 @@ describe('Terminals', () => {
 
   it('names agent terminals in the list', async () => {
     routes({
-      'GET /api/terminals': {
+      'GET /api/terminals?runner=laptop': {
         status: 200,
         body: { terminals: [{ term: '0123456789abcdef', created: 1, agent: 'musecode' }, { term: 'fedcba9876543210', created: 2, agent: 'gone' }] },
       },
-      'GET /api/agents': { status: 200, body: { runner: 'laptop', mode: 'critical', agents: [muse] } },
+      'GET /api/agents?runner=laptop': { status: 200, body: { runner: 'laptop', mode: 'critical', agents: [muse] } },
     });
     render(<Terminals onSessionExpired={vi.fn()} />);
     expect(await screen.findByRole('button', { name: 'Open terminal Muse Code · 01234567' })).toBeDefined();

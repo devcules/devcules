@@ -64,7 +64,7 @@ export default function ProjectTree({
       const next: Record<string, TerminalSummary[]> = {};
       void Promise.all(
         [...targets.values()].map((where) =>
-          listTerminals(where.machine ? where : undefined).then((t) => {
+          listTerminals(where).then((t) => {
             if (typeof t === 'object') {
               for (const x of t.terminals) {
                 if (x.project) {
@@ -113,7 +113,7 @@ export default function ProjectTree({
   }
 
   async function close(p: Project, t: TerminalSummary): Promise<void> {
-    if ((await closeTerminal(t.term, projectWhere(p).machine ? projectWhere(p) : undefined)) === 'unauthorized') {
+    if ((await closeTerminal(t.term, projectWhere(p))) === 'unauthorized') {
       onSessionExpired();
       return;
     }
@@ -123,7 +123,7 @@ export default function ProjectTree({
   // renameTerm mirrors close: a machine terminal rides its link, the
   // runner's ride no query. True tells the row to keep the new label.
   async function renameTerm(p: Project, t: TerminalSummary, next: string): Promise<boolean> {
-    const res = await renameTerminal(t.term, next, projectWhere(p).machine ? projectWhere(p) : undefined);
+    const res = await renameTerminal(t.term, next, projectWhere(p));
     if (res === 'unauthorized') {
       onSessionExpired();
       return false;

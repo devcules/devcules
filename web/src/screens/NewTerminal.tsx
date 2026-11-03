@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   listAgents,
   listProviders,
@@ -12,6 +12,7 @@ import {
   type Where,
 } from '../api';
 import { formatLabel, providerLabel } from './providerNames';
+import { useRunners } from './useRunners';
 
 const otherModel = '__other__';
 
@@ -31,7 +32,26 @@ export default function NewTerminal({
   onSessionExpired: () => void;
 }) {
   const onMachine = project?.kind === 'machine';
-  const where: Where = onMachine && project ? { machine: project.target } : {};
+  // A project names its own target; a loose terminal has none, so it
+  // must name the runner or a two-runner serve answers 400.
+  const runners = useRunners(onSessionExpired);
+  const runnerList = useMemo(
+    () => (runners.state === 'ready' ? runners.runners : []),
+    [runners],
+  );
+  // No picker on this screen: the first live runner is the target.
+  const picked = '';
+  // A project names its target; a loose terminal falls back to the live
+  // runner list, else an untargeted call is a 400 with several linked.
+  const chosen = runnerList.includes(picked) ? picked : runnerList[0] ?? '';
+  // Memoised: the agent effect keys on it, and a fresh object every
+  // render would refetch the agent list in a loop.
+  const where: Where = useMemo(
+    () => (onMachine && project
+      ? { machine: project.target }
+      : { runner: project?.kind === 'runner' ? project.target : chosen }),
+    [onMachine, project, chosen],
+  );
   const [name, setName] = useState('');
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [providers, setProviders] = useState<ProviderState[]>([]);
@@ -49,7 +69,7 @@ export default function NewTerminal({
     if (onMachine) {
       return;
     }
-    void listAgents().then((res) => {
+    void listAgents(where).then((res) => {
       if (res === 'unauthorized') {
         onSessionExpired();
         return;
@@ -63,7 +83,7 @@ export default function NewTerminal({
         setProviders(res);
       }
     });
-  }, [onMachine, project, onSessionExpired]);
+  }, [onMachine, project, onSessionExpired, chosen, where]);
 
   const agent = agents.find((a) => a.id === run);
   // Off-router assistants run their own CLI: no router provider, key
@@ -143,10 +163,10 @@ export default function NewTerminal({
     setBusy(true);
     const label = name.trim();
     const res = agent
-      ? await startAgent(agent.id, { project: project?.id, provider, model: chosenModel, name: label })
+      ? await startAgent(agent.id, { project: project?.id, provider, model: chosenModel, name: label, where })
       : project
         ? await openProjectTerminal(project.id, label)
-        : await openTerminal(undefined, label);
+        : await openTerminal(where, label);
     setBusy(false);
     if (res === 'unauthorized') {
       onSessionExpired();

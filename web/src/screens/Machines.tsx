@@ -357,6 +357,33 @@ function AddComputer({
   const manual = code ? `DEVCULES_SERVE_URL=${serve} devcules machine enrol ${code.code}` : '';
   const left = code ? Math.max(0, Math.round((code.until - now) / 1000)) : 0;
 
+  // A container reaches the host it runs on differently per platform:
+  // Docker Desktop publishes host.docker.internal, and the --add-host
+  // flag below maps it on Linux engines too. A serve on a Tailscale or
+  // LAN address needs no translation, so only a loopback address is
+  // rewritten.
+  const containerServe = serve.replace(/\/\/(?:127\.0\.0\.1|localhost)(?=[:/]|$)/, '//host.docker.internal');
+  // The name is the label if one was typed, so the container and the
+  // machine it enrols read the same in the list; otherwise a stable
+  // default that will not collide with a person's own computer. A
+  // Docker name allows one leading [a-zA-Z0-9] then [a-zA-Z0-9_.-].
+  const containerName = (label.trim() || 'devcules-container').toLowerCase().replace(/[^a-z0-9_.-]+/g, '-').replace(/^[^a-z0-9]+/, '').slice(0, 64) || 'devcules-container';
+  // A container is a machine too, but it cannot install itself from
+  // this box the way a real computer does: the image already carries
+  // devcules, so one `docker run` enrols it and links it. Two mounts
+  // matter: the data volume keeps its key, so a restart does not
+  // re-enrol, and the code folder gives the project picker something
+  // to offer (an unmounted container lists an empty /workspace).
+  // --entrypoint sh replaces the image's `devcules` entrypoint, which
+  // would otherwise swallow the shell; --name pins the machine's name
+  // so it reads the same in the list as the container.
+  const container = code
+    ? `docker run -d --name ${containerName} --entrypoint sh -v ${containerName}-data:/data ` +
+      `-v "$PWD:/workspace" --add-host host.docker.internal:host-gateway ` +
+      `-e DEVCULES_SERVE_URL=${containerServe} ghcr.io/devcules/devcules:edge ` +
+      `-c "devcules machine enrol ${code.code} --name ${containerName} && devcules machine"`
+    : '';
+
   return (
     <section aria-label="Add a computer" className="flex flex-col gap-3 rounded-md bg-surface px-3 py-3">
       <h3 className="text-body font-semibold text-text">Add a computer</h3>
@@ -422,6 +449,18 @@ function AddComputer({
             The install line uses the address of this box at the moment the code is made — one every machine can reach (your
             Tailscale name, for one), or set DEVCULES_PUBLIC_URL first. Waiting for it to link…
           </p>
+          <p className="text-body font-semibold text-text">Adding a Docker container instead?</p>
+          <p className="text-body text-muted">
+            A container is a machine too, but it installs nothing from this box: this one line starts the image, enrols with
+            the same code and keeps the link, so it shows up here like any computer. The{' '}
+            <span className="font-mono">{containerName}-data</span> volume holds its key, so a restart does not re-enrol, and{' '}
+            <span className="font-mono">$PWD</span> is mounted as its workspace — run it from the folder you want the project
+            picker to show.
+          </p>
+          <div className="flex items-start gap-2">
+            <code className="min-w-0 flex-1 break-all rounded bg-base px-2 py-2 font-mono text-body text-text">{container}</code>
+            <CopyButton text={container} label="Copy the docker command" />
+          </div>
           <div className="flex gap-2">
             <button type="button" onClick={() => setCode(null)} className="min-h-11 rounded-md px-4 text-body text-text">
               New code

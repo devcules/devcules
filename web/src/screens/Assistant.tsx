@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   closeTerminal,
   listAgents,
@@ -10,6 +10,7 @@ import {
   type TerminalSummary,
 } from '../api';
 import TerminalView from './TerminalView';
+import { useRunners } from './useRunners';
 import { Empty } from './Empty';
 import Renameable from './Renameable';
 import { useAlive } from './pulse';
@@ -44,9 +45,29 @@ export default function Assistant({
   const [busy, setBusy] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Which runner this screen's terminals live on. Empty while unknown;
+  // with two runners linked an untargeted call is a 400, so this must
+  // be resolved before anything is listed or opened.
+  const runners = useRunners(onSessionExpired);
+  // Memoised so a fresh array identity each render doesn't churn the
+  // callbacks below.
+  const runnerList = useMemo(
+    () => (runners.state === 'ready' ? runners.runners : []),
+    [runners],
+  );
+  const [picked, setPicked] = useState('');
+  // chosen is derived, not stored: a pick survives while that runner is
+  // still linked, else the first live one wins ('' when none are).
+  const chosen = runnerList.includes(picked) ? picked : runnerList[0] ?? '';
+  const where = chosen === '' ? undefined : { runner: chosen };
 
   const refresh = useCallback(() => {
-    void listTerminals().then((res) => {
+    if (chosen === '') {
+      // No runner resolved yet: listing now would be the untargeted 400
+      // this screen used to misreport as "can't reach the server".
+      return;
+    }
+    void listTerminals({ runner: chosen }).then((res) => {
       if (res === 'unauthorized') {
         onSessionExpired();
         return;
@@ -60,14 +81,14 @@ export default function Assistant({
       // can't kill a project's shell by mistake).
       setTerms(res.terminals.filter((t) => t.project === undefined));
     });
-    void listAgents().then((res) => {
+    void listAgents({ runner: chosen }).then((res) => {
       if (res === 'unauthorized' || res === 'unreachable' || res === 'offline') {
         setAgents('unreachable');
         return;
       }
       setAgents(res.agents.filter((a) => a.direct));
     });
-  }, [onSessionExpired]);
+  }, [onSessionExpired, chosen]);
 
   useEffect(() => {
     refresh();
@@ -91,7 +112,9 @@ export default function Assistant({
     setError(null);
     const key = agent?.id ?? AUTO;
     setBusy(key);
-    const res = agent ? await startAgent(agent.id, { name: agent.id }) : await openTerminal(undefined, 'assistant');
+    const res = agent
+      ? await startAgent(agent.id, { name: agent.id, where })
+      : await openTerminal(where, 'assistant');
     setBusy(null);
     setShowNew(false);
     if (res === 'unauthorized') {
@@ -113,7 +136,7 @@ export default function Assistant({
 
   async function drop(id: string): Promise<void> {
     setError(null);
-    const res = await closeTerminal(id);
+    const res = await closeTerminal(id, where);
     if (res === 'unauthorized') {
       onSessionExpired();
       return;
@@ -154,7 +177,7 @@ export default function Assistant({
               onEnterFs?.();
             }}
             onRename={async (next) => {
-              const ok = await renameTerminal(t.term, next);
+              const ok = await renameTerminal(t.term, next, where);
               if (ok === 'unauthorized') {
                 onSessionExpired();
                 return false;
@@ -199,7 +222,28 @@ export default function Assistant({
           {error}
         </p>
       )}
-      {terms === 'unreachable' && (
+      {runners.state === 'ready' && runnerList.length > 1 && (
+        <label className="flex flex-wrap items-center gap-2 text-tab text-muted">
+          assistant terminals run on
+          <select
+            value={chosen}
+            onChange={(e) => setPicked(e.target.value)}
+            className="min-h-9 rounded bg-base px-2 text-tab text-text"
+            aria-label="Assistant runner"
+          >
+            {runnerList.map((r) => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+          <span>({runnerList.length} linked)</span>
+        </label>
+      )}
+      {runners.state === 'ready' && runnerList.length === 0 && (
+        <p role="alert" className="text-body text-text">
+          No runner is linked. Start the runner and this screen fills in.
+        </p>
+      )}
+      {terms === 'unreachable' && chosen !== '' && (
         <p role="alert" className="text-body text-text">
           Couldn't reach the server. Try again.
         </p>
@@ -214,6 +258,7 @@ export default function Assistant({
         <div className="flex min-h-0 flex-1 flex-col">
           <TerminalView
             id={active_t.term}
+            where={where}
             onShowTabs={onExitFs}
             onBack={() => {
               setActive(null);

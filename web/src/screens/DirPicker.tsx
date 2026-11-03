@@ -21,10 +21,11 @@ export default function DirPicker({
   const [hidden, setHidden] = useState(false);
   const [typed, setTyped] = useState('');
   const machine = where.machine;
+  const runner = where.runner;
 
   const go = useCallback(
     (path: string) => {
-      void browse(machine ? { machine } : {}, path).then((res) => {
+      void browse(machine ? { machine } : runner ? { runner } : {}, path).then((res) => {
         if (res === 'unauthorized') {
           onSessionExpired();
           return;
@@ -45,7 +46,7 @@ export default function DirPicker({
         setList(res);
       });
     },
-    [machine, onSessionExpired],
+    [machine, runner, onSessionExpired],
   );
 
   // Start in the workspace whenever the target changes.
@@ -84,15 +85,11 @@ export default function DirPicker({
           Hidden
         </label>
       </div>
-      <form
-        className="flex gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (typed.trim() !== '') {
-            go(typed.trim());
-          }
-        }}
-      >
+      {/* A div, not a form: the picker is rendered inside the Add
+          project form, and a form inside a form is invalid HTML — the
+          browser drops the inner one and Enter reloads the page
+          instead of browsing. Enter on the input is handled here. */}
+      <div className="flex gap-2">
         <label className="sr-only" htmlFor="dirpicker-path">
           Go to a folder
         </label>
@@ -101,13 +98,29 @@ export default function DirPicker({
           type="text"
           value={typed}
           onChange={(e) => setTyped(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              if (typed.trim() !== '') {
+                go(typed.trim());
+              }
+            }
+          }}
           placeholder="Type a path and press Go"
           className="min-h-11 min-w-0 flex-1 rounded-md bg-surface px-3 font-mono text-body text-text"
         />
-        <button type="submit" className="min-h-11 rounded-md px-3 text-body text-text">
+        <button
+          type="button"
+          onClick={() => {
+            if (typed.trim() !== '') {
+              go(typed.trim());
+            }
+          }}
+          className="min-h-11 rounded-md px-3 text-body text-text"
+        >
           Go
         </button>
-      </form>
+      </div>
       {error !== null && (
         <p role="alert" className="text-body text-text">
           {error}

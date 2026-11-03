@@ -126,8 +126,8 @@ func listenAddress(listen string) string {
 // developer sits at, told apart from a container. It reclaims its own
 // name on restart like any runner.
 func hostRunnerName() string {
-	if h, err := os.Hostname(); err == nil && h != "" {
-		return "host (" + h + ")"
+	if n, err := config.HostRunnerName(); err == nil {
+		return n
 	}
 	return "host (this computer)"
 }

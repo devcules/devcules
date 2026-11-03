@@ -14,6 +14,19 @@ import (
 	"strings"
 )
 
+// HostRunnerName labels the in-process host link of `devcules` (local
+// mode) for every picker. The "host (...)" prefix tells the computer
+// the developer sits at apart from a container's "(hostname)"; serve
+// reads the same value to name it in the Projects add form, and the
+// runner links under exactly this name.
+func HostRunnerName() (string, error) {
+	h, err := os.Hostname()
+	if err != nil || h == "" {
+		return "", err
+	}
+	return "host (" + h + ")", nil
+}
+
 // hostnameRE accepts what net.SplitHostPort hands back for ordinary
 // listen addresses: IPs are checked with net.ParseIP, everything else
 // must look like a DNS name so typos fail fast instead of at dial time.

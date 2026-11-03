@@ -286,12 +286,19 @@ export async function deletePasskey(id: string): Promise<true | 'unauthorized' |
 
 export type TerminalSummary = { term: string; created: number; agent?: string; project?: string; dir?: string; name?: string };
 
-// Where names the link a terminal lives on: a machine by name, else
-// the runner (the only one, or the API's choice).
-export type Where = { machine?: string };
+// Where names the link a terminal lives on: a machine by name, or a
+// runner by name. Leaving runner unset asks the server for "the only
+// one" — which is right with a single runner linked, but is a 400 once
+// a second runner (a joined machine, a stray `devcules runner`) is
+// linked, so screens that can show more than one link must name it.
+export type Where = { machine?: string; runner?: string };
 
+// whereQuery renders the link choice. machine wins when both are set
+// (a machine's terminal is always a shell, never a runner's).
 function whereQuery(where?: Where, first = '?'): string {
-  return where?.machine ? `${first}machine=${encodeURIComponent(where.machine)}` : '';
+  if (where?.machine) return `${first}machine=${encodeURIComponent(where.machine)}`;
+  if (where?.runner) return `${first}runner=${encodeURIComponent(where.runner)}`;
+  return '';
 }
 
 // Every terminal call resolves to one of these: data, an expired
@@ -449,8 +456,8 @@ function isAgent(a: unknown): a is AgentInfo {
   );
 }
 
-export async function listAgents(): Promise<RunnerAgents | TerminalError> {
-  const res = await terminalFetch('/api/agents');
+export async function listAgents(where?: Where): Promise<RunnerAgents | TerminalError> {
+  const res = await terminalFetch(`/api/agents${whereQuery(where)}`);
   if (typeof res === 'string') {
     return res;
   }
@@ -474,19 +481,20 @@ export async function listAgents(): Promise<RunnerAgents | TerminalError> {
 
 // startAgent opens a terminal running agent. A refusal (not
 // installed, no provider) carries the server's reason.
-export type AgentStart = { project?: string; provider?: string; model?: string; name?: string };
+export type AgentStart = { project?: string; provider?: string; model?: string; name?: string; where?: Where };
 
 export async function startAgent(
   agent: string,
   opts: AgentStart = {},
 ): Promise<{ id: string } | TerminalError | 'busy' | { refused: string }> {
+  const { where, ...fields } = opts;
   const body: Record<string, string> = { agent };
-  for (const [k, v] of Object.entries(opts)) {
+  for (const [k, v] of Object.entries(fields)) {
     if (typeof v === 'string' && v !== '') {
       body[k] = v;
     }
   }
-  const res = await terminalFetch('/api/agents', {
+  const res = await terminalFetch(`/api/agents${whereQuery(where)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -534,7 +542,18 @@ export type Project = {
   remote?: string;
   createdAt: string;
 };
-export type ProjectList = { projects: Project[]; runners: string[]; machines: string[] };
+// ProjectList is the Projects tab's read: the projects, and the live
+// targets the add form may offer. host is this computer's runner (the
+// empty string when serve is not running beside one), others are any
+// further live runners — a compose sandbox, a hand-started runner.
+// machines are every enrolled machine, linked or not.
+export type ProjectList = {
+  projects: Project[];
+  runners: string[];
+  machines: string[];
+  host: string;
+  others: string[];
+};
 
 function isProject(p: unknown): p is Project {
   return (
@@ -558,7 +577,16 @@ export async function listProjects(): Promise<ProjectList | 'unauthorized' | 'un
   }
   const data: unknown = await res.json().catch(() => null);
   if (res.ok && isObject(data) && Array.isArray(data.projects)) {
-    return { projects: data.projects.filter(isProject), runners: strings(data.runners), machines: strings(data.machines) };
+    const runners = strings(data.runners);
+    return {
+      projects: data.projects.filter(isProject),
+      runners,
+      machines: strings(data.machines),
+      // Older servers send no host/others: fall back to treating every
+      // runner as "other", so the host is never invented.
+      host: typeof data.host === 'string' ? data.host : '',
+      others: Array.isArray(data.others) ? strings(data.others) : runners,
+    };
   }
   return 'unreachable';
 }
@@ -629,6 +657,8 @@ export async function browse(
   const q = new URLSearchParams();
   if (where.machine) {
     q.set('machine', where.machine);
+  } else if (where.runner) {
+    q.set('runner', where.runner);
   }
   if (path !== '') {
     q.set('path', path);
@@ -808,7 +838,7 @@ export async function providerModels(id: string): Promise<string[] | 'unauthoriz
 
 // projectWhere is the link a project's terminals live on.
 export function projectWhere(p: Project): Where {
-  return p.kind === 'machine' ? { machine: p.target } : {};
+  return p.kind === 'machine' ? { machine: p.target } : { runner: p.target };
 }
 
 // Redaction (M2.2). Values never come back from the server: findings

@@ -162,7 +162,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("/api/terminals/", requireSession(o.Auth, terminalOne(o.Terminals, o.PublicURL, rec)))
 	// Projects: a named directory on a runner or machine; terminals
 	// open in it. Reads need a session, writes add the CSRF check.
-	mux.Handle("/api/projects", requireSession(o.Auth, projectsRoot(o.Projects, o.Terminals, o.PublicURL, rec)))
+	mux.Handle("/api/projects", requireSession(o.Auth, projectsRoot(o.Projects, o.Terminals, o.MachineStore, o.PublicURL, rec)))
 	mux.Handle("/api/projects/", csrf(o.PublicURL, requireSession(o.Auth, projectOne(o.Projects, o.Terminals, rec))))
 	mux.Handle("/api/browse", requireSession(o.Auth, browseRoot(o.Terminals)))
 	// Redaction settings: reads need a session, the policy write and

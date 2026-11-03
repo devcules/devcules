@@ -146,7 +146,9 @@ function AddProject({
   onAdded: (p: Project, terminal: string) => void;
   onSessionExpired: () => void;
 }) {
-  const [targets, setTargets] = useState<Array<{ kind: ProjectKind; name: string }> | null>(null);
+  // host marks this computer's own runner, so the dropdown can say so
+  // and never list it among "other runners".
+  const [targets, setTargets] = useState<Array<{ kind: ProjectKind; name: string; host?: boolean }> | null>(null);
   const [source, setSource] = useState<'folder' | 'clone'>('folder');
   const [pick, setPick] = useState(0);
   const [dir, setDir] = useState('');
@@ -163,9 +165,13 @@ function AddProject({
         return;
       }
       if (typeof res === 'object') {
+        // Host first, then every machine, then any other runner: the
+        // computer you sit at is the choice you almost always want, and
+        // a sandbox runner sits last so it is never mistaken for it.
         setTargets([
-          ...res.runners.map((n) => ({ kind: 'runner' as const, name: n })),
+          ...(res.host !== '' ? [{ kind: 'runner' as const, name: res.host, host: true }] : []),
           ...res.machines.map((n) => ({ kind: 'machine' as const, name: n })),
+          ...res.others.map((n) => ({ kind: 'runner' as const, name: n })),
         ]);
       } else {
         setTargets([]);
@@ -187,7 +193,11 @@ function AddProject({
     );
   }
   const target = targets[pick] ?? targets[0];
-  const where: Where = target.kind === 'machine' ? { machine: target.name } : {};
+  // The picker and the browse calls must name the runner they are for:
+  // with more than one linked, an unset runner is a 400 and the folder
+  // list would come back empty. Machines are addressed the same way.
+  const where: Where =
+    target.kind === 'machine' ? { machine: target.name } : { runner: target.name };
 
   async function submit(): Promise<void> {
     setBusy(true);
@@ -239,7 +249,7 @@ function AddProject({
         >
           {targets.map((t, i) => (
             <option key={`${t.kind}/${t.name}`} value={i}>
-              {t.kind === 'machine' ? `${t.name} (machine)` : `${t.name} (runner)`}
+              {t.kind === 'machine' ? `${t.name} (machine)` : t.host ? `${t.name} — this computer` : `${t.name} (runner)`}
             </option>
           ))}
         </select>

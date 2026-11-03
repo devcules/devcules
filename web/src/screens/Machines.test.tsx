@@ -108,9 +108,35 @@ describe('Machines', () => {
       screen.getByText(`curl -fsSL "${window.location.origin}/install/machine.sh" | sh -s -- --code ABCD-EFGH-JKMN`),
     ).toBeDefined();
     expect(screen.getByText(`DEVCULES_SERVE_URL=${window.location.origin} devcules machine enrol ABCD-EFGH-JKMN`)).toBeDefined();
+    // A container option sits beside the two install lines, named from
+    // the label so the machine and its container read the same, and
+    // enrolled with the same one-time code.
+    const docker = screen.getByText(/docker run -d --name studio-mac /);
+    expect(docker.textContent).toContain('--entrypoint sh');
+    // The code folder is what the project picker will offer.
+    expect(docker.textContent).toContain('-v "$PWD:/workspace"');
+    expect(docker.textContent).toContain('devcules machine enrol ABCD-EFGH-JKMN --name studio-mac && devcules machine');
     enrolled = true;
     expect(await screen.findByText(/studio is linked/, {}, { timeout: 7000 })).toBeDefined();
   }, 10000);
+
+  it('points a container at the host when serve is on loopback', async () => {
+    const user = userEvent.setup();
+    serve((key) => {
+      if (key === 'GET /api/machines') return { status: 200, body: { machines: [], budget: 40 } };
+      if (key === 'POST /api/machines/enrol-code') return { status: 201, body: { code: 'ABCD-EFGH-JKMN', expiresIn: 900 } };
+      return undefined;
+    });
+    // jsdom's origin is http://localhost:3000, so the rewrite path is
+    // exercised here without a fake.
+    render(<Machines onSessionExpired={vi.fn()} />);
+    expect(await screen.findByText('No computers yet.')).toBeDefined();
+    await user.click(screen.getByRole('button', { name: 'Add a computer' }));
+    await user.click(screen.getByRole('button', { name: 'Get a code' }));
+    const docker = await screen.findByText(/docker run -d --name devcules-container /);
+    expect(docker.textContent).toContain('DEVCULES_SERVE_URL=http://host.docker.internal:3000');
+    expect(docker.textContent).toContain('--add-host host.docker.internal:host-gateway');
+  });
 
   it('removes a machine after a confirm', async () => {
     const user = userEvent.setup();

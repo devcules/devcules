@@ -2,6 +2,8 @@ package api
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -16,9 +18,11 @@ import (
 	"github.com/coder/websocket"
 
 	"github.com/devcules/devcules/internal/auth"
+	"github.com/devcules/devcules/internal/config"
 	"github.com/devcules/devcules/internal/link/dial"
 	"github.com/devcules/devcules/internal/link/hub"
 	"github.com/devcules/devcules/internal/link/linktest"
+	"github.com/devcules/devcules/internal/machines"
 	"github.com/devcules/devcules/internal/store/sqlite"
 	"github.com/devcules/devcules/internal/terminals/pty"
 	"github.com/devcules/devcules/internal/terminals/relay"
@@ -46,7 +50,10 @@ func projectsFixture(t *testing.T) (http.Handler, *linktest.Server, *hub.Hub, st
 	})
 	r := relay.New(h, "")
 	r.Run()
-	mux := Handler(Options{Store: s, Auth: svc, Web: testWeb(), Link: h, Terminals: r, Projects: s.Projects()})
+	mux := Handler(Options{
+		Store: s, Auth: svc, Web: testWeb(), Link: h, Terminals: r,
+		Projects: s.Projects(), Enrol: machines.NewIssuer(s), MachineStore: machines.NewService(s),
+	})
 	return mux, linktest.Serve(t, mux), h, sessionCookie(t, mux, password)
 }
 
@@ -57,6 +64,51 @@ func projectRequest(t *testing.T, mux http.Handler, method, target, session, bod
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, r)
 	return w
+}
+
+// TestProjectsTargetOrder proves the add form's targets read host
+// first, then every enrolled machine (linked or not), then any other
+// live runner: the desk's host never hides behind a sandbox.
+func TestProjectsTargetOrder(t *testing.T) {
+	t.Parallel()
+	ctx, stop := context.WithCancel(context.Background())
+	defer stop()
+	mux, pipe, h, session := projectsFixture(t)
+	_, stopDial := terminalDialer(t, pipe, h, ctx, "box")
+	defer stopDial()
+
+	// Enrol a machine exactly as `devcules machine enrol` does. It stays
+	// offline, which is the point: an enrolled machine still counts.
+	code := mintCode(t, mux, session)
+	_, priv, _ := ed25519.GenerateKey(rand.Reader)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/api/machines/enrol", strings.NewReader(enrolBody(t, code, "studio", priv))))
+	if w.Code != http.StatusCreated {
+		t.Fatalf("enrol = %d %q", w.Code, w.Body.String())
+	}
+
+	deadline := time.Now().Add(10 * time.Second)
+	var got struct {
+		Runners  []string `json:"runners"`
+		Machines []string `json:"machines"`
+		Host     string   `json:"host"`
+		Others   []string `json:"others"`
+	}
+	for time.Now().Before(deadline) {
+		w := projectRequest(t, mux, http.MethodGet, "/api/projects", session, "")
+		if w.Code == http.StatusOK && json.Unmarshal(w.Body.Bytes(), &got) == nil && len(got.Runners) == 1 {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if !slices.Contains(got.Machines, "studio") {
+		t.Fatalf("machines = %v, want studio among them (body)", got.Machines)
+	}
+	// "box" is not this computer's host name, so it lands in others (or
+	// in host on a machine actually named "box", which no CI box is).
+	if host, _ := config.HostRunnerName(); host != "host (box)" && (got.Host != "" || len(got.Others) != 1 || got.Others[0] != "box") {
+		t.Fatalf("host=%q others=%v, want empty host and [box]", got.Host, got.Others)
+	}
 }
 
 func TestProjectsCRUD(t *testing.T) {

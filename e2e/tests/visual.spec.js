@@ -10,12 +10,12 @@ if (!password) {
 }
 
 // shot masks what changes on its own: the machine status bar's live
-// CPU, memory and clock figures.
-function shot(page) {
+// CPU, memory and clock figures, plus any locators a test adds.
+function shot(page, extra = []) {
   return expect(page).toHaveScreenshot({
     animations: 'disabled',
     caret: 'hide',
-    mask: [page.locator('footer[aria-label="Machine status"]')],
+    mask: [page.locator('footer[aria-label="Machine status"]'), ...extra],
   });
 }
 
@@ -49,7 +49,9 @@ test('settings', async ({ page }) => {
   // Every section starts folded: the shot is the list of headers.
   await expect(page.getByRole('button', { name: /^Passkeys/ })).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByRole('button', { name: /^Redaction/ })).toBeVisible();
-  await shot(page);
+  // The folded summaries count what earlier specs left on the stack
+  // (runners, secrets): masked, each as a full-width row.
+  await shot(page, [page.locator('main section h3 button span.block')]);
 });
 
 test('machines tab', async ({ page }) => {

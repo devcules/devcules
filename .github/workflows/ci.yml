@@ -106,6 +106,10 @@ jobs:
         run: |
           awk '
             /\[[^]]*no test files[^]]*\]/ { untested[$2] = 1; next }
+            # A package with statements but no tests prints as
+            # "<tab>pkg<tabs>coverage: 0.0% of statements": no "ok", so
+            # its name is the first field, not the second.
+            /^[ \t]+[^ \t]+[ \t]+coverage: / { untested[$1] = 1; next }
             /coverage: [0-9.]+% of statements/ {
               pct = $(NF-2); sub(/%$/, "", pct)
               if (pct + 0 < 70) low[$2] = pct

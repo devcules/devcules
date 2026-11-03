@@ -137,6 +137,7 @@ describe('Shell', () => {
     // (sidebar) and phone (bottom bar) alike.
     expect(within(screen.getByRole('navigation', { name: 'Primary' })).getByRole('button', { name: 'Extensions' })).toBeDefined();
     await user.click(tabs().getByRole('button', { name: 'Extensions' }));
-    expect((await screen.findAllByText('MCP registry')).length).toBeGreaterThan(0);
+    expect(await screen.findByRole('heading', { name: 'Extensions' })).toBeDefined();
+    expect(screen.getByRole('region', { name: 'Search the registries' })).toBeDefined();
   });
 });

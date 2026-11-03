@@ -122,7 +122,10 @@ func TestRequestCalls(t *testing.T) {
 		"agents": func() *Error { _, e := r.Agents(ctx, "nope"); return e },
 		"browse": func() *Error { _, e := r.Browse(ctx, "nope", ""); return e },
 		"rename": func() *Error { return r.Rename(ctx, "nope", id, "x") },
-		"agent":  func() *Error { _, e := r.OpenAgent(ctx, "nope", terminals.AgentLaunch{ID: "codex", Token: "t"}); return e },
+		"agent": func() *Error {
+			_, e := r.OpenAgent(ctx, "nope", terminals.AgentLaunch{ID: "codex", Token: "t"})
+			return e
+		},
 	} {
 		if e := call(); e == nil {
 			t.Errorf("%s on an unknown runner succeeded", name)

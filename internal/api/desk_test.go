@@ -170,8 +170,8 @@ func TestCalendarRoutes(t *testing.T) {
 	for path, want := range map[string]int{
 		"/api/calendar/events": 200,
 		"/api/calendar/events?from=2026-11-01T00:00:00Z&to=2026-11-08T00:00:00Z": 200,
-		"/api/calendar/events?from=nope":                                          400,
-		"/api/calendar/events?to=nope":                                            400,
+		"/api/calendar/events?from=nope":                                         400,
+		"/api/calendar/events?to=nope":                                           400,
 		"/api/calendar/events?from=2026-11-08T00:00:00Z&to=2026-11-01T00:00:00Z": 400,
 	} {
 		if w := f.do(http.MethodGet, path, ""); w.Code != want {
@@ -179,7 +179,7 @@ func TestCalendarRoutes(t *testing.T) {
 		}
 	}
 	for body, want := range map[string]int{
-		`nope`: 400,
+		`nope`:                           400,
 		`{"title":"x","start":"monday"}`: 400,
 		`{"title":"x","start":"2026-11-03T10:00:00Z","end":"tuesday"}`:              400,
 		`{"title":"x","start":"2026-11-03T10:00:00Z","end":"2026-11-03T09:00:00Z"}`: 400,

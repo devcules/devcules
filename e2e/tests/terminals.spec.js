@@ -37,8 +37,14 @@ async function openAssistant(page) {
 // read from the POST itself: both projects run in parallel against
 // one stack, so the strip may hold other tests' terminals.
 async function newTerminal(page) {
+  // The URL carries the target link (?runner=<name>), since a serve with
+  // more than one linked answers 400 to an untargeted call, so match on
+  // the path and require the runner the form picked.
   const created = page.waitForResponse(
-    (res) => res.url().endsWith('/api/terminals') && res.request().method() === 'POST',
+    (res) =>
+      new URL(res.url()).pathname === '/api/terminals' &&
+      new URL(res.url()).searchParams.get('runner') !== null &&
+      res.request().method() === 'POST',
   );
   await page.getByRole('button', { name: 'Start a shell' }).click();
   const res = await created;

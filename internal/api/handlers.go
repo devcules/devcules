@@ -303,12 +303,15 @@ func root(web http.Handler, svc *auth.Service) http.HandlerFunc {
 // form-action are spelled out because they do not fall back to
 // default-src. style-src allows xterm.js's inline styles (M1.4): the
 // terminal renderer sets style attributes and a <style> element at
-// runtime, so the Terminals tab stays blank without it. script-src
-// stays default-src 'self': no inline script, ever.
+// runtime, so the Terminals tab stays blank without it. font-src adds
+// data: for the Desk calendar: FullCalendar declares its icon font
+// inline, and the browser decodes it (and logs a violation) even when
+// nothing uses it; a font cannot run script. script-src stays
+// default-src 'self': no inline script, ever.
 func secureHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
-		h.Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
+		h.Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("Referrer-Policy", "no-referrer")
 		next.ServeHTTP(w, r)

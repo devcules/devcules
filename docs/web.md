@@ -36,10 +36,14 @@ AA (4.5:1). Change a colour and the test judges it.
    screen, in the visual suite below.
 
 CSP constraints (the server sends
-`default-src 'self'; style-src 'self' 'unsafe-inline'; base-uri
-'none'; form-action 'self'; frame-ancestors 'none'`): no inline
-scripts, no `data:` URIs — `assetsInlineLimit` is 0 so the build
-emits files only. The single `style-src` exception is xterm.js
+`default-src 'self'; style-src 'self' 'unsafe-inline'; font-src
+'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors
+'none'`): no inline scripts, no `data:` URIs in our own build —
+`assetsInlineLimit` is 0 so it emits files only. `font-src` allows
+`data:` for one library: FullCalendar (the Desk calendar) declares
+its icon font inline, and the browser decodes that font, and refuses
+it, on every page even when nothing draws an icon. A font cannot run
+script. The single `style-src` exception is xterm.js
 (M1.4): the terminal renderer sets style attributes and a `<style>`
 element at runtime, proven by `grep setAttribute("style")` over its
 bundle and watched at runtime by the CSP assertion in

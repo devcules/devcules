@@ -13,6 +13,7 @@ import { useMobile, useVisibleHeight } from '../screens/useMobile';
 import ThemePicker from '../theme/ThemePicker';
 import StatusBar from './StatusBar';
 import UserMenu from './UserMenu';
+import { SIDEBAR_MAX, SIDEBAR_MIN, useSidebarWidth } from './useSidebarWidth';
 
 // The standalone Projects and Terminals pages are gone as tab
 // destinations: both duplicate what lives alongside the nav — the
@@ -51,6 +52,10 @@ export default function Shell({
   const [tab, setTab] = useState<Tab>(() => (initialApproval ? 'home' : 'desk'));
   const [pending, setPending] = useState<PendingState>('loading');
   const [focus, setFocus] = useState<string | null>(initialApproval);
+  // The desktop nav column's width: dragged on the handle beside it and
+  // remembered per browser, since how much room the tree needs is
+  // personal and does not belong in the shared desk document.
+  const sidebar = useSidebarWidth();
   // Mobile-first run mode: while a terminal pane is focused the shell
   // chrome (header, sidebar, footer, bottom tabs) folds away and the
   // terminal takes the visible viewport. This is "fs"; the ☰
@@ -200,8 +205,14 @@ export default function Shell({
         </div>
       </header>
       <div className="flex flex-1 md:flex-row">
-        {/* Desktop: sidebar. Phone: bottom bar below. */}
-        <nav aria-label="Primary" className="hidden w-60 shrink-0 flex-col gap-1 overflow-y-auto p-4 md:flex">
+        {/* Desktop: sidebar. Phone: bottom bar below. The width is the
+            owner's (dragged on the handle beside it); a phone hides the
+            column entirely, so the inline width only matters at md+. */}
+        <nav
+          aria-label="Primary"
+          className="hidden w-60 shrink-0 flex-col gap-1 overflow-y-auto p-4 md:flex"
+          style={{ width: `${sidebar.width}px` }}
+        >
         {tabs.map((t) => (
           <NavButton key={t.id} active={tab === t.id} onClick={() => setTab(t.id)}>
             {t.label}
@@ -229,7 +240,26 @@ export default function Shell({
             onNewTerminal={(project) => ask({ kind: 'new-terminal', project })}
           />
         </section>
-      </nav>
+        </nav>
+        {/* The drag handle: a thin strip between the column and the
+            content. Keyboard users get the same range with the arrow
+            keys, and a double-click restores the shipped width. */}
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize the sidebar"
+          aria-valuenow={sidebar.width}
+          aria-valuemin={SIDEBAR_MIN}
+          aria-valuemax={SIDEBAR_MAX}
+          tabIndex={0}
+          onPointerDown={sidebar.onPointerDown}
+          onDoubleClick={sidebar.reset}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowLeft') { e.preventDefault(); sidebar.nudge(-16); }
+            if (e.key === 'ArrowRight') { e.preventDefault(); sidebar.nudge(16); }
+          }}
+          className={`hidden w-1 shrink-0 cursor-col-resize md:block ${sidebar.dragging ? 'bg-accent' : 'bg-transparent hover:bg-muted'}`}
+        />
       <main className="flex min-h-0 flex-1 flex-col pb-20 md:pb-0">
         {tab === 'desk' && (
           <DeskPage onSessionExpired={onSessionExpired} onOpenApprovals={() => setTab('home')} />

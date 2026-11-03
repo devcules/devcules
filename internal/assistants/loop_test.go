@@ -231,7 +231,8 @@ func TestBlockedMessage(t *testing.T) {
 	loop.red = &SessionRedact{s: r.NewSession(policy)}
 	// A bare AWS key trips aws-access-token; keys ending "EXAMPLE" are
 	// allowlisted by the gitleaks rules, which is why this one differs.
-	_, err = loop.Chat(context.Background(), "", "my key is AKIA2ZVWXTYPLMNBVCXZ")
+	// Built from parts, so no file holds a whole key shape.
+	_, err = loop.Chat(context.Background(), "", "my key is "+"AKIA"+"2ZVWXTYPLMNBVCXZ")
 	if err == nil {
 		t.Fatal("a block-mode secret reached the model")
 	}

@@ -24,3 +24,7 @@ regexes = ['''^VE9QU0VDUkVULVZBVUxULUtFWS0zMi1CWVRFUy0hISE=$''']
 [[allowlists]]
 description = "c7e3fde's provider key tests held made-up sk-… values in full; later tests build them from parts. Only that commit is excused, so a new full-shape key still fails the scan."
 commits = ['''c7e3fded8222f3a0becbe6b1bbd6f1d7a26bbacf''']
+
+[[allowlists]]
+description = "7126945's assistant tests held a made-up AWS key and a redaction placeholder in full; they are built from parts now. Only that commit is excused."
+commits = ['''7126945d676060051c39be711a7fb5a1cdf16924''']

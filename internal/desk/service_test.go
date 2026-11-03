@@ -296,6 +296,71 @@ func TestRSSNewsDefaultsAndBadXML(t *testing.T) {
 	}
 }
 
+// Google News stamps every pubDate as "... GMT", which RFC1123Z cannot
+// read: the parse error was dropped, the zero time was formatted anyway,
+// and the tile showed "Fortune · 739923d ago" for every headline. The
+// feed also returns relevance order, so the newest story was not first.
+func TestRSSNewsParsesGMTAndSortsNewestFirst(t *testing.T) {
+	fn := &fakeNet{hosts: map[string]http.HandlerFunc{}}
+	fn.set("news.google.com", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `<rss><channel>
+<item><title>old</title><link>https://e/old</link><source>Fortune</source><pubDate>Fri, 30 Oct 2026 09:00:00 GMT</pubDate></item>
+<item><title>newest</title><link>https://e/new</link><source>BBC</source><pubDate>Tue, 03 Nov 2026 22:33:00 GMT</pubDate></item>
+<item><title>middle</title><link>https://e/mid</link><source>Guardian</source><pubDate>Tue, 03 Nov 2026 08:15:30 +0000</pubDate></item>
+<item><title>undated</title><link>https://e/none</link><source>Wire</source><pubDate>not a date</pubDate></item>
+</channel></rss>`)
+	})
+	items, err := RSSNews(context.Background(), &http.Client{Transport: fn}, "q", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 4 {
+		t.Fatalf("items = %d, want 4", len(items))
+	}
+	var order []string
+	for _, it := range items {
+		order = append(order, it.Title)
+	}
+	if got := strings.Join(order, ","); got != "newest,middle,old,undated" {
+		t.Fatalf("order = %s, want newest,middle,old,undated", got)
+	}
+	// A parsed stamp is a real instant, not the zero time.
+	if items[0].Published != "2026-11-03T22:33:00Z" {
+		t.Fatalf("newest published = %q", items[0].Published)
+	}
+	// An unparsable stamp leaves the field empty: the tile then shows the
+	// source alone instead of inventing an age.
+	if items[3].Published != "" {
+		t.Fatalf("undated published = %q, want empty", items[3].Published)
+	}
+	// max still caps the answer, applied after the sort.
+	top, err := RSSNews(context.Background(), &http.Client{Transport: fn}, "q", 2)
+	if err != nil || len(top) != 2 || top[0].Title != "newest" {
+		t.Fatalf("capped = %+v, %v", top, err)
+	}
+}
+
+func TestParseFeedDate(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"Tue, 03 Nov 2026 11:30:00 GMT", "2026-11-03T11:30:00Z"},
+		{"Tue, 03 Nov 2026 11:30:00 +0000", "2026-11-03T11:30:00Z"},
+		{"Tue, 03 Nov 2026 11:30:00 -0500", "2026-11-03T16:30:00Z"},
+		{"Tue, 3 Nov 2026 11:30:00 GMT", "2026-11-03T11:30:00Z"}, // unpadded day
+		{"2026-11-03T11:30:00Z", "2026-11-03T11:30:00Z"},
+	}
+	for _, c := range cases {
+		got, ok := parseFeedDate(c.in)
+		if !ok || got.UTC().Format(time.RFC3339) != c.want {
+			t.Errorf("parseFeedDate(%q) = %v, %v; want %s", c.in, got, ok, c.want)
+		}
+	}
+	for _, bad := range []string{"", "   ", "yesterday", "Tue, 03 Nov 2026"} {
+		if got, ok := parseFeedDate(bad); ok {
+			t.Errorf("parseFeedDate(%q) accepted as %v", bad, got)
+		}
+	}
+}
+
 func TestTicketProviders(t *testing.T) {
 	f := newFix(t)
 	ctx := context.Background()

@@ -417,15 +417,67 @@ func RSSNews(ctx context.Context, hc *http.Client, query string, max int) ([]New
 	if err := xml.Unmarshal(body, &doc); err != nil {
 		return nil, fmt.Errorf("rss: decode: %w", err)
 	}
-	out := make([]NewsItem, 0, max)
+	// Google News answers whole feeds in the day it returns. Sorting by
+	// the date is what makes "latest" true: the feed's own order is by
+	// relevance, so a three-day-old story sits above this morning's.
+	type dated struct {
+		item NewsItem
+		at   time.Time
+	}
+	rows := make([]dated, 0, len(doc.Channel.Items))
 	for _, it := range doc.Channel.Items {
+		pub, ok := parseFeedDate(it.PubDate)
+		if !ok {
+			// No usable date: keep the headline (it is still a real
+			// story) but leave Published empty, so the tile shows the
+			// source alone instead of a zero time rendered as
+			// "739923d ago".
+			rows = append(rows, dated{item: NewsItem{Title: it.Title, URL: it.Link, Source: it.Source}})
+			continue
+		}
+		rows = append(rows, dated{item: NewsItem{
+			Title: it.Title, URL: it.Link, Source: it.Source,
+			Published: pub.Format(time.RFC3339),
+		}, at: pub})
+	}
+	// Newest first; undated items sink to the end in feed order.
+	sort.SliceStable(rows, func(i, j int) bool { return rows[i].at.After(rows[j].at) })
+	out := make([]NewsItem, 0, max)
+	for _, r := range rows {
 		if len(out) >= max {
 			break
 		}
-		pub, _ := time.Parse(time.RFC1123Z, it.PubDate)
-		out = append(out, NewsItem{Title: it.Title, URL: it.Link, Source: it.Source, Published: pub.Format(time.RFC3339)})
+		out = append(out, r.item)
 	}
 	return out, nil
+}
+
+// parseFeedDate reads an RSS pubDate. Feeds are not consistent: RFC 1123
+// spells the zone either numerically ("+0000") or by name ("GMT"), and
+// Microsoft's DateTime emits "GMT" for daylight time too. Parsing only
+// RFC1123Z silently failed on every Google News item — the error was
+// dropped, the zero time was formatted anyway, and the tile read
+// "Fortune · 739923d ago".
+func parseFeedDate(s string) (time.Time, bool) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return time.Time{}, false
+	}
+	for _, layout := range [...]string{
+		time.RFC1123Z, // Mon, 02 Jan 2006 15:04:05 -0700
+		time.RFC1123,  // Mon, 02 Jan 2006 15:04:05 MST
+		time.RFC822Z,  // 02 Jan 06 15:04 -0700
+		time.RFC822,   // 02 Jan 06 15:04 MST
+		time.RFC3339,  // 2006-01-02T15:04:05Z07:00
+		time.RFC3339Nano,
+		"Mon, 2 Jan 2006 15:04:05 MST", // unpadded day, common in the wild
+		"Mon, 2 Jan 2006 15:04:05 -0700",
+	} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t, true
+		}
+	}
+	return time.Time{}, false
 }
 
 func urlq(s string) string {

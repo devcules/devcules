@@ -8,11 +8,17 @@ import Tile, { statusOf, CopyButton } from './Tile';
 import { useDeskFetch } from '../../lib/useDeskFetch';
 import { deskError, getMeetings, getNews, getTickets, getWeather } from '../../lib/deskApi';
 
-const ago = (ts?: string): string => {
+// ago is "how long since" for a feed timestamp, or "" when the stamp is
+// not usable. A feed that sends no date (or one no layout parsed) must
+// show nothing at all: the server once formatted a zero time as RFC3339,
+// and the tile read "Fortune · 739923d ago". Anything before 2000 is
+// such a placeholder, and a stamp in the future is a clock skew, not an
+// age, so both answer "".
+export const ago = (ts?: string): string => {
   if (!ts) return '';
-  const d = new Date(ts);
-  if (isNaN(d.getTime())) return '';
-  const m = Math.round((Date.now() - d.getTime()) / 60000);
+  const t = new Date(ts).getTime();
+  if (isNaN(t) || t < Date.parse('2000-01-01T00:00:00Z')) return '';
+  const m = Math.max(0, Math.round((Date.now() - t) / 60000));
   return m < 60 ? `${m}m` : m < 1440 ? `${Math.round(m / 60)}h` : `${Math.round(m / 1440)}d`;
 };
 
@@ -174,16 +180,21 @@ export function NewsTile({ widget, syncKey, arranging, onRemove, onSettings, onU
         ) : (
           <>
             <ul className="flex flex-col gap-2">
-              {shown.map((it) => (
-                <li key={it.url}>
-                  <div className="flex items-start gap-1">
-                    <a className="min-w-0 flex-1 text-body text-accent hover:underline" href={it.url} target="_blank" rel="noreferrer">{it.title}</a>
-                    <CopyButton text={it.url} />
-                  </div>
-                  <div className="text-tab text-muted">{it.source}{it.published ? ` · ${ago(it.published)} ago` : ''}</div>
-                  {it.summary && <div className="text-tab text-muted">{it.summary}</div>}
-                </li>
-              ))}
+              {shown.map((it) => {
+                // An unreadable date is not an age: keep the source alone
+                // rather than print a dangling "Fortune ·  ago".
+                const age = ago(it.published);
+                return (
+                  <li key={it.url}>
+                    <div className="flex items-start gap-1">
+                      <a className="min-w-0 flex-1 text-body text-accent hover:underline" href={it.url} target="_blank" rel="noreferrer">{it.title}</a>
+                      <CopyButton text={it.url} />
+                    </div>
+                    <div className="text-tab text-muted">{it.source}{age ? ` · ${age} ago` : ''}</div>
+                    {it.summary && <div className="text-tab text-muted">{it.summary}</div>}
+                  </li>
+                );
+              })}
             </ul>
             {items.length > 6 && (
               <button type="button" className="mt-2 rounded bg-base px-2 py-1 text-tab text-text" onClick={() => setAll((a) => !a)}>

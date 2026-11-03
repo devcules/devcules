@@ -56,6 +56,13 @@ c.addEventListener('click', () => {
 `
 
 func main() {
+	addr := listenAddr(os.Getenv("ADDR"))
+	log.Printf("demo store on %s", addr)
+	log.Fatal(http.ListenAndServe(addr, handler()))
+}
+
+// handler serves the page at / and a health check at /healthz.
+func handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -64,10 +71,13 @@ func main() {
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	addr := os.Getenv("ADDR")
-	if addr == "" {
-		addr = ":8080"
+	return mux
+}
+
+// listenAddr is ADDR, or :8080 when it is unset.
+func listenAddr(env string) string {
+	if env == "" {
+		return ":8080"
 	}
-	log.Printf("demo store on %s", addr)
-	log.Fatal(http.ListenAndServe(addr, mux))
+	return env
 }

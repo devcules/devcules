@@ -90,7 +90,9 @@ services:
     image: tailscale/tailscale:stable
     restart: unless-stopped
     environment:
-      TS_AUTHKEY: ${TS_AUTHKEY:?TS_AUTHKEY missing: put the reusable tailnet auth key in .env}
+      # Required for this profile. Not `:?`: compose resolves every
+      # service before profiles apply, so that would stop a plain `up`.
+      TS_AUTHKEY: ${TS_AUTHKEY:-}
       TS_STATE_DIR: /var/lib/tailscale
       TS_HOSTNAME: ${TS_HOSTNAME:-devcules}
       TS_EXTRA_ARGS: --reset

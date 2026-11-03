@@ -68,6 +68,8 @@ test('register, sign in, and remove a passkey', async ({ page }, testInfo) => {
   // Sign in with the password, add a passkey in Settings.
   await signInWithPassword(page);
   await page.getByRole('button', { name: 'Settings', exact: true }).first().click();
+  // Settings opens folded; open Passkeys.
+  await page.getByRole('button', { name: /^Passkeys/ }).click();
   await expect(page.getByRole('button', { name: 'Add a passkey' })).toBeVisible();
   await page.getByRole('button', { name: 'Add a passkey' }).click();
   await expect(page.getByText('Passkey', { exact: true })).toBeVisible();
@@ -80,6 +82,7 @@ test('register, sign in, and remove a passkey', async ({ page }, testInfo) => {
 
   // Remove it: passkey sign-in now fails, the password still works.
   await page.getByRole('button', { name: 'Settings', exact: true }).first().click();
+  await page.getByRole('button', { name: /^Passkeys/ }).click();
   await page.getByRole('button', { name: 'Remove Passkey' }).click();
   await page.getByRole('button', { name: 'Confirm remove Passkey' }).click();
   await expect(page.getByText('No passkeys yet.')).toBeVisible();

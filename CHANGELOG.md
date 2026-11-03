@@ -4,6 +4,15 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Changed (2026-11-03, Settings folds)
+
+- Settings opens with every section folded (Passkeys, Providers,
+  Secrets, Notifications, Access modes, Redaction), each showing its
+  one-line summary, on every visit: fold choices are no longer
+  remembered per browser. The page is one centred column (up to
+  48rem) that fits a phone without sideways scrolling, and open
+  sections indent less on narrow screens.
+
 ### Added (2026-10-31, style adapters)
 
 - `assistants/hermes` and `assistants/openclaw` ship the two style

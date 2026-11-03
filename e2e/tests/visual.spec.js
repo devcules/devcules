@@ -69,7 +69,9 @@ test('settings', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('Nothing needs you.')).toBeVisible();
   await page.getByRole('button', { name: 'Settings', exact: true }).first().click();
-  await expect(page.getByRole('button', { name: 'Add a passkey' })).toBeVisible();
+  // Every section starts folded: the shot is the list of headers.
+  await expect(page.getByRole('button', { name: /^Passkeys/ })).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('button', { name: /^Redaction/ })).toBeVisible();
   await expect(page).toHaveScreenshot({ animations: 'disabled', caret: 'hide' });
 });
 

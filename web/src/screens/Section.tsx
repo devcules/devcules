@@ -10,7 +10,7 @@ import { useCallback, type ReactNode } from 'react';
 // form field.
 
 export interface SectionProps {
-  /** key in the persisted fold record */
+  /** names the section's body for aria-controls */
   id: string;
   title: string;
   /** one muted short clause shown only when collapsed */
@@ -53,10 +53,11 @@ export default function Section({ id, title, summary, open, onToggle, children }
       <div
         id={`section-${id}`}
         hidden={!open}
-        // Indent the body to the label column so the open section
-        // reads as one block without borders; the naked div keeps
-        // `hidden` controlling display.
-        className="ml-6 flex flex-col gap-3 pt-1"
+        // Indent the body toward the label column so the open section
+        // reads as one block without borders; a phone keeps the
+        // indent small to save width. The naked div keeps `hidden`
+        // controlling display.
+        className="ml-3 flex min-w-0 flex-col gap-3 pt-1 pb-2 sm:ml-6"
       >
         {children}
       </div>

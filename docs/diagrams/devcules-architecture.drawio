@@ -4216,7 +4216,7 @@ ARCH_16 — machine task view: screen/input/tree/ground over the link, budget at
 ARCH_17 — Muse Code agent (M3.3)
 ARCH_18 — machines tied together: enrol + signed link, machine shells, projects (dir · clone)
 ARCH_19 — project tree in the sidebar, folder picker (term.browse), terminal names, provider + model per agent launch
-ARCH_20 — model provider profiles: OpenAI-compatible or Anthropic format, base URL, default model; resolved per call, keys in the vault; the launch reaper stops what an agent leaves running" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
+ARCH_20 — model provider profiles: OpenAI-compatible or Anthropic format, base URL, default model; resolved per call, keys in the vault; the launch reaper stops what an agent leaves running; Settings opens with every section folded, one centred column on any screen" vertex="1"><mxGeometry x="40" y="1380" width="820" height="18" as="geometry"/></mxCell>
 
 </root>
         </mxGraphModel>

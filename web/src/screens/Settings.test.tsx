@@ -1,6 +1,6 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
 import Settings from './Settings';
 
 // The page address check is mocked: jsdom always serves localhost.
@@ -82,15 +82,15 @@ function renderSettings(expired = vi.fn()) {
   return { expired, signedOut };
 }
 
-describe('Settings sections', () => {
-  // Passkeys stands open for a first visit; the collapsible blades
-  // fold to one-liners until asked for. localStorage can carry the
-  // record across renders — and across tests, since each records
-  // folds; clear it so the defaults below are first-visit defaults.
-  beforeEach(() => {
-    window.localStorage.clear();
-  });
+// The page starts with every section folded; the passkey tests open
+// Passkeys first, the way a person would.
+function renderPasskeys(expired = vi.fn()) {
+  const out = renderSettings(expired);
+  fireEvent.click(screen.getByRole('button', { name: /Passkeys/ }));
+  return out;
+}
 
+describe('Settings sections', () => {
   function baseRoutes() {
     route({
       '/auth/passkeys/status': { status: 200, body: { enabled: true } },
@@ -98,57 +98,57 @@ describe('Settings sections', () => {
     });
   }
 
-  it('opens with Passkeys out and the others folded', async () => {
+  const ids = [/Passkeys/, /Providers/, /Secrets/, /Notifications/, /Access modes/, /Redaction/];
+
+  it('opens with every section folded', async () => {
     baseRoutes();
     renderSettings();
-    const providers = screen.getByRole('button', { name: /Providers/ });
-    expect(providers.getAttribute('aria-expanded')).toBe('false');
-    expect(screen.getByRole('button', { name: /Access modes/ }).getAttribute('aria-expanded')).toBe(
-      'false',
-    );
-    expect(screen.getByRole('button', { name: /Redaction/ }).getAttribute('aria-expanded')).toBe(
-      'false',
-    );
-    expect(await screen.findByRole('button', { name: /Passkeys/ })).toBeTruthy();
-    // and the passkeys blade itself is open:
-    await screen.findByText('Phone');
+    for (const name of ids) {
+      expect(screen.getByRole('button', { name }).getAttribute('aria-expanded')).toBe('false');
+    }
+    // folded Passkeys still says what is inside
+    expect(await screen.findByText('2 passkeys')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Add a passkey' })).toBeNull();
   });
 
-  it('passkeys header names the count once folded', async () => {
-    const user = userEvent.setup();
-    baseRoutes();
-    renderSettings();
-    await screen.findByText('Phone');
-    await user.click(screen.getByRole('button', { name: /Passkeys/ }));
-    expect(screen.getByText('2 passkeys')).toBeTruthy();
-  });
-
-  it('expand keeps the body mounted: open, fold, reopen — no refetch shape', async () => {
+  it('opens and folds a section on its header', async () => {
     const user = userEvent.setup();
     baseRoutes();
     renderSettings();
     const passkeys = screen.getByRole('button', { name: /Passkeys/ });
-    await screen.findByText('Phone');
-    await user.click(passkeys); // fold
+    await user.click(passkeys);
+    expect(passkeys.getAttribute('aria-expanded')).toBe('true');
+    expect(await screen.findByText('Phone')).toBeTruthy();
+    await user.click(passkeys);
     expect(passkeys.getAttribute('aria-expanded')).toBe('false');
     expect(screen.getByText('2 passkeys')).toBeTruthy();
-    await user.click(passkeys); // reopen
-    expect(passkeys.getAttribute('aria-expanded')).toBe('true');
-    expect(screen.getByText('Phone')).toBeTruthy();
   });
 
-  it('the fold survives a remount', async () => {
+  it('opening one section leaves the others folded', async () => {
     const user = userEvent.setup();
     baseRoutes();
     renderSettings();
-    const providers = screen.getByRole('button', { name: /Providers/ });
-    await user.click(providers);
-    expect(providers.getAttribute('aria-expanded')).toBe('true');
-
-    // A fresh Settings on the same browser reads the same record.
-    renderSettings();
-    expect(screen.getAllByRole('button', { name: /Providers/ })[1].getAttribute('aria-expanded')).toBe(
+    await user.click(screen.getByRole('button', { name: /Providers/ }));
+    expect(screen.getByRole('button', { name: /Providers/ }).getAttribute('aria-expanded')).toBe(
       'true',
+    );
+    expect(screen.getByRole('button', { name: /Passkeys/ }).getAttribute('aria-expanded')).toBe(
+      'false',
+    );
+  });
+
+  it('starts folded again on the next visit', async () => {
+    const user = userEvent.setup();
+    baseRoutes();
+    const first = render(
+      <Settings username="admin" onSignedOut={vi.fn()} onSessionExpired={vi.fn()} />,
+    );
+    await user.click(screen.getByRole('button', { name: /Providers/ }));
+    first.unmount();
+
+    renderSettings();
+    expect(screen.getByRole('button', { name: /Providers/ }).getAttribute('aria-expanded')).toBe(
+      'false',
     );
   });
 });
@@ -159,7 +159,7 @@ describe('Settings', () => {
       '/auth/passkeys/status': { status: 200, body: { enabled: true } },
       '/api/passkeys': { status: 200, body: { passkeys: [phone, laptop] } },
     });
-    renderSettings();
+    renderPasskeys();
     expect(await screen.findByText('Phone')).toBeDefined();
     expect(screen.getByText('Laptop')).toBeDefined();
     expect(screen.getByText('Backed up')).toBeDefined();
@@ -172,7 +172,7 @@ describe('Settings', () => {
       '/auth/passkeys/status': { status: 200, body: { enabled: true } },
       '/api/passkeys': { status: 200, body: { passkeys: [] } },
     });
-    renderSettings();
+    renderPasskeys();
     expect(await screen.findByText('No passkeys yet.')).toBeDefined();
   });
 
@@ -181,7 +181,7 @@ describe('Settings', () => {
       '/auth/passkeys/status': { status: 200, body: { enabled: false, reason: 'Set the URL.' } },
       '/api/passkeys': { status: 200, body: { passkeys: [] } },
     });
-    renderSettings();
+    renderPasskeys();
     expect(await screen.findByText('Set the URL.')).toBeDefined();
     expect(screen.queryByRole('button', { name: 'Add a passkey' })).toBeNull();
   });
@@ -192,7 +192,7 @@ describe('Settings', () => {
       '/auth/passkeys/status': { status: 200, body: { enabled: true } },
       '/api/passkeys': { status: 200, body: { passkeys: [phone] } },
     });
-    renderSettings();
+    renderPasskeys();
     expect(await screen.findByText('Phone')).toBeDefined();
     expect(screen.getByText(/Passkeys don.t work at an IP address/)).toBeDefined();
     expect(screen.queryByRole('button', { name: 'Add a passkey' })).toBeNull();
@@ -204,7 +204,7 @@ describe('Settings', () => {
       '/auth/passkeys/status': { status: 200, body: { enabled: false, reason: 'Set the URL.' } },
       '/api/passkeys': { status: 200, body: { passkeys: [phone] } },
     });
-    renderSettings();
+    renderPasskeys();
     expect(await screen.findByText('Phone')).toBeDefined();
     expect(screen.getByRole('button', { name: 'Remove Phone' })).toBeDefined();
   });
@@ -213,7 +213,7 @@ describe('Settings', () => {
     window.fetch = vi.fn(async () => {
       throw new TypeError('Failed to fetch');
     }) as typeof fetch;
-    renderSettings();
+    renderPasskeys();
     expect(await screen.findByRole('alert')).toBeDefined();
   });
 
@@ -222,7 +222,7 @@ describe('Settings', () => {
       '/auth/passkeys/status': { status: 200, body: { enabled: true } },
       '/api/passkeys': { status: 500 },
     });
-    renderSettings();
+    renderPasskeys();
     expect(await screen.findByRole('alert')).toBeDefined();
   });
 
@@ -231,7 +231,7 @@ describe('Settings', () => {
       '/auth/passkeys/status': { status: 200, body: { enabled: true } },
       '/api/passkeys': { status: 401 },
     });
-    const { expired } = renderSettings();
+    const { expired } = renderPasskeys();
     await waitFor(() => expect(expired).toHaveBeenCalled());
   });
 
@@ -249,7 +249,7 @@ describe('Settings', () => {
     const create: Mock<(opts?: CredentialCreationOptions) => Promise<Credential | null>> =
       vi.fn(async () => fakeCreation);
     mockCredentials({ create });
-    renderSettings();
+    renderPasskeys();
     await user.click(await screen.findByRole('button', { name: 'Add a passkey' }));
     expect(await screen.findByText('Phone')).toBeDefined();
     expect(create).toHaveBeenCalledTimes(1);
@@ -268,7 +268,7 @@ describe('Settings', () => {
         throw new DOMException('cancelled', 'NotAllowedError');
       }),
     });
-    renderSettings();
+    renderPasskeys();
     await user.click(await screen.findByRole('button', { name: 'Add a passkey' }));
     expect(await screen.findByText('No passkeys yet.')).toBeDefined();
     expect(screen.queryByRole('alert')).toBeNull();
@@ -283,7 +283,7 @@ describe('Settings', () => {
       '/auth/passkeys/register/finish': { status: 400 },
     });
     mockCredentials({ create: vi.fn(async () => fakeCreation) });
-    renderSettings();
+    renderPasskeys();
     await user.click(await screen.findByRole('button', { name: 'Add a passkey' }));
     expect((await screen.findByRole('alert')).textContent).toBe(
       "Couldn't add that passkey. Try again.",
@@ -298,7 +298,7 @@ describe('Settings', () => {
       '/auth/passkeys/register/begin': { status: 401 },
     });
     mockCredentials({ create: vi.fn(async () => fakeCreation) });
-    const { expired } = renderSettings();
+    const { expired } = renderPasskeys();
     await user.click(await screen.findByRole('button', { name: 'Add a passkey' }));
     await waitFor(() => expect(expired).toHaveBeenCalled());
   });
@@ -313,7 +313,7 @@ describe('Settings', () => {
       ],
       '/api/passkeys/cGhvbmU': { status: 204 },
     });
-    renderSettings();
+    renderPasskeys();
     await user.click(await screen.findByRole('button', { name: 'Rename Phone' }));
     const input = screen.getByLabelText('Passkey name');
     await user.clear(input);
@@ -332,7 +332,7 @@ describe('Settings', () => {
       '/auth/passkeys/status': { status: 200, body: { enabled: true } },
       '/api/passkeys': { status: 200, body: { passkeys: [phone] } },
     });
-    renderSettings();
+    renderPasskeys();
     await user.click(await screen.findByRole('button', { name: 'Rename Phone' }));
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByLabelText('Passkey name')).toBeNull();
@@ -345,7 +345,7 @@ describe('Settings', () => {
       '/auth/passkeys/status': { status: 200, body: { enabled: true } },
       '/api/passkeys': { status: 200, body: { passkeys: [phone] } },
     });
-    renderSettings();
+    renderPasskeys();
     await user.click(await screen.findByRole('button', { name: 'Rename Phone' }));
     await user.clear(screen.getByLabelText('Passkey name'));
     await user.click(screen.getByRole('button', { name: 'Save' }));
@@ -362,7 +362,7 @@ describe('Settings', () => {
       ],
       '/api/passkeys/cGhvbmU': { status: 204 },
     });
-    renderSettings();
+    renderPasskeys();
     await user.click(await screen.findByRole('button', { name: 'Remove Phone' }));
     // Keep backs out: no DELETE, the key stays.
     await user.click(await screen.findByRole('button', { name: 'Keep' }));
@@ -380,7 +380,7 @@ describe('Settings', () => {
       '/api/passkeys': { status: 200, body: { passkeys: [phone] } },
       '/api/passkeys/cGhvbmU': { status: 401 },
     });
-    const { expired } = renderSettings();
+    const { expired } = renderPasskeys();
     await user.click(await screen.findByRole('button', { name: 'Remove Phone' }));
     await user.click(await screen.findByRole('button', { name: 'Confirm remove Phone' }));
     await waitFor(() => expect(expired).toHaveBeenCalled());
@@ -393,7 +393,7 @@ describe('Settings', () => {
       '/api/passkeys': { status: 200, body: { passkeys: [] } },
       '/auth/sign-out': { status: 204 },
     });
-    const { signedOut } = renderSettings();
+    const { signedOut } = renderPasskeys();
     await user.click(await screen.findByRole('button', { name: 'Sign out' }));
     await waitFor(() => expect(signedOut).toHaveBeenCalled());
   });

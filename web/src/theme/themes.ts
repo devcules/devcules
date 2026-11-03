@@ -79,37 +79,3 @@ export function setTheme(id: string): void {
 export function initTheme(): void {
   applyTheme(currentTheme());
 }
-
-// Settings fold record — which sections stand open, remembered per
-// browser like the theme. An explicit choice is stored (true =
-// folded, false = unfolded); sections never touched fall back to the
-// page's defaults, so an old record outlives a page reorganisation.
-// Storage-off (private window) degrades to the defaults per view.
-export const FOLDS_KEY = 'devcules.settings.folds';
-
-export function readFolds(): Record<string, boolean> {
-  try {
-    const raw = window.localStorage.getItem(FOLDS_KEY);
-    const obj: unknown = raw ? JSON.parse(raw) : {};
-    if (obj === null || typeof obj !== 'object') {
-      return {};
-    }
-    return Object.fromEntries(
-      Object.entries(obj as Record<string, unknown>).filter(
-        (e): e is [string, boolean] => typeof e[1] === 'boolean',
-      ),
-    );
-  } catch {
-    return {};
-  }
-}
-
-export function writeFold(id: string, folded: boolean): void {
-  try {
-    const folds = readFolds();
-    folds[id] = folded;
-    window.localStorage.setItem(FOLDS_KEY, JSON.stringify(folds));
-  } catch {
-    // Folding still works for this page view.
-  }
-}

@@ -16,23 +16,11 @@ import Providers from './Providers';
 import SecretsScreen from './Secrets';
 import Redaction from './Redaction';
 import Section from './Section';
-import { readFolds, writeFold } from '../theme/themes';
 
 // 'elsewhere': the server has passkeys on, but this page is open at
 // an IP address, where WebAuthn never works.
 type PasskeyState = 'loading' | 'on' | 'elsewhere' | 'off' | 'unreachable';
 
-// Sections: the default page opens short — Passkeys visible, the
-// rest folded one-liners — and any choice you make stays
-// (per-browser, like the theme itself). Module-level: a per-section
-// key of the page, never a prop.
-const sectionDefaults: Record<string, boolean> = {
-  passkeys: true,
-  providers: false,
-  notifications: false,
-  access: false,
-  redaction: false,
-};
 
 export default function Settings({
   username,
@@ -186,13 +174,17 @@ export default function Settings({
   // still be renamed or removed; the Add button needs them on.
   const showList = status === 'on' || status === 'elsewhere' || keys.length > 0;
 
-  const [folded, setFolded] = useState<Record<string, boolean>>(() => readFolds());
-  const isOpen = (id: string) => (id in folded ? !folded[id] : sectionDefaults[id]);
+  // Every section starts folded, on every visit: the page opens as a
+  // short list of one-line summaries, and you open what you need.
+  // Nothing is remembered, so the next visit starts folded again.
+  const [opened, setOpened] = useState<ReadonlySet<string>>(() => new Set());
+  const isOpen = (id: string) => opened.has(id);
   const toggle = useCallback((id: string) => {
-    setFolded((f) => {
-      const open = id in f ? !f[id] : sectionDefaults[id];
-      const next = { ...f, [id]: open };
-      writeFold(id, open);
+    setOpened((o) => {
+      const next = new Set(o);
+      if (!next.delete(id)) {
+        next.add(id);
+      }
       return next;
     });
   }, []);
@@ -216,10 +208,10 @@ export default function Settings({
             ? 'None yet'
             : `${keys.length} ${keys.length === 1 ? 'passkey' : 'passkeys'}`;
 
-  // Open-state: a stored choice wins; otherwise the default above.
-
+  // One readable column: full width on a phone, centred and capped on
+  // wider screens.
   return (
-    <div className="flex flex-1 flex-col gap-2 px-6 pt-8">
+    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-2 px-4 pt-6 pb-6 sm:px-6 sm:pt-8">
       <h2 className="px-3 text-lead font-semibold text-text">Settings</h2>
       <p className="px-3 text-body text-muted">
         Signed in as <span className="text-text">{username}</span>

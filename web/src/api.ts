@@ -30,20 +30,24 @@ export async function signIn(username: string, password: string): Promise<SignIn
   return 'invalid';
 }
 
+// me names the signed-in user, or null for no session, a dead server
+// or an unreadable answer alike: each one shows sign-in.
 export async function me(): Promise<string | null> {
-  const res = await fetch('/auth/me');
-  if (!res.ok) {
+  const res = await fetch('/auth/me').catch(() => null);
+  if (res === null || !res.ok) {
     return null;
   }
-  const data: unknown = await res.json();
+  const data: unknown = await res.json().catch(() => null);
   if (typeof data === 'object' && data !== null && 'username' in data && typeof data.username === 'string') {
     return data.username;
   }
   return null;
 }
 
+// signOut never fails: with the server unreachable the page still
+// signs out locally, and the session expires on its own.
 export async function signOut(): Promise<void> {
-  await fetch('/auth/sign-out', { method: 'POST' });
+  await fetch('/auth/sign-out', { method: 'POST' }).catch(() => null);
 }
 
 // Passkeys. Ceremony posts carry JSON; a dead server is always
@@ -319,7 +323,7 @@ export async function listTerminals(where?: Where): Promise<{ terminals: Termina
   if (!res.ok) {
     return 'unreachable';
   }
-  const data: unknown = await res.json();
+  const data: unknown = await res.json().catch(() => null);
   if (typeof data === 'object' && data !== null && 'terminals' in data && Array.isArray(data.terminals)) {
     return {
       terminals: data.terminals.filter(
@@ -1455,7 +1459,7 @@ export async function listAssistants(): Promise<{ assistants: AssistantSummary[]
   if (!res.ok) {
     return 'unreachable';
   }
-  const data: unknown = await res.json();
+  const data: unknown = await res.json().catch(() => null);
   if (typeof data === 'object' && data !== null && 'assistants' in data && Array.isArray(data.assistants)) {
     return {
       assistants: data.assistants.filter(
@@ -1505,7 +1509,11 @@ export async function chatAssistant(
   if (!res.ok) {
     return 'unreachable';
   }
-  return (await res.json()) as ChatTurn;
+  const data: unknown = await res.json().catch(() => null);
+  if (isObject(data) && typeof data.session === 'string' && Array.isArray(data.events)) {
+    return data as unknown as ChatTurn;
+  }
+  return 'unreachable';
 }
 
 export type AssistantMessage = { role: string; content: string; at: string };
@@ -1521,5 +1529,9 @@ export async function readAssistant(
   if (!res.ok) {
     return 'unreachable';
   }
-  return (await res.json()) as { id: string; messages: AssistantMessage[] };
+  const data: unknown = await res.json().catch(() => null);
+  if (isObject(data) && Array.isArray(data.messages)) {
+    return data as unknown as { id: string; messages: AssistantMessage[] };
+  }
+  return 'unreachable';
 }

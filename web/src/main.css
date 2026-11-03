@@ -211,23 +211,40 @@ system font stack keeps the app offline-capable and tracking-free. */
   border-left-width: 3px;
 }
 
-/* Small screens: the three-part toolbar wraps into rows so the title and
-   the view picker stop squeezing the nav buttons, and hit targets grow. */
-@media (max-width: 640px) {
-  .d-calendar .fc .fc-toolbar {
-    flex-wrap: wrap;
-    row-gap: 0.4rem;
-  }
-  .d-calendar .fc .fc-toolbar-chunk {
-    display: flex;
-    align-items: center;
-  }
+/* The toolbar wraps on its own width, not the viewport's. FullCalendar
+   lays the three chunks out in a nowrap row, so a desk tile narrower
+   than its chunks (a half-width calendar is ~420px) pushed the view
+   picker past the edge and clipped the title's year. Wrapping is what
+   the desktop tile needs too, so the rule is unconditional; the
+   container query keeps the squeeze tightening to tiles that are
+   actually narrow (a full-width calendar keeps one row). */
+.d-calendar {
+  container-type: inline-size;
+}
+.d-calendar .fc .fc-toolbar {
+  flex-wrap: wrap;
+  row-gap: 0.4rem;
+}
+.d-calendar .fc .fc-toolbar-chunk {
+  display: flex;
+  align-items: center;
+}
+
+@container (max-width: 640px) {
   .d-calendar .fc .fc-toolbar-title {
     font-size: 0.85rem;
+    width: 100%;
+    text-align: center;
   }
   .d-calendar .fc .fc-button {
     padding: 0.35em 0.6em;
   }
+}
+
+/* Small screens: taller time slots so a week stays thumb-sized. The
+   toolbar rules live in the container query above, which covers both a
+   phone and a narrow desk tile. */
+@media (max-width: 640px) {
   .d-calendar .fc-timegrid-slot {
     height: 2.6em;
   }

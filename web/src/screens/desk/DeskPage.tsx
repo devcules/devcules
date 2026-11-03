@@ -173,8 +173,12 @@ export default function DeskPage({ onSessionExpired, onOpenApprovals }: { onSess
             layouts={prefs.layouts as never}
             dragConfig={{ enabled: arranging, handle: '.d-tile-grip' }}
             resizeConfig={{ enabled: arranging, handles: ['se'] }}
-            /* narrow tiles can be wider than the column count (a min-3-wide
-               tile in 2 columns); let those overlap rather than overflow */
+            /* generateLayouts already packs every row flush left to
+               right, so the work left is vertical: a short tile beside a
+               tall one leaves a hole under it, and the vertical compactor
+               pulls whatever sits below up into it. Narrow breakpoints
+               can want a tile wider than the grid allows; there, overlap
+               is allowed rather than overflow. */
             compactor={{ ...verticalCompactor, allowOverlap: COLS[bp] < 4 }}
             onLayoutChange={onLayoutChange}
           >

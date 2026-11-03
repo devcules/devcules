@@ -7,6 +7,11 @@ export const COLS = { lg: 12, md: 8, sm: 6, xs: 2, xxs: 1 } as const;
 export const ROW_HEIGHT = 28;
 export const MARGIN: [number, number] = [10, 10];
 
+// DESK_VERSION is the document shape this module writes. v3 re-packed
+// the desk gap-free with the calendar first and full width, so a v2
+// document's saved layouts are rebuilt once on read (normalizePrefs).
+export const DESK_VERSION = 3;
+
 export type WidgetType = {
   title: string; desc: string;
   size: { w: number; h: number }; min: { w: number; h: number };
@@ -19,7 +24,10 @@ export type WidgetType = {
 export const WIDGET_TYPES: Record<string, WidgetType> = {
   now:      { title: 'Now',           desc: 'Clock, date and the weather where you are.',                     size: { w: 4, h: 5 }, min: { w: 2, h: 4 } },
   meetings: { title: 'Meetings',      desc: 'Next 7 days from your calendar feeds (Google, Outlook).',      size: { w: 6, h: 7 }, min: { w: 3, h: 4 } },
-  calendar: { title: 'Calendar',      desc: 'Your feeds as a month, week or list grid.',                    size: { w: 6, h: 9 }, min: { w: 3, h: 6 } },
+  // The calendar leads the desk and takes the full width at every
+  // breakpoint: a month grid needs the room, and h 14 is the height at
+  // which six week rows fit without scrolling.
+  calendar: { title: 'Calendar',      desc: 'Your feeds as a month, week or list grid.',                    size: { w: 12, h: 14 }, min: { w: 3, h: 6 } },
   brief:    { title: 'Next up',       desc: 'Pending approvals and the next thing on your calendar.',       size: { w: 4, h: 8 }, min: { w: 3, h: 5 } },
   tickets:  { title: 'Tickets',       desc: 'Issues assigned to you — Jira, Asana or Linear.',              size: { w: 5, h: 7 }, min: { w: 3, h: 4 }, needs: 'ticket' },
   security: { title: 'Hacked today',  desc: 'Breaches and exploited bugs from the last day.',               size: { w: 4, h: 8 }, min: { w: 3, h: 4 }, needs: 'tavily' },
@@ -31,7 +39,7 @@ export const WIDGET_TYPES: Record<string, WidgetType> = {
   scratch:  { title: 'Scratchpad',    desc: 'A note that is always there.',                                 size: { w: 4, h: 6 }, min: { w: 2, h: 3 }, multiple: true },
 };
 
-export const DEFAULT_WIDGET_ORDER = ['now', 'meetings', 'calendar', 'brief', 'tickets', 'security', 'tech', 'timer', 'links', 'scratch'];
+export const DEFAULT_WIDGET_ORDER = ['calendar', 'now', 'meetings', 'brief', 'tickets', 'security', 'tech', 'timer', 'links', 'scratch'];
 
 export type Widget = { id: string; type: string; title?: string; config?: Record<string, unknown> };
 export type LayoutItem = { i: string; x: number; y: number; w: number; h: number; minW?: number; minH?: number };
@@ -43,27 +51,73 @@ export function newWidgetId(type: string): string {
   return `w-${type}-${Date.now().toString(36)}${seq.toString(36)}`;
 }
 
+// gridWidth is the column span a widget takes at a breakpoint, clamped
+// to its minimum and to the grid.
+function gridWidth(t: WidgetType, cols: number): number {
+  return Math.max(Math.min(t.min.w, cols), Math.min(cols, Math.round((t.size.w * cols) / 12)));
+}
+
+// generateLayouts seats widgets in rows that always add up to the grid
+// width, so the desk has no holes. A row fills left to right; when the
+// next widget no longer fits, the row closes and its last widget takes
+// the slack (a 4-wide widget ending a row that has 2 columns spare
+// becomes 6 wide). Without that stretch the leftover columns sat empty
+// to the right of a short row — the ragged edge the desk used to show.
+//
+// A widget whose minimum width is the whole grid (the calendar at a
+// narrow breakpoint) always sits alone on its own row.
 export function generateLayouts(widgets: Widget[]): Record<string, LayoutItem[]> {
   const out: Record<string, LayoutItem[]> = {};
   for (const [bp, cols] of Object.entries(COLS)) {
-    let x = 0, y = 0, rowH = 0;
-    out[bp] = widgets.map((w) => {
+    const placed: LayoutItem[] = [];
+    let row: LayoutItem[] = [];
+    let used = 0;
+    let y = 0;
+    let rowH = 0;
+
+    const closeRow = () => {
+      if (row.length === 0) return;
+      // The last widget takes the slack, so the row ends flush.
+      const last = row[row.length - 1];
+      if (used < cols) {
+        last.w += cols - used;
+        last.minW = last.w;
+      }
+      // A row reads as one band, and the vertical compactor cannot fill
+      // a hole under a short tile while a taller neighbour holds the
+      // row open — so every tile in a row grows to the row's tallest.
+      // That is what keeps rows flush with no notches beneath them.
+      rowH = row.reduce((h, it) => Math.max(h, it.h), 0);
+      for (const it of row) {
+        it.h = rowH;
+        it.minH = Math.min(it.minH ?? rowH, rowH);
+      }
+      placed.push(...row);
+      y += rowH;
+      row = [];
+      used = 0;
+      rowH = 0;
+    };
+
+    for (const w of widgets) {
       const t = WIDGET_TYPES[w.type] || { size: { w: 4, h: 6 }, min: { w: 2, h: 3 } };
-      const width = Math.max(Math.min(t.min.w, cols), Math.min(cols, Math.round((t.size.w * cols) / 12)));
-      const h = t.size.h;
-      if (x + width > cols) { x = 0; y += rowH; rowH = 0; }
-      const item: LayoutItem = { i: w.id, x, y, w: width, h, minW: Math.min(t.min.w, cols), minH: t.min.h };
-      x += width;
-      rowH = Math.max(rowH, h);
-      return item;
-    });
+      const width = gridWidth(t, cols);
+      const minW = Math.min(t.min.w, cols);
+      // Full-width, or no room left on this row: close it and start a new one.
+      if (width >= cols || used + width > cols) closeRow();
+      row.push({ i: w.id, x: used, y, w: width, h: t.size.h, minW, minH: t.min.h });
+      used += width;
+      rowH = Math.max(rowH, t.size.h);
+    }
+    closeRow();
+    out[bp] = placed;
   }
   return out;
 }
 
 export function defaultPrefs(): PrefsDoc {
   const widgets = DEFAULT_WIDGET_ORDER.map((type) => ({ id: `w-${type}`, type }));
-  return { version: 2, widgets, layouts: generateLayouts(widgets), seen: {} };
+  return { version: DESK_VERSION, widgets, layouts: generateLayouts(widgets), seen: {} };
 }
 
 export function normalizePrefs(doc: unknown): PrefsDoc {
@@ -73,8 +127,13 @@ export function normalizePrefs(doc: unknown): PrefsDoc {
     .filter((w): w is Widget => !!w && typeof (w as Widget).id === 'string' && !!WIDGET_TYPES[(w as Widget).type])
     .map((w) => ({ id: w.id, type: w.type, title: w.title, config: (w.config as Record<string, unknown>) || {} }));
   if (widgets.length === 0) return defaultPrefs();
+  // Version 2 desks predate the gap-free packing and the full-width
+  // calendar. Their saved layouts are re-packed once here, so an
+  // existing desk picks up the new shape instead of keeping its ragged
+  // rows; v3 keeps whatever the owner has since arranged.
+  const legacy = typeof d.version !== 'number' || d.version < 3;
   const layouts = { ...generateLayouts(widgets) };
-  if (d.layouts && typeof d.layouts === 'object') {
+  if (!legacy && d.layouts && typeof d.layouts === 'object') {
     for (const bp of Object.keys(COLS)) {
       const saved = Array.isArray((d.layouts as Record<string, LayoutItem[]>)[bp])
         ? (d.layouts as Record<string, LayoutItem[]>)[bp].filter((l) => widgets.some((w) => w.id === l.i))
@@ -92,7 +151,7 @@ export function normalizePrefs(doc: unknown): PrefsDoc {
       }
     }
   }
-  return { version: 2, widgets, layouts, seen: { ...(d.seen && typeof d.seen === 'object' ? d.seen : {}) } };
+  return { version: DESK_VERSION, widgets, layouts, seen: { ...(d.seen && typeof d.seen === "object" ? d.seen : {}) } };
 }
 
 export function addWidget(prefs: PrefsDoc, type: string, config: Record<string, unknown> = {}, title?: string): PrefsDoc {
@@ -128,5 +187,5 @@ export function setLayouts(prefs: PrefsDoc, layouts: Record<string, LayoutItem[]
 }
 
 export function toDocument(prefs: PrefsDoc): { version: number; widgets: Widget[]; layouts: Record<string, LayoutItem[]>; seen: Record<string, boolean> } {
-  return { version: 2, widgets: prefs.widgets, layouts: setLayouts(prefs, prefs.layouts).layouts, seen: prefs.seen || {} };
+  return { version: DESK_VERSION, widgets: prefs.widgets, layouts: setLayouts(prefs, prefs.layouts).layouts, seen: prefs.seen || {} };
 }

@@ -40,7 +40,7 @@ func TestSettings(t *testing.T) {
 	if spec.Env["XDG_CONFIG_HOME"] != "/run/l/config" || spec.Env["META_API_KEY"] != "tok" {
 		t.Fatalf("env = %v", spec.Env)
 	}
-	if got := strings.Join(spec.Cmd, " "); got != "muse" {
+	if got := strings.Join(spec.Cmd, " "); got != "muse --approval-judge off --disable-approval" {
 		t.Fatalf("cmd = %q", got)
 	}
 }

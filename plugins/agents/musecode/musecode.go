@@ -135,7 +135,10 @@ func (Agent) LaunchSpec(l agents.Launch) (agents.Spec, error) {
 		return agents.Spec{}, err
 	}
 	return agents.Spec{
-		Cmd: []string{"muse"},
+		// The model and provider come from settings.json; the flags
+		// turn Muse's own prompts and model judge off, since Devcules
+		// asks instead (its sandbox stays on).
+		Cmd: []string{"muse", "--approval-judge", "off", "--disable-approval"},
 		Env: map[string]string{
 			"XDG_CONFIG_HOME": filepath.Join(l.Dir, "config"),
 			"META_API_KEY":    l.Token,

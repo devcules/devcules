@@ -327,7 +327,7 @@ until $COMPOSE exec -T runner test -f /tmp/fake-muse.out; do
   sleep 0.5
 done
 muse_out=$($COMPOSE exec -T runner cat /tmp/fake-muse.out)
-for want in "args: --model muse-spark-1.3 --approval-judge off --disable-approval" "router ok" "mcp ok" "key set" "hook exit 0"; do
+for want in "args: --approval-judge off --disable-approval" "router ok" "mcp ok" "key set" "hook exit 0"; do
   case "$muse_out" in
     *"$want"*) ;;
     *) fail "the agent launch is missing '$want': $muse_out" ;;

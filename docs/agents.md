@@ -120,9 +120,10 @@ Facts in `docs/integrations.md`. The adapter:
   command hook for every tool (`matcher: "*"`, timeout 960 s, longer
   than an approval's 10 minutes);
 - passes the token as `META_API_KEY`;
-- runs `muse --model <model> --approval-judge off --disable-approval`:
-  Muse's own prompts and its model judge are off because Devcules
-  asks instead; Muse's sandbox stays on.
+- runs `muse --approval-judge off --disable-approval` (the model and
+  provider are in `settings.json`): Muse's own prompts and its model
+  judge are off because Devcules asks instead; Muse's sandbox stays
+  on.
 
 The hook answers Muse the way its docs say: exit `0` with no output
 allows, exit `2` with the reason on stderr blocks. Any other exit

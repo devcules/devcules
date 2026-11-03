@@ -95,7 +95,7 @@ describe('Extensions', () => {
 
     await user.type(searchBox(), 'db');
     await user.click(screen.getByRole('button', { name: /^search$/ }));
-    await waitFor(() => expect(screen.getByText('x/db')).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'x/db' })).toBeTruthy());
 
     await user.click(screen.getByRole('button', { name: 'x/db' }));
     await waitFor(() => expect(screen.getByText('run_query')).toBeTruthy());

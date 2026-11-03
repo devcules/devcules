@@ -194,6 +194,32 @@ function InstalledList({
   );
 }
 
+// splitName mirrors the server's rule: a dotted first segment is a
+// publisher namespace (io.github.alice/github-tools), so the readable name
+// is the part after the slash. A single-label prefix is the name itself.
+function splitName(name: string): string {
+  const slash = name.indexOf('/');
+  if (slash < 0) return name;
+  const publisher = name.slice(0, slash);
+  return publisher.includes('.') ? name.slice(slash + 1) : name;
+}
+
+// Highlight bolds the query inside a string so the match reason is visible
+// — a row that matched on its description says so without a tooltip.
+function Highlight({ text, query }: { text: string; query: string }) {
+  const q = query.trim().toLowerCase();
+  if (!q || !text) return <>{text}</>;
+  const at = text.toLowerCase().indexOf(q);
+  if (at < 0) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, at)}
+      <mark className="bg-transparent font-semibold text-text">{text.slice(at, at + q.length)}</mark>
+      {text.slice(at + q.length)}
+    </>
+  );
+}
+
 // ---------------------------------------------------------------- page
 
 export default function Extensions({ onSessionExpired }: { onSessionExpired: () => void }) {
@@ -211,6 +237,16 @@ export default function Extensions({ onSessionExpired }: { onSessionExpired: () 
   const [results, setResults] = useState<CatalogEntry[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchErr, setSearchErr] = useState('');
+  // The query the results belong to. Echoing it back (rather than the live
+  // box value) keeps stale rows from looking like they answer what was just
+  // typed, and lets the count line name the term it counted.
+  const [resultQuery, setResultQuery] = useState('');
+  // upstreamQuery: the same search with the local relevance filter off,
+  // fetched only when the filtered set is empty, so "no strong matches"
+  // can offer the loose list instead of a dead end.
+  const [upstreamResults, setUpstreamResults] = useState<CatalogEntry[] | null>(null);
+  const [loadingUpstream, setLoadingUpstream] = useState(false);
+  const [showUpstream, setShowUpstream] = useState(false);
 
   // ---- per-entry install state ----
   const [openId, setOpenId] = useState<string | null>(null);
@@ -265,15 +301,32 @@ export default function Extensions({ onSessionExpired }: { onSessionExpired: () 
 
   const search = (e: React.FormEvent) => {
     e.preventDefault();
+    const q = query.trim();
     setSearching(true);
     setSearchErr('');
-    searchRegistry(kind, query).then((r) => {
+    setShowUpstream(false);
+    setUpstreamResults(null);
+    searchRegistry(kind, q).then((r) => {
       setSearching(false);
       if (r === 'unauthorized') { onSessionExpired(); return; }
       if (r === 'unreachable') { setSearchErr('server unreachable'); setResults([]); return; }
       const er = registryErr(r);
       if (er) { setSearchErr(er.message); setResults([]); return; }
+      setResultQuery(q);
       setResults(r);
+    });
+  };
+
+  // loadLoose re-runs the same query with the relevance filter off, for
+  // the empty state's escape hatch.
+  const loadLoose = () => {
+    setLoadingUpstream(true);
+    searchRegistry(kind, resultQuery, { loose: true }).then((r) => {
+      setLoadingUpstream(false);
+      if (r === 'unauthorized') { onSessionExpired(); return; }
+      if (r === 'unreachable' || registryErr(r)) { setUpstreamResults([]); return; }
+      setUpstreamResults(r);
+      setShowUpstream(true);
     });
   };
 
@@ -401,10 +454,39 @@ export default function Extensions({ onSessionExpired }: { onSessionExpired: () 
           {results === null ? (
             <p className="py-3 text-body text-muted">search to add a {meta.title.toLowerCase()}</p>
           ) : results.length === 0 ? (
-            <p className="py-3 text-body text-muted">no {meta.title.toLowerCase()}s match</p>
+            // A dead-end "no matches" is how a broken search looks. Say what
+            // was searched, and offer the upstream's loose list (the same
+            // query without the relevance filter) instead of stopping here.
+            <div className="py-3">
+              <p className="text-body text-muted">
+                no {meta.title.toLowerCase()}s match “{resultQuery}”
+              </p>
+              {showUpstream ? (
+                upstreamResults && upstreamResults.length > 0 ? (
+                  <p className="mt-1 text-tab text-muted">
+                    showing {upstreamResults.length} loosely related registry results below.
+                  </p>
+                ) : (
+                  <p className="mt-1 text-tab text-muted">the registry had nothing loosely related either.</p>
+                )
+              ) : (
+                <button
+                  type="button"
+                  onClick={loadLoose}
+                  disabled={loadingUpstream}
+                  className="mt-1 text-tab text-accent disabled:opacity-60"
+                >
+                  {loadingUpstream ? 'loading…' : 'show loosely related registry results'}
+                </button>
+              )}
+            </div>
           ) : (
-            <ul className="divide-y divide-muted">
-              {results.map((entry) => {
+            <>
+              <p className="mb-1 text-tab text-muted">
+                {results.length} result{results.length === 1 ? '' : 's'} for “{resultQuery}”
+              </p>
+              <ul className="divide-y divide-muted">
+                {(showUpstream && upstreamResults ? upstreamResults : results).map((entry) => {
                 const open = openId === entry.id;
                 const insp = inspections[entry.id];
                 return (
@@ -415,7 +497,7 @@ export default function Extensions({ onSessionExpired }: { onSessionExpired: () 
                         onClick={() => (open ? setOpenId(null) : inspect(entry))}
                         className="text-left text-body font-medium text-text underline decoration-muted underline-offset-2"
                       >
-                        {entry.name}
+                        <Highlight text={splitName(entry.name)} query={resultQuery} />
                       </button>
                       {entry.repo_url && (
                         <a href={entry.repo_url} target="_blank" rel="noreferrer" className="text-tab text-accent">
@@ -424,7 +506,9 @@ export default function Extensions({ onSessionExpired }: { onSessionExpired: () 
                       )}
                       <span className="ml-auto text-tab text-muted">{entry.source_name}</span>
                     </div>
-                    <p className="mt-0.5 text-tab text-muted">{entry.description}</p>
+                    <p className="mt-0.5 text-tab text-muted">
+                      <Highlight text={entry.description} query={resultQuery} />
+                    </p>
 
                     {open && (
                       <div className="mt-2 rounded border border-muted bg-base p-3">
@@ -486,7 +570,8 @@ export default function Extensions({ onSessionExpired }: { onSessionExpired: () 
                   </li>
                 );
               })}
-            </ul>
+              </ul>
+            </>
           )}
         </div>
       </section>

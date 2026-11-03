@@ -71,6 +71,15 @@ type Source interface {
 	List(ctx context.Context, query string) ([]CatalogEntry, error)
 }
 
+// LooseSearcher is implemented by a Source that can answer the same query
+// WITHOUT its local relevance filter. The UI uses it only for the "no
+// strong matches" escape hatch (show the upstream's loose list), so the
+// default path can stay strict without making a zero-result search a dead
+// end. A Source that doesn't implement it simply has no escape hatch.
+type LooseSearcher interface {
+	ListLoose(ctx context.Context, query string) ([]CatalogEntry, error)
+}
+
 // Inspector previews an entry before install.
 type Inspector interface {
 	Kind() ArtifactKind

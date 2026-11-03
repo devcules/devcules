@@ -98,8 +98,11 @@ export type FleetMCP = { name: string; status: 'ok' | 'broken' | string; error?:
 export type AgentSkills = { agent: string; skills: FleetSkill[] };
 export type FleetSkill = { name: string; description?: string; source: string; status: 'ok' | 'broken' | string; error?: string; agents: string[]; source_url?: string };
 
-export const searchRegistry = (kind: 'mcp' | 'skill', q: string) =>
-  req<CatalogEntry[]>(`/api/registry/${kind}/search?q=${encodeURIComponent(q)}`);
+// searchRegistry queries one kind's catalog. loose skips the server's
+// relevance filter (?loose=1), used only by the "no strong matches" escape
+// hatch — the default path always filters.
+export const searchRegistry = (kind: 'mcp' | 'skill', q: string, opts?: { loose?: boolean }) =>
+  req<CatalogEntry[]>(`/api/registry/${kind}/search?q=${encodeURIComponent(q)}${opts?.loose ? '&loose=1' : ''}`);
 export const inspectEntry = (kind: 'mcp' | 'skill', entry: CatalogEntry, params: Record<string, string>) =>
   req<Inspection>(`/api/registry/${kind}/inspect`, {
     method: 'POST',

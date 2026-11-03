@@ -58,7 +58,9 @@ func TestOfficialMCPSourceListParsesStdioPackage(t *testing.T) {
 	defer srv.Close()
 
 	src := &OfficialMCPSource{BaseURL: srv.URL, HTTP: srv.Client()}
-	entries, err := src.List(context.Background(), "fs")
+	// Empty query = no relevance filter: every installable entry comes
+	// through (the one with neither packages nor remotes is skipped).
+	entries, err := src.List(context.Background(), "")
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
@@ -66,9 +68,14 @@ func TestOfficialMCPSourceListParsesStdioPackage(t *testing.T) {
 		t.Fatalf("expected 2 installable entries (the one with neither packages nor remotes skipped), got %d: %+v", len(entries), entries)
 	}
 
-	fsEntry := entries[0]
-	if fsEntry.Name != "io.github.example/fs-server" || fsEntry.Kind != KindMCP {
-		t.Fatalf("unexpected entry: %+v", fsEntry)
+	var fsEntry *CatalogEntry
+	for i := range entries {
+		if entries[i].Name == "io.github.example/fs-server" {
+			fsEntry = &entries[i]
+		}
+	}
+	if fsEntry == nil || fsEntry.Kind != KindMCP {
+		t.Fatalf("unexpected entry: %+v", entries)
 	}
 	spec, ok := fsEntry.Install.(MCPInstallSpec)
 	if !ok {

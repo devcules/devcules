@@ -59,6 +59,27 @@ func (s *SkillsShSource) client() *http.Client {
 // the universal term "skill": the fuzzy index answers it with the most
 // installed entries, which is the popular listing an empty search means.
 func (s *SkillsShSource) List(ctx context.Context, query string) ([]CatalogEntry, error) {
+	out, err := s.list(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	// skills.sh's fuzzy index pads a page with merely-related skills (a
+	// "pdf" query returned docx and canvas-design), so the same local
+	// relevance rule the MCP source uses applies here. The empty-query
+	// fallback searches "skill", whose results are a popularity list
+	// rather than a term match — leave those unfiltered.
+	if strings.TrimSpace(query) == "" {
+		return out, nil
+	}
+	return FilterRelevant(out, query), nil
+}
+
+// ListLoose answers the same query without the relevance filter.
+func (s *SkillsShSource) ListLoose(ctx context.Context, query string) ([]CatalogEntry, error) {
+	return s.list(ctx, query)
+}
+
+func (s *SkillsShSource) list(ctx context.Context, query string) ([]CatalogEntry, error) {
 	u, err := url.Parse(s.base() + "/api/search")
 	if err != nil {
 		return nil, err
@@ -115,6 +136,8 @@ func (s *SkillsShSource) List(ctx context.Context, query string) ([]CatalogEntry
 	}
 	return out, nil
 }
+
+// skillFileFromRepo fetches a skill's SKILL.md
 
 func humanCount(n int) string {
 	if n >= 1_000_000 {

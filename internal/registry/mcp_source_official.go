@@ -113,6 +113,21 @@ type MCPInstallSpec struct {
 }
 
 func (s *OfficialMCPSource) List(ctx context.Context, query string) ([]CatalogEntry, error) {
+	entries, err := s.list(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	return FilterRelevant(entries, query), nil
+}
+
+// ListLoose answers the same query without the relevance filter — the
+// "no strong matches, show me the loose list" escape hatch.
+func (s *OfficialMCPSource) ListLoose(ctx context.Context, query string) ([]CatalogEntry, error) {
+	return s.list(ctx, query)
+}
+
+// list fetches and decodes the upstream page, unfiltered.
+func (s *OfficialMCPSource) list(ctx context.Context, query string) ([]CatalogEntry, error) {
 	base := s.BaseURL
 	if base == "" {
 		base = officialRegistryBaseURL
@@ -125,6 +140,11 @@ func (s *OfficialMCPSource) List(ctx context.Context, query string) ([]CatalogEn
 	q.Set("version", "latest")
 	if query != "" {
 		q.Set("search", query)
+		// The registry caps a page at 100 and its search matches the
+		// publisher namespace too, so most of a page can be io.github.*
+		// noise. Ask for a full page and let FilterRelevant below cut it
+		// to what actually matches the term.
+		q.Set("limit", "100")
 	}
 	u.RawQuery = q.Encode()
 

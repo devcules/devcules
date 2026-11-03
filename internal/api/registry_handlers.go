@@ -166,9 +166,20 @@ func parseArtifactKind(w http.ResponseWriter, seg string) (registry.ArtifactKind
 
 func handleRegistrySearch(w http.ResponseWriter, r *http.Request, bag *registryBag, kind registry.ArtifactKind) {
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	// ?loose=1 skips the sources' relevance filter — the "no strong
+	// matches, show the loose list" escape hatch. Everything else filters.
+	loose := r.URL.Query().Get("loose") == "1"
 	var out []registry.CatalogEntry
 	for _, src := range bag.sources[kind] {
-		entries, err := src.List(r.Context(), q)
+		var (
+			entries []registry.CatalogEntry
+			err     error
+		)
+		if ls, ok := src.(registry.LooseSearcher); ok && loose {
+			entries, err = ls.ListLoose(r.Context(), q)
+		} else {
+			entries, err = src.List(r.Context(), q)
+		}
 		if err != nil {
 			writeErr(w, http.StatusBadGateway, "registry_unreachable", src.ID()+": "+err.Error())
 			return

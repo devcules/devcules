@@ -73,13 +73,15 @@ export default function Secrets({ onSessionExpired, onSummary }: { onSessionExpi
       )}
 
       <form onSubmit={(e) => void add(e)} className="flex flex-col gap-2">
-        <div className="flex gap-2">
+        {/* Stacked on a phone, side by side from sm up. Both inputs may
+            shrink: an input's own width would widen the page. */}
+        <div className="flex flex-col gap-2 sm:flex-row">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="name (e.g. TAVILY_KEY)"
             aria-label="secret name"
-            className="min-h-11 w-48 rounded bg-base px-3 font-mono text-body text-text"
+            className="min-h-11 w-full min-w-0 rounded bg-base px-3 font-mono text-body text-text sm:w-48"
           />
           <input
             type="password"
@@ -88,7 +90,7 @@ export default function Secrets({ onSessionExpired, onSummary }: { onSessionExpi
             placeholder="value"
             aria-label="secret value"
             autoComplete="new-password"
-            className="min-h-11 min-w-0 flex-1 rounded bg-base px-3 font-mono text-body text-text"
+            className="min-h-11 w-full min-w-0 rounded bg-base px-3 font-mono text-body text-text sm:flex-1"
           />
         </div>
         <div className="flex gap-2">

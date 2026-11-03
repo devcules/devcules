@@ -92,3 +92,11 @@ func (c *Cache[T]) Forget(key string) {
 	delete(c.items, key)
 	c.mu.Unlock()
 }
+
+// Clear drops every key: used when the inputs of a whole family of keys
+// change (the meetings cache is keyed per date window).
+func (c *Cache[T]) Clear() {
+	c.mu.Lock()
+	clear(c.items)
+	c.mu.Unlock()
+}

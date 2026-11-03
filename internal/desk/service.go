@@ -154,7 +154,9 @@ func (s *Service) WriteSources(ctx context.Context, src Sources) error {
 	s.newsC.Forget("tech")
 	s.newsC.Forget("custom")
 	s.ticketC.Forget("t")
-	s.meetC.Forget("m")
+	// Meetings are cached per window ("m/<from>/<to>"), so a feed change
+	// drops them all, not one key.
+	s.meetC.Clear()
 	return nil
 }
 

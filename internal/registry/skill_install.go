@@ -26,10 +26,14 @@ func (in *SkillsInstaller) Kind() ArtifactKind { return KindSkill }
 
 func (in *SkillsInstaller) bin() (string, []string, error) {
 	if in.SkillsBin != "" {
-		if strings.ContainsAny(in.SkillsBin, " \t") {
-			return "sh", []string{"-c", in.SkillsBin}, nil
+		// "npx -y skills" is a command plus its leading arguments. Split
+		// it into words: `sh -c` would hand the subcommand to the shell as
+		// $0 and drop it, so `skills` ran with no arguments at all.
+		f := strings.Fields(in.SkillsBin)
+		if len(f) == 0 {
+			return "", nil, fmt.Errorf("skills binary is blank")
 		}
-		return in.SkillsBin, nil, nil
+		return f[0], f[1:], nil
 	}
 	if _, err := exec.LookPath("skills"); err == nil {
 		return "skills", nil, nil
@@ -143,7 +147,7 @@ func lastLines(out []byte, n int) string {
 	lines := strings.Split(strings.ReplaceAll(string(out), "\r", "\n"), "\n")
 	var keep []string
 	for _, l := range lines {
-		l = strings.TrimRight(l, "│ ◒◐◓◑∴")
+		l = strings.Trim(l, "│ ◒◐◓◑∴")
 		if strings.TrimSpace(l) != "" {
 			keep = append(keep, strings.TrimSpace(l))
 		}

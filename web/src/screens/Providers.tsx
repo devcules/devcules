@@ -204,7 +204,10 @@ export default function Providers({
           {list.map((p) => (
             <li key={p.id} aria-label={name(p)} className="flex flex-col gap-2 rounded-md bg-surface px-3 py-2">
               <div className="flex min-h-11 flex-wrap items-center gap-2">
-                <span className="min-w-0 flex-1">
+                {/* A phone gives the details their own row and wraps the
+                    buttons below, so the address never squeezes to one
+                    letter a line. */}
+                <span className="min-w-0 basis-full sm:flex-1 sm:basis-0">
                   <span className="flex flex-wrap items-center gap-2">
                     <span className="text-body font-semibold text-text">{name(p)}</span>
                     {p.format && <Chip>{formatLabel(p.format)}</Chip>}

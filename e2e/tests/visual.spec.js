@@ -9,6 +9,16 @@ if (!password) {
   throw new Error('E2E_ADMIN_PASSWORD is required: print it with scripts/get-admin-password.sh against an up stack');
 }
 
+// shot masks what changes on its own: the machine status bar's live
+// CPU, memory and clock figures.
+function shot(page) {
+  return expect(page).toHaveScreenshot({
+    animations: 'disabled',
+    caret: 'hide',
+    mask: [page.locator('footer[aria-label="Machine status"]')],
+  });
+}
+
 test('sign-in screen', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
@@ -22,8 +32,10 @@ test('home shell', async ({ page }) => {
   });
   expect(signedIn.status()).toBe(204);
   await page.goto('/');
+  // Desk is the landing tab, all live tiles; the shot is the Home inbox.
+  await page.getByRole('button', { name: 'Home', exact: true }).first().click();
   await expect(page.getByText('Nothing needs you.')).toBeVisible();
-  await expect(page).toHaveScreenshot({ animations: 'disabled', caret: 'hide' });
+  await shot(page);
 });
 
 test('settings', async ({ page }) => {
@@ -37,7 +49,7 @@ test('settings', async ({ page }) => {
   // Every section starts folded: the shot is the list of headers.
   await expect(page.getByRole('button', { name: /^Passkeys/ })).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByRole('button', { name: /^Redaction/ })).toBeVisible();
-  await expect(page).toHaveScreenshot({ animations: 'disabled', caret: 'hide' });
+  await shot(page);
 });
 
 test('machines tab', async ({ page }) => {
@@ -52,7 +64,7 @@ test('machines tab', async ({ page }) => {
   // and the Add a computer action.
   await expect(page.getByText('No computers yet.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Add a computer' })).toBeVisible();
-  await expect(page).toHaveScreenshot({ animations: 'disabled', caret: 'hide' });
+  await shot(page);
 });
 
 test('projects tab', async ({ page }) => {
@@ -67,5 +79,5 @@ test('projects tab', async ({ page }) => {
   // is the one in main.
   await expect(page.getByRole('main').getByText('No projects yet.')).toBeVisible();
   await expect(page.getByRole('main').getByRole('button', { name: 'Add a project' })).toBeVisible();
-  await expect(page).toHaveScreenshot({ animations: 'disabled', caret: 'hide' });
+  await shot(page);
 });

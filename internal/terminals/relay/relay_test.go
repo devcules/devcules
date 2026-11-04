@@ -555,8 +555,10 @@ func TestResolveValidation(t *testing.T) {
 		{"ok", "", goodTerm, 80, 24, 0},
 		{"ok explicit runner", "r1", goodTerm, 80, 24, 0},
 		{"bad term id", "", "bogus", 80, 24, 404},
-		{"bad cols", "", goodTerm, 0, 24, 400},
-		{"bad rows", "", goodTerm, 80, 501, 400},
+		// Sizes clamp to 1..500 at attach instead of refusing: a
+		// refusal closes with 4404 and the UI shows a live pane as gone.
+		{"cols 0 clamps", "", goodTerm, 0, 24, 0},
+		{"rows 501 clamps", "", goodTerm, 80, 501, 0},
 		{"unknown runner", "nope", goodTerm, 80, 24, 404},
 	} {
 		// Synchronous: parallel subtests would outlive the dialer
@@ -597,6 +599,7 @@ type fakeRunner struct {
 	attached chan string // attach stream ids, in order
 	detached chan string // detach stream ids, in order
 	inputs   chan string // decoded input bytes
+	sizes    chan [2]int // cols/rows of each attach and resize, in order
 }
 
 func answerOK(c *dial.Client, req link.Frame) {
@@ -625,12 +628,16 @@ func runFakeRunnerCalm(t *testing.T, s *linktest.Server, ctx context.Context, na
 		HTTPClient:   s.Client(),
 		Logger:       discardLogger(),
 	})
-	f := &fakeRunner{c: c, attached: make(chan string, 16), detached: make(chan string, 16), inputs: make(chan string, 64)}
+	f := &fakeRunner{c: c, attached: make(chan string, 16), detached: make(chan string, 16), inputs: make(chan string, 64), sizes: make(chan [2]int, 16)}
 	c.On(terminals.TypeOpen, func(_ context.Context, req link.Frame) { answerOK(c, req) })
 	c.On(terminals.TypeAttach, func(_ context.Context, req link.Frame) {
 		var a terminals.Attach
 		if err := json.Unmarshal(req.Data, &a); err == nil {
 			f.attached <- a.Stream
+			select {
+			case f.sizes <- [2]int{a.Cols, a.Rows}:
+			default:
+			}
 		}
 		answerOK(c, req)
 	})
@@ -659,7 +666,16 @@ func runFakeRunnerCalm(t *testing.T, s *linktest.Server, ctx context.Context, na
 		data, _ := json.Marshal(terminals.Output(in))
 		c.Send(link.Frame{V: link.Version, Type: terminals.TypeOutput, ID: req.ID, Data: data})
 	})
-	c.On(terminals.TypeResize, func(_ context.Context, req link.Frame) { answerOK(c, req) })
+	c.On(terminals.TypeResize, func(_ context.Context, req link.Frame) {
+		var rz terminals.Resize
+		if err := json.Unmarshal(req.Data, &rz); err == nil {
+			select {
+			case f.sizes <- [2]int{rz.Cols, rz.Rows}:
+			default:
+			}
+		}
+		answerOK(c, req)
+	})
 	c.On(terminals.TypeDetach, func(_ context.Context, req link.Frame) {
 		var d terminals.Detach
 		if err := json.Unmarshal(req.Data, &d); err == nil {

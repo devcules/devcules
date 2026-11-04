@@ -94,6 +94,7 @@ type Client struct {
 	handlers map[string]HandlerFunc
 	conn     *websocket.Conn
 	session  string
+	down     []func()
 
 	attempts     int64 // atomic: total dial attempts, for tests and ops
 	rejectLogged atomic.Bool
@@ -122,6 +123,17 @@ func (c *Client) On(msgType string, fn HandlerFunc) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.handlers[msgType] = fn
+}
+
+// OnDown registers fn to run every time a welcomed link ends. It runs
+// synchronously on the Run goroutine, after Send starts failing with
+// ErrNotLinked and before Run redials, so state tied to the dead link
+// is gone before the next welcome: nothing it does can race a request
+// on the new link. fn must not block for long; it delays the redial.
+func (c *Client) OnDown(fn func()) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.down = append(c.down, fn)
 }
 
 // Linked reports whether a welcome handshake completed and the link is
@@ -313,6 +325,12 @@ func (c *Client) connect(ctx context.Context) (bool, websocket.StatusCode) {
 	code, reason := c.pump(ctx, conn)
 
 	c.setConn(nil, "")
+	c.mu.Lock()
+	down := append([]func(){}, c.down...)
+	c.mu.Unlock()
+	for _, fn := range down {
+		fn()
+	}
 	// A caller shutdown closes below; any other death is a drop worth
 	// one line so an operator watching logs sees flaps, not silence.
 	if ctx.Err() == nil {

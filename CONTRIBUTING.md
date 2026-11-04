@@ -27,6 +27,12 @@ merged.
 - Use well-known permissive libraries only (MIT, BSD, ISC or
   Apache-2.0). Never add a GPL, AGPL or SSPL dependency, and list every
   runtime dependency's licence in `THIRD_PARTY_NOTICES.md`.
+- One exception, for font data only: a bundled font may be under the
+  SIL Open Font License 1.1 (OFL-1.1). `npm --prefix web run licences`
+  allows `OFL-1.1` for this; no code dependency may use it. A new font
+  needs its row in `THIRD_PARTY_NOTICES.md`, its licence text in
+  `LICENSES/OFL-1.1/<font>.txt`, and the same text appended to
+  `web/public/licenses/OFL-1.1.txt` (shipped in the binary).
 - No secrets in the repo: no keys, tokens, real hostnames, personal
   emails or screenshots of real machines. CI runs Gitleaks on every
   push.

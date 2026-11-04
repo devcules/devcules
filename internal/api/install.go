@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -99,8 +100,13 @@ func registerMachineDist(mux *http.ServeMux, publicURL string) {
 		// Where the bootstrap calls back: ?server= if the UI named it
 		// (the caller knows the address every machine will reach this
 		// box at), else the configured public URL, else the host the
-		// curl actually came in on.
-		server := r.URL.Query().Get("server")
+		// curl actually came in on. ?server= may only restate this
+		// box's own address (checked below): the script fetches the
+		// helper and the SHA256SUMS it checks it against from there,
+		// so a link naming any other origin would install whatever
+		// that origin serves.
+		asked := r.URL.Query().Get("server")
+		server := asked
 		if server == "" {
 			server = publicURL
 		}
@@ -112,6 +118,17 @@ func registerMachineDist(mux *http.ServeMux, publicURL string) {
 			return
 		}
 		server = strings.TrimSuffix(server, "/")
+		// The address lands unquoted in a shell script the caller pipes
+		// to sh: anything but a bare http(s) origin (a ?server= or Host
+		// carrying ;, $(...), quotes, spaces) would run as code.
+		if !safeServerURL(server) {
+			http.Error(w, "server must be a plain http(s)://host[:port] address", http.StatusBadRequest)
+			return
+		}
+		if asked != "" && !ownServer(server, publicURL, r) {
+			http.Error(w, "server must be this Devcules's own address", http.StatusBadRequest)
+			return
+		}
 		w.Header().Set("Content-Type", "text/x-shellscript; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		_, _ = w.Write(machSh(server))
@@ -135,6 +152,47 @@ func requestOrigin(r *http.Request) string {
 	return scheme + "://" + host
 }
 
+// ownServer reports whether a ?server= value names this box: the
+// configured public URL when there is one, else the host the request
+// came in on. A request that arrived over TLS must keep https, so a
+// link cannot downgrade the script's downloads to plaintext; a plain
+// http request may name either scheme, since a TLS proxy in front of
+// the box changes it. Hosts compare case-insensitively; a trailing
+// slash is ignored.
+func ownServer(server, publicURL string, r *http.Request) bool {
+	u, err := url.Parse(strings.TrimSuffix(server, "/"))
+	if err != nil {
+		return false
+	}
+	if publicURL != "" {
+		p, err := url.Parse(strings.TrimSuffix(publicURL, "/"))
+		return err == nil && u.Scheme == p.Scheme && strings.EqualFold(u.Host, p.Host) && u.Path == p.Path
+	}
+	if r.TLS != nil && u.Scheme != "https" {
+		return false
+	}
+	return r.Host != "" && strings.EqualFold(u.Host, r.Host) && u.Path == ""
+}
+
+// safeServerURL accepts only an http(s) origin, optionally with a
+// plain path, built from characters that mean nothing to sh: it is
+// pasted into the installer verbatim.
+func safeServerURL(s string) bool {
+	u, err := url.Parse(s)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" ||
+		u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Opaque != "" {
+		return false
+	}
+	for _, r := range s {
+		ok := r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' ||
+			strings.ContainsRune(".-_:/[]", r)
+		if !ok {
+			return false
+		}
+	}
+	return true
+}
+
 // machSh renders the installer with the box's own address baked in.
 // The script downloads the helper from the box it was fetched from,
 // checks its sha256, enrols with the one-time code and installs it at
@@ -145,14 +203,17 @@ func machSh(server string) []byte {
 	return []byte(body)
 }
 
-// kemacript constant. __DEVCULES_SERVER__ is the only substitution;
-// it arrives from the box that answered the curl, never from the
-// request headers (ServeHTTP builds a fresh script per call).
+// machineShTemplate is the installer. __DEVCULES_SERVER__ is the only
+// substitution: the box's public URL, its own request origin, or a
+// ?server= that restates one of those (ownServer); a fresh script is
+// built per call.
 const machineShTemplate = `#!/bin/sh
 # Devcules machine bootstrap: curl -fsSL __DEVCULES_SERVER__/install/machine.sh | sh -s -- --code XXXX-XXXX-XXXX
-# The box this was fetched from built this script, so downloading the
-# helper from anywhere else is impossible: an impersonated server is
-# detected before the helper ever runs.
+# The box this was fetched from built this script and names only its
+# own address below, so the helper and the SHA256SUMS it is checked
+# against both come from that box. The checksum catches a corrupt
+# download, not an impersonated server: fetch this over an address
+# you trust (https or your tailnet).
 set -eu
 
 SERVER=__DEVCULES_SERVER__

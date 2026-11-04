@@ -14,12 +14,14 @@ type calendarRepo struct{ db *sql.DB }
 
 const calendarCols = `id, title, start_at, end_at, all_day, location, url, notes, reminder_min, rrule, created_at, updated_at`
 
-// List answers plans that may touch the window: anything not strictly
-// before it (a recurring plan has a start long before from but still
-// lands inside — keep those too).
+// List answers plans that may touch the window: a one-off that overlaps
+// it, and every recurring plan whatever its first instance's dates (a
+// weekly series begun years before from still lands inside; the caller
+// expands and filters it).
 func (r calendarRepo) List(ctx context.Context, from, to time.Time) ([]*store.CalendarEvent, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT `+calendarCols+` FROM calendar_events WHERE end_at >= ? AND start_at <= ?
+		`SELECT `+calendarCols+` FROM calendar_events
+		 WHERE rrule != '' OR (end_at >= ? AND start_at <= ?)
 		 ORDER BY start_at`,
 		from.UTC().Format(nanoTime), to.UTC().Format(nanoTime))
 	if err != nil {

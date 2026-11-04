@@ -354,6 +354,10 @@ func (s *Service) Wait(ctx context.Context, launchID, id string, wait time.Durat
 		ch := s.waiter(id)
 		a, err := s.repo.Get(ctx, id)
 		if errors.Is(err, store.ErrNotFound) || (err == nil && a.LaunchID != launchID) {
+			// Drop the waiter s.waiter just made: an unknown id is never
+			// answered, so nothing would ever remove it. A real waiter
+			// sharing the channel just wakes and reads again.
+			s.wake(id)
 			return Outcome{}, ErrNotFound
 		}
 		if err != nil {
@@ -365,6 +369,10 @@ func (s *Service) Wait(ctx context.Context, launchID, id string, wait time.Durat
 			continue
 		}
 		if a.Status != store.ApprovalPending {
+			// Answered (or expired) already: its wake may have run before
+			// s.waiter above, so release the waiter here or it stays in
+			// the map for good.
+			s.wake(id)
 			return s.outcome(a), nil
 		}
 		if triedExpiry {

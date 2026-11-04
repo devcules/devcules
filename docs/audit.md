@@ -12,7 +12,7 @@ tab.
 | Action | Recorded when | Target, detail |
 |---|---|---|
 | `auth.sign_in` | A password or passkey sign-in succeeds | `method` |
-| `auth.sign_in_failed` | A sign-in is refused (actor `anonymous`: the typed username is never kept, since people paste passwords into it) | `method`, `reason` (`invalid` or `throttled`) |
+| `auth.sign_in_failed` | A sign-in is refused (actor `anonymous`: the typed username is never kept, since people paste passwords into it) | `method`, `reason` (`invalid` or `throttled`). `throttled` is written at most once per client IP (IPv6: per /64) per limiter window; later refusals in that window answer 429 without a row. A throttled login begin writes no row |
 | `auth.sign_out` | A session signs out | |
 | `passkey.add`, `passkey.rename`, `passkey.remove` | Passkey changes | credential id, new `name` |
 | `terminal.open`, `terminal.close` | Terminals from the browser | terminal id |

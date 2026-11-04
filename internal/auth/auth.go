@@ -39,9 +39,10 @@ const (
 // MaxSignInFailures caps wrong passwords per SignInWindow per client
 // IP before sign-in answers 429. A success clears the count, so a
 // legitimate user who mistypes is never locked out; an attacker who
-// never guesses right can never clear it. The count is enforced
-// approximately under concurrent sign-ins (check then record), which
-// is fine for a brute-force brake: the argon2id cost dominates.
+// never guesses right can never clear it. Each attempt reserves its
+// failure under the lock before the argon2id check, so a concurrent
+// burst cannot get more than MaxSignInFailures checks per window: a
+// success clears the count and a check that never ran is refunded.
 const (
 	MaxSignInFailures = 5
 	SignInWindow      = time.Minute
@@ -70,6 +71,11 @@ var (
 	// ErrTooManyAttempts reports the rate limit. It names the wait so
 	// the caller need not guess.
 	ErrTooManyAttempts = errors.New("auth: too many sign-in attempts, try again later")
+	// ErrThrottledAgain is ErrTooManyAttempts for an IP already told
+	// so in the current window. errors.Is matches both; callers that
+	// audit throttling skip this one, so a throttled client cannot
+	// flood the audit log.
+	ErrThrottledAgain = fmt.Errorf("%w (already reported this window)", ErrTooManyAttempts)
 	// ErrUnauthorized reports a missing, unknown, or expired session.
 	ErrUnauthorized = errors.New("auth: unauthorized")
 )
@@ -82,15 +88,27 @@ type Service struct {
 	store    store.Store
 	mu       sync.Mutex
 	failures map[string][]time.Time
-	now      func() time.Time
-	argon    chan struct{}
-	log      *slog.Logger
+	// throttled holds when each IP was first answered
+	// ErrTooManyAttempts in the current window. Its keys are always a
+	// subset of failures' keys, so failures' bound bounds it too.
+	throttled map[string]time.Time
+	now       func() time.Time
+	argon     chan struct{}
+	log       *slog.Logger
 
 	// Passkey state, set once by WithPasskeys before serving. wa is
 	// nil when passkeys are off; passkeysOff then says why.
 	wa          *webauthn.WebAuthn
 	passkeysOff string
-	ceremonies  map[string]ceremony
+	// cerMu guards the ceremony maps and the login-begin limiter,
+	// apart from mu so a begin flood never stalls sign-in.
+	cerMu sync.Mutex
+	// ceremonies holds anonymous login ceremonies; registrations
+	// holds session-gated register ceremonies, so login begins can
+	// never evict them.
+	ceremonies    map[string]ceremony
+	registrations map[string]ceremony
+	loginBegins   map[string][]time.Time
 	// loginMu serializes passkey logins so the sign-counter
 	// check and its writeback are one atomic step.
 	loginMu sync.Mutex
@@ -102,12 +120,15 @@ type Option func(*Service)
 // New returns a Service over s.
 func New(s store.Store, opts ...Option) *Service {
 	a := &Service{
-		store:      s,
-		failures:   map[string][]time.Time{},
-		now:        time.Now,
-		argon:      make(chan struct{}, maxArgonHashes),
-		log:        slog.New(slog.NewTextHandler(io.Discard, nil)),
-		ceremonies: map[string]ceremony{},
+		store:         s,
+		failures:      map[string][]time.Time{},
+		throttled:     map[string]time.Time{},
+		now:           time.Now,
+		argon:         make(chan struct{}, maxArgonHashes),
+		log:           slog.New(slog.NewTextHandler(io.Discard, nil)),
+		ceremonies:    map[string]ceremony{},
+		registrations: map[string]ceremony{},
+		loginBegins:   map[string][]time.Time{},
 	}
 	for _, opt := range opts {
 		opt(a)
@@ -175,48 +196,89 @@ func (a *Service) EnsureAdmin(ctx context.Context) (password string, created boo
 // SignIn checks the password and opens a session, returning the raw
 // cookie value. Failures all return ErrInvalidCredentials after one
 // argon2id verification, whether the username exists or not; past the
-// per-IP limit they return ErrTooManyAttempts. A success clears the
-// IP's failure count. Session creation stores only the SHA-256 of the
-// returned value. clientIP must be the connection's remote address:
-// no proxy headers are trusted (there is no proxy in M1.1).
+// per-IP limit they return ErrTooManyAttempts (ErrThrottledAgain after
+// the first in a window). A success clears the IP's failure count.
+// Session creation stores only the SHA-256 of the returned value.
+// clientIP must be the connection's remote address: no proxy headers
+// are trusted (there is no proxy in M1.1). IPv6 clients are limited
+// per /64 (limitKey).
 func (a *Service) SignIn(ctx context.Context, username, password, clientIP string) (string, error) {
+	clientIP = limitKey(clientIP)
 	now := a.now()
-	if a.overLimit(clientIP, now) {
-		return "", ErrTooManyAttempts
+	// The reservation is this attempt's failure unless the password
+	// proves right (cleared below) or the check never ran (refunded).
+	if err := a.reserveAttempt(clientIP, now); err != nil {
+		return "", err
 	}
-	fail := func() (string, error) {
-		a.recordFailure(clientIP, now)
-		return "", ErrInvalidCredentials
+	abort := func(err error) (string, error) {
+		a.refundAttempt(clientIP, now)
+		return "", err
 	}
 
 	hash, err := a.store.Users().PasswordHash(ctx, username)
 	if err != nil {
 		if !errors.Is(err, store.ErrNotFound) {
-			return "", fmt.Errorf("auth: cannot look up user: %w", err)
+			return abort(fmt.Errorf("auth: cannot look up user: %w", err))
 		}
 		if err := a.checkDummy(ctx); err != nil {
-			return "", err
+			return abort(err)
 		}
-		return fail()
+		return "", ErrInvalidCredentials
 	}
 	ok, err := a.checkPassword(ctx, hash, password)
 	if err != nil {
-		return "", err
+		return abort(err)
 	}
 	if !ok {
-		return fail()
+		return "", ErrInvalidCredentials
 	}
 
 	a.clearFailures(clientIP)
 	return a.mintSession(ctx, username, now)
 }
 
-// overLimit prunes the IP's failures outside the window and reports
-// whether the survivors reach the limit. Password and passkey
-// sign-ins share this limiter and its map.
-func (a *Service) overLimit(clientIP string, now time.Time) bool {
+// reserveAttempt books one attempt for the IP as a failure, under the
+// lock and before any hashing, so concurrent attempts cannot all pass
+// the check. Past the limit it books nothing and answers
+// ErrTooManyAttempts the first time in a window, ErrThrottledAgain
+// after. Password and passkey sign-ins share this limiter and its map.
+func (a *Service) reserveAttempt(clientIP string, now time.Time) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	if a.pruneLocked(clientIP, now) >= MaxSignInFailures {
+		if at, ok := a.throttled[clientIP]; ok && now.Sub(at) < SignInWindow {
+			return ErrThrottledAgain
+		}
+		a.throttled[clientIP] = now
+		return ErrTooManyAttempts
+	}
+	a.recordFailureLocked(clientIP, now)
+	return nil
+}
+
+// refundAttempt takes back the reservation made at "at" when the
+// attempt never reached a verdict (a cancelled wait, a store error,
+// a bad ceremony), so it does not count as a wrong guess.
+func (a *Service) refundAttempt(clientIP string, at time.Time) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	failures := a.failures[clientIP]
+	for i := len(failures) - 1; i >= 0; i-- {
+		if failures[i].Equal(at) {
+			failures = append(failures[:i], failures[i+1:]...)
+			break
+		}
+	}
+	if len(failures) == 0 {
+		a.forgetLocked(clientIP)
+		return
+	}
+	a.failures[clientIP] = failures
+}
+
+// pruneLocked drops the IP's failures outside the window and returns
+// how many survive. The caller holds mu.
+func (a *Service) pruneLocked(clientIP string, now time.Time) int {
 	var kept []time.Time
 	for _, f := range a.failures[clientIP] {
 		if now.Sub(f) < SignInWindow {
@@ -224,11 +286,18 @@ func (a *Service) overLimit(clientIP string, now time.Time) bool {
 		}
 	}
 	if len(kept) == 0 {
-		delete(a.failures, clientIP)
+		a.forgetLocked(clientIP)
 	} else {
 		a.failures[clientIP] = kept
 	}
-	return len(kept) >= MaxSignInFailures
+	return len(kept)
+}
+
+// forgetLocked drops everything the limiter holds for the IP. The
+// caller holds mu.
+func (a *Service) forgetLocked(clientIP string) {
+	delete(a.failures, clientIP)
+	delete(a.throttled, clientIP)
 }
 
 // recordFailure notes one more failure for the IP. A new address past
@@ -237,10 +306,14 @@ func (a *Service) overLimit(clientIP string, now time.Time) bool {
 func (a *Service) recordFailure(clientIP string, now time.Time) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	a.recordFailureLocked(clientIP, now)
+}
+
+// recordFailureLocked is recordFailure for a caller holding mu.
+func (a *Service) recordFailureLocked(clientIP string, now time.Time) {
 	if _, known := a.failures[clientIP]; !known && len(a.failures) >= maxFailureIPs {
-		// Every entry holds at least one failure: recordFailure only
-		// appends, and overLimit deletes empties instead of storing
-		// them.
+		// Every entry holds at least one failure: entries are only
+		// appended to, and emptied ones are deleted, not stored.
 		oldest, at := "", now
 		first := true
 		for ip, failures := range a.failures {
@@ -248,7 +321,7 @@ func (a *Service) recordFailure(clientIP string, now time.Time) {
 				oldest, at, first = ip, failures[0], false
 			}
 		}
-		delete(a.failures, oldest)
+		a.forgetLocked(oldest)
 	}
 	a.failures[clientIP] = append(a.failures[clientIP], now)
 }
@@ -258,7 +331,7 @@ func (a *Service) recordFailure(clientIP string, now time.Time) {
 func (a *Service) clearFailures(clientIP string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	delete(a.failures, clientIP)
+	a.forgetLocked(clientIP)
 }
 
 // checkPassword verifies the password against its hash, waiting for

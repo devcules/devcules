@@ -235,14 +235,20 @@ func (h *Hub) deliver() {
 	}
 }
 
-// Count returns the number of live runner links. /readyz reports it so
-// the UI can show "runner offline" instead of failing readiness (the
-// runner waits for serve to be healthy, so readiness must not wait for
-// the runner).
+// Count returns the number of live runner links (machine links are
+// not counted). /readyz reports it so the UI can show "runner offline"
+// instead of failing readiness (the runner waits for serve to be
+// healthy, so readiness must not wait for the runner).
 func (h *Hub) Count() int {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return len(h.links)
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	n := 0
+	for _, role := range h.roles {
+		if role == "runner" {
+			n++
+		}
+	}
+	return n
 }
 
 // SendTo delivers one frame to the named runner. The frame must encode

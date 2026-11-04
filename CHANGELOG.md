@@ -4,15 +4,241 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
-### Added (2026-11-04, README and website)
+### Added (2026-11-04, vibe-glowup: themes, palette, presentation, mobile terminal)
 
-- The README leads with the demo video (a thumbnail linking to
-  YouTube), the problem Devcules solves, a feature tour with product
-  stills, and the same quick start, compose and tailnet steps as
-  before.
-- A project website in `site/` (one static page with the video
-  embedded, loaded only on play), published to GitHub Pages by the
-  new `pages` workflow at https://devcules.github.io/devcules/.
+Branch `vibe-glowup` (forked from `main` at 6ba67eb), commits bacb1fd,
+7996276, 6973a68 and abf457c. Documented in `docs/web.md` and
+`docs/terminals.md`.
+
+- **Themes.** A header theme picker (stored per browser as
+  `devcules.theme`). New default **vibe ✦** (dark, acid lime on
+  ultraviolet) with its own glow and type in `theme/vibe.css`, and four
+  showcase themes in `theme/future.css`: **gridrunner ◈** (`tron`),
+  **ember 2049 ▲**, **phosphor ▮** (dark) and **holo ◎** (light). The
+  older palettes stay selectable. Six bundled OFL-1.1 fonts (Space
+  Grotesk, Unbounded, JetBrains Mono, Orbitron, Chakra Petch, VT323);
+  `npm run licences` allows OFL-1.1 for font data. Theme-neutral helper
+  classes, and a contrast fix for the calendar's active button.
+- **Default theme (BUILD-04, documented, not changed).** The default is
+  now vibe, dark on every OS; before, arc followed the OS light/dark
+  setting. Pick holo, paper, flexoki light or solarized light for a
+  light UI, or arc to follow the OS.
+- **Command palette.** Ctrl+K / ⌘K or `/`: go to any tab, Desk actions
+  (refresh, add a widget, arrange, sources), every theme, presentation
+  mode, the shortcut sheet. Global keys: `?` shortcut sheet, `p`
+  presentation mode, `r` refresh the Desk, `g` + letter to change tab.
+- **Presentation mode.** `p`, the header's ▶ present button or the
+  palette: the shell chrome folds away, the screen takes the viewport
+  with a LIVE badge, and the browser goes fullscreen where allowed.
+- **Desk showcase tiles.** vibe check, agent feed and pulse · 24h read
+  the live APIs and show an error state when the server is unreachable;
+  ship clock is a local countdown to a deadline you set. Confetti at
+  inbox zero.
+- **Mobile terminal.** A custom key strip (`TermKeyboard.tsx`) that
+  scrolls smoothly (the pane's `touch-action: none` moved to the
+  host), pinned Enter, ☰ to leave fullscreen, extra keys (^D ^R ^Z ^L,
+  `| / ~ -`, Home, End, PgUp, PgDn, Paste), A−/A+ text size stored as
+  `devcules.termFont`, and haptics. An open terminal on a phone is
+  fullscreen (no header or tab bar), and the shell is pinned to the
+  visible viewport height so the OS keyboard pushes content instead of
+  covering it.
+
+### Fixed (2026-11-04, vibe-glowup: before the bug bounty)
+
+- In 7996276: assistant routes read ids from the path (chat no longer
+  404s); the installer refuses unsafe `?server=` values (shell
+  injection); CSRF on registry writes; approvals `Wait` releases its
+  waiters; the enrol limiter sweeps stale IPs; saving desk sources
+  surfaces vault read errors instead of wiping tokens; body limits on
+  machine input and ground; the MachineScreen test on newer Node.
+
+### Fixed (2026-11-04, vibe-glowup: bug bounty)
+
+An internal bug bounty against abf457c filed 80 findings (GOSEC = Go
+security, GORT = Go runtime, DESK = web desktop, MOB = web mobile,
+BUILD = build and docs). Fixes landed batch by batch, each with
+regression tests and an independent check, merged into `vibe-glowup`
+in this order. Deferred and follow-up items are in
+`docs/known-follow-ups.md`.
+
+- **B4, calendar tile** (merge 709c957). Clearing a date in the plan
+  sheet no longer crashes the app to a blank page, and error boundaries
+  now wrap the app and each Desk tile (DESK-01, P0). The calendar refits
+  when the Desk changes width without a window resize (DESK-10); ⟳ sync
+  and `r` refresh it (DESK-12); out-of-order fetches when paging fast
+  are dropped (DESK-21).
+- **B1, terminal pane socket lifecycle** (merge 6a5fcff). A stale
+  socket's handlers can no longer null the new socket, and a pending
+  reconnect can no longer open a second socket (MOB-01, P0; GORT-04).
+  Coming back to the app no longer re-creates the pane or forces
+  fullscreen back on (MOB-02); one failed Assistant poll no longer
+  unmounts the open terminal (MOB-06); the watchdog counts text pings
+  (GORT-03, client half); sizes are clamped to 1..500 before sending
+  (GORT-10, client half).
+- **B5, terminal relay** (merge 047de64). A runner relink no longer
+  kills attaches made on the new link (GORT-02). Serve sends a
+  `{"type":"ping"}` text frame with each 15 s ping, so idle panes stay
+  up (GORT-03). A writer whose ping or write failed closes the socket
+  instead of leaving a frozen pane (GORT-09). Sizes over 500 are
+  clamped instead of closing with 4404 (GORT-10; the distinct close code
+  is deferred).
+- **B2, long handlers and chat** (merge 30e549e). Long handlers
+  (assistant chat, registry search and install, and the like) lift
+  serve's 10 s write deadline and re-arm it for the answer, so replies
+  are no longer lost (GOSEC-01, P0). Each new chat gets its own
+  conversation id, with no shared slot (GOSEC-02 = GORT-05). Registry
+  install/remove and machine input are audited, with scrubbed
+  arguments (GOSEC-13). MCP inspect kills the server's whole process
+  group (GOSEC-16).
+- **B6, sign-in limits and passkeys** (merge 28ae0b7). Sign-in attempts
+  are reserved before the password check, so concurrency cannot bypass
+  the limit (GOSEC-03). A throttled sign-in is audited once per window,
+  not per attempt (GOSEC-04). Register and login passkey ceremonies are
+  kept apart, so an anonymous login/begin cannot evict the owner's
+  (GOSEC-09). IPv6 limits apply per /64, and a passkey begin answered
+  429 reads as "limited", not as a failed passkey.
+- **B13, theme picker and theme CSS** (merge 68d49bd). The picker
+  scrolls and fits a 1280×720 screen (DESK-04), with arrow keys,
+  Home/End and focus handling (DESK-24, picker part). Holo's pressed
+  "✓ done" is readable (DESK-08). Calendar hour lines are subtle in the
+  showcase themes (DESK-09). The arrange-mode resize corner is drawn in
+  CSS, with the CSP unchanged (DESK-11). Light themes repoint red,
+  amber and hot-pink status colours at AA tokens (DESK-20 = MOB-13).
+- **B7, API hardening** (merge 0aa3f02). `/api/secrets` no longer lists
+  or deletes the server's own vault entries, and answers 404 for them
+  (GOSEC-05). The enrol limiter is bounded, with no O(n) sweep per new
+  IP (GOSEC-08). The installer's `?server=` must match the public URL
+  (or, without one, the request's own host), and a TLS request never
+  gets an http script (GOSEC-14). A self-auth agent launch's token can
+  no longer spend stored provider keys through the router; it answers
+  403 (GOSEC-15). `/readyz` `runners_linked` counts runners
+  only (GOSEC-18). Push endpoints go through an SSRF-guarded client,
+  through the proxy too (GOSEC-20), and the desk guard also refuses
+  NAT64 and IPv4-compatible addresses. The status bar reads Linux
+  memory correctly (DESK-17). mockllm no longer splits a reply mid-rune
+  (GORT-14).
+- **B12, phone shell** (merge 54f9ff1). Phone chrome follows the
+  mobile flag, so landscape fullscreen has no sidebar or status bar
+  (MOB-07). The focused field is scrolled into view above the keyboard
+  (MOB-08). Fullscreen respects the bottom and side safe areas
+  (MOB-11). Shell fullscreen test (BUILD-02, Shell part).
+- **B3, ICS feeds** (merge dfbcebc). No more crash from concurrent
+  writes to the unresolved-TZID map (GORT-01, P0). The meetings cache
+  hits, and is bounded at 64 keys with idle expiry (GORT-07). Feed
+  recurrence expansion is bounded and deterministic: at most 1,000
+  instances per series and 5,000 per feed (the earliest), a step
+  budget and a 2 s deadline per feed, and SECONDLY/MINUTELY or
+  unwalkable rules show only their first instance (GORT-08, feed side).
+  All-day recurring feed events no longer bleed into the next day
+  across DST (GORT-06 part 4).
+- **B15, Settings and showcase** (merge 0104674). Settings no longer
+  refetches secrets in a loop (DESK-16). With the server unreachable,
+  vibe check and Settings show an error, not confident zeros (DESK-18).
+  Pulse says "events · 24h", not "today" (DESK-23). showcaseTiles tests
+  (BUILD-01, part).
+- **B9, mobile key strip** (merge e4e837b). Hold-repeat timers and a
+  held Ctrl stop when the strip unmounts (MOB-03). Strip taps keep focus
+  on the terminal, so the Android keyboard stays up (MOB-04). Paste
+  goes through xterm's bracketed paste, and strips C0 (except tab, LF,
+  CR), DEL and C1 controls; a desktop paste does too (MOB-05). An armed
+  Ctrl applies to and is used up by strip keys (MOB-09). Collapsing the
+  strip keeps ☰ and Enter (MOB-10). The default text size no longer
+  depends on orientation (MOB-14). keybus and TermKeyboard tests
+  (BUILD-02, strip part).
+- **B18, ship clock guard** (merge e28b0bc; found by the B16 check).
+  A ship clock deadline that cannot be read as a date shows `--:--:--`,
+  "set a deadline" and "pick one in settings" with its LED off, instead
+  of ticking `NaN:NaN:NaN`. A value the date field accepts but `Date`
+  cannot hold (such as year 275760) is refused in the settings form
+  with "that date can't be used", instead of throwing a RangeError. The
+  default start and deadline are named ISO-with-offset constants; their
+  values are unchanged.
+- **B8, calendar plans** (merge b83aef5). Recurring plans whose first
+  instance is more than a year old are listed and exported again
+  (GOSEC-06 = GORT-06 part 3). RRULEs are validated on create and
+  update (DAILY to YEARLY only, no BYHOUR/BYMINUTE/BYSECOND, INTERVAL
+  ≤ 1000, COUNT ≤ 5000, never-matching shapes refused) and stored
+  re-serialised; expansion is capped at 2,000 instances per plan and
+  per answer (`"truncated": true`), and a range over 400 days answers
+  400 (GOSEC-07 = GORT-08 plan side). A rule stored before these checks
+  that fails them shows once, unexpanded, so it can still be opened and
+  deleted. All-day recurring plans expand by calendar date, timed ones
+  keep their local time across DST, and all-day plans are day-rounded
+  in the user's zone (GORT-06 parts 1–2). The ICS export never writes
+  a raw RRULE or URL containing control characters (GOSEC-10), and
+  all-day plans export on their own date (GORT-13). Calendar writes are
+  audited as `calendar.add`, `calendar.edit` and `calendar.remove`, not
+  `secret.*` (GOSEC-11). PATCH keeps the fields it was not sent
+  (GOSEC-12). Store errors stay in the server log; the client gets
+  "internal error" (GOSEC-19). In the plan sheet, each occurrence has
+  its own id, editing an occurrence edits the series ("repeats —
+  editing the series"), a same-day time change shifts the whole
+  series, a date change is refused ("to change the date, end this
+  series and create a new one"), and all-day occurrences show no time
+  fields.
+- **B10, Desk prefs and dialogs** (merge ca01357). A failed desk load
+  shows "Couldn't load your desk. Nothing was changed." with a retry,
+  and nothing is written until a real server document has been read
+  (DESK-02). Scratchpad text and the last change are flushed when you
+  leave the Desk or the page (keepalive where it fits), saves go out
+  one at a time in order, and a save that failed is re-sent only if
+  the server is still on the document it was built on; otherwise it is
+  dropped with "An earlier desk change couldn't be saved" (DESK-03).
+  Layouts are saved only after a drag or resize, not on every
+  breakpoint change (DESK-05). Adding a custom feed opens its configure
+  sheet (DESK-07). A shared `shell/Modal.tsx` gives the Desk's add,
+  configure and event sheets `aria-modal`, a focus trap, Escape and
+  focus restore (DESK-13, desk dialogs). Toasts show on every screen
+  through an app-wide `ToastHost` (DESK-15). A widget that throws while
+  rendering shows a crash notice in its own tile.
+- **B19, Desk layout survives reload** (merge 17f3227; found by the
+  B10 check). The server stored every desk prefs document as version
+  2, so the web app treated it as legacy and rebuilt the saved
+  arrangement on every load. The server now keeps the version it is
+  sent (0 is still stored as 2; outside 0..1000 is refused with 400).
+  Existing version-2 documents written by a showcase-era page are read
+  as such and keep their layouts. Desks from before Pulse gain the
+  Pulse tile once, at the bottom; it is never duplicated, and not
+  re-added once removed.
+- **B14, palette and global keys** (merge 6f5283b). Desk commands run
+  from another screen are held until the Desk mounts (within 2 s, once)
+  instead of being lost (DESK-06). Global shortcuts, Ctrl+K and Escape
+  are left alone while a dialog (any `aria-modal`, the Desk sources
+  drawer included) or a header popup (theme picker, user menu) is
+  open (DESK-13, global keys). The palette is a modal combobox: the
+  selection stays in view, Tab stays inside, and the listbox is wired
+  for screen readers (DESK-14). Leaving presentation mode's own
+  fullscreen with the browser's Escape also leaves presentation mode
+  (DESK-19). The key after `g` always belongs to the chord, and the
+  palette key reads ⌘K only on Apple devices, Ctrl+K elsewhere
+  (DESK-22). The shortcut sheet is a modal with a ✕ that takes focus
+  (DESK-24, sheet part). Tests for CommandPalette, present.ts and
+  Confetti lift branch coverage back over the 70% gate (BUILD-01).
+- **B16, docs and notices** (merge 2ec0f2f). `THIRD_PARTY_NOTICES.md`
+  lists the six OFL-1.1 fonts with their copyright holders (BUILD-05),
+  and the Desk's MIT dependencies that were missing. The OFL-1.1 texts
+  are in `LICENSES/OFL-1.1/` and ship in the binary as
+  `/licenses/OFL-1.1.txt`. `CONTRIBUTING.md` and `docs/ci.md` state the
+  font-only OFL-1.1 exception. `docs/web.md` and `docs/terminals.md`
+  cover themes, the default (BUILD-04), palette, shortcuts,
+  presentation mode, phone chrome, the key strip, safe paste, the
+  heartbeat and the size clamp (BUILD-06). The README says what is new
+  in the Meta hackathon window.
+- **B17, visual baselines and final gate** (branch
+  `fix/b17-visual-baselines`). The 20 e2e visual snapshots
+  (`e2e/tests/visual.spec.js-snapshots/*-linux.png`) are regenerated
+  against the merged UI with the repo's Playwright visual config
+  (BUILD-03). Playwright's bundled Chromium could not be downloaded, so
+  they were taken with Debian's Chromium 156 (aarch64) and Noto Color
+  Emoji; the CI image may still differ by a few pixels, and the manual
+  `e2e-baselines` workflow regenerates them there. The full gate
+  (vitest with coverage thresholds, tsc, eslint, the web build, the
+  licence check, go vet, gofmt, staticcheck, and `go test -cover` at
+  70% per package) passes on the merged tree (BUILD-01).
+
+Not fixed: REJECTED BUILD-08 (an already-merged go.mod tidy; nothing to
+fix). DEFERRED: GOSEC-17, GORT-11, GORT-12, MOB-12, BUILD-07 and the
+close-code part of GORT-10; see `docs/known-follow-ups.md`.
 
 ### Fixed (2026-11-04, Muse Code on its own login)
 

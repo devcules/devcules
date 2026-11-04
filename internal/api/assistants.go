@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"sort"
+	"strings"
 
 	"github.com/devcules/devcules/internal/assistants"
 	"github.com/devcules/devcules/internal/store"
@@ -77,7 +78,16 @@ func assistantState(a assistants.Assistant) string {
 // .../conversations/{sess}.
 func (h *Assistants) one() http.Handler {
 	return h.handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		id := r.PathValue("id")
+		// The mux pattern is the plain "/api/assistants/" prefix, which
+		// binds no {id} or {sess} wildcards: read them off the path and
+		// set them, so PathValue works below (it was always "" before,
+		// and every chat answered 404).
+		parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/assistants/"), "/")
+		id := parts[0]
+		r.SetPathValue("id", id)
+		if len(parts) == 3 && parts[1] == "conversations" && parts[2] != "" {
+			r.SetPathValue("sess", parts[2])
+		}
 		a, ok := h.reg.Get(id)
 		if !ok {
 			writeAuthError(w, http.StatusNotFound, "no such assistant")
@@ -97,7 +107,9 @@ func (h *Assistants) one() http.Handler {
 // chat runs one turn and answers with the buffered events in order,
 // the session id, and the assistant id; by the time it returns the
 // model and the gate have fully played out. A redaction block answers
-// 422 so the UI can show the blocked-kinds message as typed.
+// 422 so the UI can show the blocked-kinds message as typed. A turn
+// (up to MaxTurns model calls plus any approval waits) outlives serve's
+// 10 s write timeout, so the deadline is lifted until the answer.
 func (h *Assistants) chat(w http.ResponseWriter, r *http.Request, a assistants.Assistant) {
 	var in struct {
 		Message string `json:"message"`
@@ -107,7 +119,8 @@ func (h *Assistants) chat(w http.ResponseWriter, r *http.Request, a assistants.A
 		writeAuthError(w, http.StatusBadRequest, "a message is required")
 		return
 	}
-	evs, err := a.Chat(r.Context(), in.Session, in.Message)
+	w = liftWrite(w)
+	sess, evs, err := a.Chat(r.Context(), in.Session, in.Message)
 	if err != nil {
 		switch {
 		default:
@@ -117,28 +130,14 @@ func (h *Assistants) chat(w http.ResponseWriter, r *http.Request, a assistants.A
 		}
 		return
 	}
-	sess := in.Session
 	if sess == "" {
-		sess = h.freshOf(a)
+		sess = in.Session
 	}
 	writeJSON(w, http.StatusOK, struct {
 		Session   string             `json:"session"`
 		Assistant string             `json:"assistant"`
 		Events    []assistants.Event `json:"events"`
 	}{sess, a.ID(), evs})
-}
-
-// freshOf resolves the conversation a fresh chat minted. The Assistants
-// we are built over keep the loop's FreshChat when their concrete type
-// has it (the built-in does).
-func (h *Assistants) freshOf(a assistants.Assistant) string {
-	type fresher interface{ FreshChat() string }
-	if f, ok := a.(fresher); ok {
-		if id := f.FreshChat(); id != "" {
-			return id
-		}
-	}
-	return ""
 }
 
 // read returns one conversation's messages (GET .../conversations/{sess}).

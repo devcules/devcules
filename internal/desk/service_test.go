@@ -151,7 +151,7 @@ func TestPrefs(t *testing.T) {
 		t.Fatal(err)
 	}
 	p, err = f.svc.ReadPrefs(ctx) // memo
-	if err != nil || p.Version != 2 || len(p.Widgets) != 1 {
+	if err != nil || p.Version != 1 || len(p.Widgets) != 1 {
 		t.Fatalf("memo prefs = %+v, %v", p, err)
 	}
 	// A stored version 0 reads as the current version.
@@ -162,6 +162,44 @@ func TestPrefs(t *testing.T) {
 	p, err = fresh.ReadPrefs(ctx)
 	if err != nil || p.Version != 2 {
 		t.Fatalf("v0 prefs = %+v, %v", p, err)
+	}
+}
+
+// B19: the server used to stamp every saved document version 2, so the
+// web app (which treats a version below its own as an older desk and
+// re-packs it) threw the owner's arrangement away on every reload. The
+// version the client sends must survive the memo and a fresh read from
+// the vault.
+func TestPrefsVersionRoundTrips(t *testing.T) {
+	f := newFix(t)
+	ctx := context.Background()
+	for _, v := range []int{4, 5, MaxPrefsVersion} {
+		in := Prefs{Version: v, Widgets: []json.RawMessage{json.RawMessage(`{"id":"w-now","type":"now"}`)}}
+		if err := f.svc.WritePrefs(ctx, in); err != nil {
+			t.Fatal(err)
+		}
+		if p, err := f.svc.ReadPrefs(ctx); err != nil || p.Version != v {
+			t.Fatalf("memo version = %d (%v), want %d", p.Version, err, v)
+		}
+		if p, err := NewService(f.v, f.hc, f.hc).ReadPrefs(ctx); err != nil || p.Version != v {
+			t.Fatalf("stored version = %d (%v), want %d", p.Version, err, v)
+		}
+	}
+	// Unversioned stays the legacy 2; out of range is refused and leaves
+	// the stored document alone.
+	if err := f.svc.WritePrefs(ctx, Prefs{}); err != nil {
+		t.Fatal(err)
+	}
+	if p, _ := NewService(f.v, f.hc, f.hc).ReadPrefs(ctx); p.Version != 2 {
+		t.Fatalf("unversioned stored as %d, want 2", p.Version)
+	}
+	for _, v := range []int{-1, MaxPrefsVersion + 1} {
+		if err := f.svc.WritePrefs(ctx, Prefs{Version: v}); !errors.Is(err, ErrPrefsVersion) {
+			t.Fatalf("version %d: err = %v, want ErrPrefsVersion", v, err)
+		}
+	}
+	if p, _ := NewService(f.v, f.hc, f.hc).ReadPrefs(ctx); p.Version != 2 {
+		t.Fatalf("refused write changed the stored doc: version %d", p.Version)
 	}
 }
 

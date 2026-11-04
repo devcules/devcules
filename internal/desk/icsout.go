@@ -1,7 +1,6 @@
 package desk
 
 import (
-	"fmt"
 	"strings"
 	"time"
 )
@@ -38,13 +37,13 @@ func ICSExport(name string, events []ExportEvent) string {
 		if e.Location != "" {
 			b.WriteString("LOCATION:" + icsEscape(e.Location) + "\r\n")
 		}
-		if e.URL != "" {
+		if e.URL != "" && icsLineSafe(e.URL) {
 			b.WriteString("URL:" + e.URL + "\r\n")
 		}
 		if e.Notes != "" {
 			b.WriteString("DESCRIPTION:" + icsEscape(e.Notes) + "\r\n")
 		}
-		if e.RRule != "" {
+		if e.RRule != "" && icsLineSafe(e.RRule) {
 			b.WriteString("RRULE:" + strings.TrimPrefix(e.RRule, "RRULE:") + "\r\n")
 		}
 		b.WriteString("END:VEVENT\r\n")
@@ -53,11 +52,50 @@ func ICSExport(name string, events []ExportEvent) string {
 	return b.String()
 }
 
+// icsLineSafe reports whether a value written unescaped (a URL, an
+// RRULE) stays on its own content line: no control characters, so no
+// CR or LF can start a new property or VEVENT. An unsafe value is left
+// out of the export.
+func icsLineSafe(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if c := s[i]; c < 0x20 || c == 0x7f {
+			return false
+		}
+	}
+	return true
+}
+
+// icsEscape writes s as an RFC 5545 TEXT value on one content line.
+// Every line break (CRLF, a lone LF or a lone CR) becomes the escaped
+// \n, and every other control character (C0, DEL, C1) except HTAB is
+// dropped: TEXT may not carry them, and a lenient reader would take a
+// bare CR as a new line, so a title could start a new property or
+// VEVENT.
 func icsEscape(s string) string {
-	s = strings.ReplaceAll(s, `\`, `\\`)
-	s = strings.ReplaceAll(s, ";", `\;`)
-	s = strings.ReplaceAll(s, ",", `\,`)
-	s = strings.ReplaceAll(s, "\r\n", `\n`)
-	s = strings.ReplaceAll(s, "\n", `\n`)
-	return fmt.Sprint(s)
+	var b strings.Builder
+	b.Grow(len(s))
+	for i, r := range s {
+		switch {
+		case r == '\\':
+			b.WriteString(`\\`)
+		case r == ';':
+			b.WriteString(`\;`)
+		case r == ',':
+			b.WriteString(`\,`)
+		case r == '\r':
+			if i+1 < len(s) && s[i+1] == '\n' {
+				continue // the LF writes the break
+			}
+			b.WriteString(`\n`)
+		case r == '\n':
+			b.WriteString(`\n`)
+		case r == '\t':
+			b.WriteRune(r)
+		case r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f):
+			// dropped
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }

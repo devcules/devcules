@@ -1,0 +1,527 @@
+/* Four futuristic palettes, each its own world. Colour tokens live in
+   tokens.css (AA-tested); this file is the look: type, backdrop,
+   tile shape, buttons, glow. Everything animated sits behind
+   prefers-reduced-motion. Shared helpers in vibe.css (v-btn, v-chip,
+   v-stat, v-ring) read the tokens, so they follow each theme. */
+
+/* ============================================================
+   gridrunner ◈ (tron): cyan light-cycles on a perspective grid.
+   Orbitron caps, hard 2px corners, neon edges, a floor grid that
+   scrolls toward you.
+   ============================================================ */
+[data-theme="tron"] {
+  --v-grad: linear-gradient(90deg, #00e5ff, #7df9ff 50%, #ff2bd6);
+  --v-grad-lime: linear-gradient(90deg, #00e5ff, #7df9ff);
+  --c-tint: rgb(0 229 255 / 0.06);
+  --c-tint-strong: rgb(0 229 255 / 0.14);
+  --c-edge: rgb(0 229 255 / 0.35);
+  --c-glow: rgb(0 229 255 / 0.18);
+  --c-edge-top: rgb(125 249 255 / 0.25);
+  font-family: "Space Grotesk Variable", system-ui, sans-serif;
+}
+[data-theme="tron"] h1,
+[data-theme="tron"] h2,
+[data-theme="tron"] .v-display,
+[data-theme="tron"] .v-stat-num,
+[data-theme="tron"] .v-logo {
+  font-family: "Orbitron Variable", "Orbitron", system-ui, sans-serif;
+  letter-spacing: 0.04em;
+}
+[data-theme="tron"] .font-mono,
+[data-theme="tron"] code,
+[data-theme="tron"] pre { font-family: "JetBrains Mono Variable", ui-monospace, monospace !important; }
+[data-theme="tron"] body {
+  background-color: var(--c-base);
+  background-image:
+    radial-gradient(80vmax 40vmax at 50% 110%, rgb(0 229 255 / 0.22), transparent 60%),
+    radial-gradient(50vmax 30vmax at 50% -10%, rgb(255 43 214 / 0.12), transparent 60%),
+    linear-gradient(rgb(0 229 255 / 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(0 229 255 / 0.07) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 48px 48px, 48px 48px;
+  background-attachment: fixed;
+}
+/* The floor: a tilted grid at the bottom of the screen, moving. */
+[data-theme="tron"] body::before {
+  content: "";
+  position: fixed;
+  left: -50%;
+  right: -50%;
+  bottom: -10vh;
+  height: 55vh;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgb(0 229 255 / 0.35) 2px, transparent 2px),
+    linear-gradient(90deg, rgb(0 229 255 / 0.35) 2px, transparent 2px);
+  background-size: 80px 80px;
+  transform: perspective(400px) rotateX(62deg);
+  transform-origin: 50% 0;
+  mask-image: linear-gradient(transparent, #000 60%);
+  -webkit-mask-image: linear-gradient(transparent, #000 60%);
+  opacity: 0.55;
+}
+@media (prefers-reduced-motion: no-preference) {
+  [data-theme="tron"] body::before { animation: t-floor 2.4s linear infinite; }
+}
+@keyframes t-floor { to { background-position: 0 80px, 0 0; } }
+[data-theme="tron"] .v-shell { background-color: transparent; }
+[data-theme="tron"] ::selection { background: #00e5ff; color: #001218; }
+[data-theme="tron"] * { scrollbar-color: rgb(0 229 255 / 0.5) transparent; scrollbar-width: thin; }
+[data-theme="tron"] .border-muted { border-color: rgb(0 229 255 / 0.22); }
+[data-theme="tron"] .v-head {
+  background: rgb(2 6 15 / 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgb(0 229 255 / 0.45);
+  box-shadow: 0 1px 18px rgb(0 229 255 / 0.25);
+}
+[data-theme="tron"] .v-logo { color: #00e5ff; text-shadow: 0 0 12px rgb(0 229 255 / 0.8); text-transform: uppercase; font-weight: 800; }
+[data-theme="tron"] .v-logo-mark { color: #ff2bd6; text-shadow: 0 0 12px #ff2bd6; }
+[data-theme="tron"] .i-card {
+  border-radius: 2px;
+  border-color: rgb(0 229 255 / 0.4);
+  background: linear-gradient(180deg, rgb(7 20 38 / 0.88), rgb(2 6 15 / 0.88));
+  box-shadow: 0 0 0 1px rgb(0 229 255 / 0.08), 0 0 22px -6px rgb(0 229 255 / 0.45), inset 0 0 30px -12px rgb(0 229 255 / 0.35);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  transition: box-shadow 160ms ease, border-color 160ms ease;
+}
+[data-theme="tron"] .i-card:hover { border-color: #00e5ff; box-shadow: 0 0 0 1px rgb(0 229 255 / 0.25), 0 0 34px -4px rgb(0 229 255 / 0.7), inset 0 0 40px -12px rgb(0 229 255 / 0.5); }
+[data-theme="tron"] .i-card > header { border-bottom-color: rgb(0 229 255 / 0.25); }
+[data-theme="tron"] .i-card > header > span.truncate {
+  font-family: "Orbitron Variable", system-ui, sans-serif;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #7df9ff;
+}
+[data-theme="tron"] .bg-accent {
+  border-radius: 2px;
+  font-family: "Orbitron Variable", system-ui, sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  box-shadow: 0 0 16px rgb(0 229 255 / 0.7);
+}
+[data-theme="tron"] .bg-accent:hover { box-shadow: 0 0 28px rgb(0 229 255 / 1); }
+[data-theme="tron"] .v-btn,
+[data-theme="tron"] .v-chip,
+[data-theme="tron"] .v-stat,
+[data-theme="tron"] .v-kbd { border-radius: 2px; }
+[data-theme="tron"] .v-btn { text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.78rem; }
+[data-theme="tron"] .v-btn:hover { box-shadow: 0 0 14px rgb(0 229 255 / 0.6); }
+[data-theme="tron"] .v-stat { border-color: rgb(0 229 255 / 0.3); background: rgb(0 229 255 / 0.04); }
+[data-theme="tron"] .v-stat-num { color: #e6fbff; text-shadow: 0 0 14px rgb(0 229 255 / 0.7); }
+[data-theme="tron"] .v-strip { background: linear-gradient(90deg, rgb(0 229 255 / 0.12), transparent 60%, rgb(255 43 214 / 0.08)); border-bottom-color: rgb(0 229 255 / 0.4); }
+[data-theme="tron"] .d-led-live { background: #00e5ff; box-shadow: 0 0 10px #00e5ff; }
+[data-theme="tron"] .i-row:hover,
+[data-theme="tron"] .i-row[data-selected="true"] { background-color: rgb(0 229 255 / 0.10); }
+[data-theme="tron"] .i-row[data-selected="true"]::before { background: #00e5ff; box-shadow: 0 0 12px #00e5ff; }
+[data-theme="tron"] input,
+[data-theme="tron"] textarea,
+[data-theme="tron"] select { border-radius: 2px; }
+[data-theme="tron"] :focus-visible { outline: 2px solid #00e5ff; outline-offset: 2px; box-shadow: 0 0 14px rgb(0 229 255 / 0.7); }
+[data-theme="tron"] .v-palette { border-radius: 2px; border-color: #00e5ff; background: rgb(2 6 15 / 0.94); box-shadow: 0 0 40px rgb(0 229 255 / 0.4); }
+[data-theme="tron"] .v-palette-sel { background: rgb(0 229 255 / 0.12); box-shadow: inset 3px 0 0 #00e5ff; }
+[data-theme="tron"] .v-signin { border-radius: 2px; border: 1px solid #00e5ff; padding: 2rem 1.75rem; background: rgb(2 6 15 / 0.85); box-shadow: 0 0 50px rgb(0 229 255 / 0.35); }
+[data-theme="tron"] .v-signin-title { font-family: "Orbitron Variable", system-ui, sans-serif; text-transform: uppercase; letter-spacing: 0.06em; }
+[data-theme="tron"] .d-calendar {
+  --fc-border-color: rgb(0 229 255 / 0.18);
+  --fc-button-bg-color: transparent;
+  --fc-button-border-color: rgb(0 229 255 / 0.4);
+  --fc-button-hover-bg-color: rgb(0 229 255 / 0.15);
+  --fc-button-active-text-color: #001218;
+  --fc-today-bg-color: rgb(0 229 255 / 0.08);
+  --fc-event-bg-color: #0a3a52;
+  --fc-event-border-color: #00e5ff;
+}
+[data-theme="tron"] .d-calendar .fc .fc-button-active { color: #001218; }
+[data-theme="tron"] .d-calendar .fc-timegrid-now-indicator-line { border-color: #ff2bd6; box-shadow: 0 0 8px #ff2bd6; }
+[data-theme="tron"] .v-bar { background: linear-gradient(180deg, #7df9ff, rgb(0 229 255 / 0.2)); border-radius: 0; box-shadow: 0 0 8px rgb(0 229 255 / 0.5); }
+
+/* ============================================================
+   ember 2049 ▲: sodium-orange dust storm. Chakra Petch caps, flat
+   panels with HUD corner brackets, a warm haze and drifting dust.
+   ============================================================ */
+[data-theme="ember"] {
+  --v-grad: linear-gradient(90deg, #ffb347, #ff7a1a 50%, #ff3d2e);
+  --v-grad-lime: linear-gradient(90deg, #ff7a1a, #ffb347);
+  --c-tint: rgb(255 122 26 / 0.06);
+  --c-tint-strong: rgb(255 122 26 / 0.13);
+  --c-edge: rgb(255 170 100 / 0.22);
+  --c-glow: rgb(255 122 26 / 0.12);
+  --c-edge-top: rgb(255 220 180 / 0.10);
+  font-family: "Chakra Petch", "Space Grotesk Variable", system-ui, sans-serif;
+}
+[data-theme="ember"] h1,
+[data-theme="ember"] h2,
+[data-theme="ember"] .v-display,
+[data-theme="ember"] .v-stat-num,
+[data-theme="ember"] .v-logo {
+  font-family: "Chakra Petch", system-ui, sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+[data-theme="ember"] .font-mono,
+[data-theme="ember"] code,
+[data-theme="ember"] pre { font-family: "JetBrains Mono Variable", ui-monospace, monospace !important; }
+[data-theme="ember"] body {
+  background-color: var(--c-base);
+  background-image:
+    radial-gradient(90vmax 60vmax at 70% 120%, rgb(255 122 26 / 0.35), transparent 60%),
+    radial-gradient(60vmax 40vmax at -10% 0%, rgb(255 61 46 / 0.16), transparent 60%),
+    repeating-linear-gradient(0deg, rgb(255 180 120 / 0.025) 0 1px, transparent 1px 4px);
+  background-attachment: fixed;
+}
+/* Dust: two layers of specks drifting sideways. */
+[data-theme="ember"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1.5px 1.5px at 20% 30%, rgb(255 200 150 / 0.5), transparent),
+    radial-gradient(1px 1px at 70% 60%, rgb(255 200 150 / 0.4), transparent),
+    radial-gradient(1.5px 1.5px at 40% 80%, rgb(255 160 100 / 0.4), transparent),
+    radial-gradient(1px 1px at 90% 20%, rgb(255 220 180 / 0.35), transparent);
+  background-size: 260px 260px, 340px 340px, 420px 420px, 300px 300px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  [data-theme="ember"] body::before { animation: e-dust 40s linear infinite; }
+}
+@keyframes e-dust { to { background-position: 520px 60px, -680px 40px, 840px -60px, -600px 30px; } }
+[data-theme="ember"] .v-shell { background-color: transparent; }
+[data-theme="ember"] ::selection { background: #ff7a1a; color: #160b04; }
+[data-theme="ember"] * { scrollbar-color: rgb(255 122 26 / 0.5) transparent; scrollbar-width: thin; }
+[data-theme="ember"] .border-muted { border-color: rgb(207 166 132 / 0.2); }
+[data-theme="ember"] .v-head { background: rgb(18 10 6 / 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid rgb(255 122 26 / 0.35); }
+[data-theme="ember"] .v-logo { color: #ff7a1a; letter-spacing: 0.22em; }
+[data-theme="ember"] .v-logo-mark { color: #ffb347; }
+[data-theme="ember"] .i-card {
+  position: relative;
+  border-radius: 0;
+  border-color: rgb(207 166 132 / 0.16);
+  background: linear-gradient(180deg, rgb(36 22 13 / 0.86), rgb(22 13 8 / 0.86));
+  box-shadow: 0 20px 40px -24px rgb(255 122 26 / 0.45);
+}
+/* HUD corner brackets, top-left and bottom-right. */
+[data-theme="ember"] .i-card::before,
+[data-theme="ember"] .i-card::after {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  border-color: #ff7a1a;
+  border-style: solid;
+  transition: width 180ms ease, height 180ms ease;
+}
+[data-theme="ember"] .i-card::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+[data-theme="ember"] .i-card::after { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+[data-theme="ember"] .i-card:hover::before,
+[data-theme="ember"] .i-card:hover::after { width: 34px; height: 34px; }
+[data-theme="ember"] .i-card > header { border-bottom-color: rgb(255 122 26 / 0.18); }
+[data-theme="ember"] .i-card > header > span.truncate {
+  font-family: "Chakra Petch", system-ui, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #ffb347;
+}
+[data-theme="ember"] .i-card > header > span.truncate::before { content: "▲ "; color: #ff7a1a; font-size: 0.6rem; vertical-align: 2px; }
+[data-theme="ember"] .bg-accent { border-radius: 0; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }
+[data-theme="ember"] .bg-accent:hover { filter: brightness(1.1); }
+[data-theme="ember"] .v-btn,
+[data-theme="ember"] .v-chip,
+[data-theme="ember"] .v-stat,
+[data-theme="ember"] .v-kbd { border-radius: 0; }
+[data-theme="ember"] .v-btn { text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.8rem; }
+[data-theme="ember"] .v-stat { border-left: 3px solid #ff7a1a; background: rgb(255 122 26 / 0.05); }
+[data-theme="ember"] .v-stat-num { color: #ffe9d6; }
+[data-theme="ember"] .v-strip { background: linear-gradient(90deg, rgb(255 122 26 / 0.16), transparent 70%); border-bottom-color: rgb(255 122 26 / 0.35); }
+[data-theme="ember"] .d-led-live { background: #ff7a1a; box-shadow: 0 0 8px #ff7a1a; }
+[data-theme="ember"] .i-row:hover,
+[data-theme="ember"] .i-row[data-selected="true"] { background-color: rgb(255 122 26 / 0.10); }
+[data-theme="ember"] .i-row[data-selected="true"]::before { background: #ff7a1a; }
+[data-theme="ember"] input,
+[data-theme="ember"] textarea,
+[data-theme="ember"] select { border-radius: 0; }
+[data-theme="ember"] :focus-visible { outline: 2px solid #ffb347; outline-offset: 2px; }
+[data-theme="ember"] .v-palette { border-radius: 0; border-color: rgb(255 122 26 / 0.6); background: rgb(22 13 8 / 0.96); }
+[data-theme="ember"] .v-palette-sel { background: rgb(255 122 26 / 0.12); box-shadow: inset 3px 0 0 #ff7a1a; }
+[data-theme="ember"] .v-signin { border-radius: 0; border: 1px solid rgb(255 122 26 / 0.45); padding: 2rem 1.75rem; background: rgb(22 13 8 / 0.9); box-shadow: 0 30px 80px -30px rgb(255 122 26 / 0.5); }
+[data-theme="ember"] .v-signin-title { font-family: "Chakra Petch", system-ui, sans-serif; text-transform: uppercase; letter-spacing: 0.12em; }
+[data-theme="ember"] .d-calendar {
+  --fc-border-color: rgb(207 166 132 / 0.14);
+  --fc-button-bg-color: transparent;
+  --fc-button-border-color: rgb(255 122 26 / 0.35);
+  --fc-button-hover-bg-color: rgb(255 122 26 / 0.15);
+  --fc-button-active-text-color: #160b04;
+  --fc-today-bg-color: rgb(255 122 26 / 0.08);
+  --fc-event-bg-color: #6a2d0a;
+  --fc-event-border-color: #ff7a1a;
+}
+[data-theme="ember"] .d-calendar .fc .fc-button { border-radius: 0; }
+[data-theme="ember"] .d-calendar .fc .fc-button-active { color: #160b04; }
+[data-theme="ember"] .v-bar { background: linear-gradient(180deg, #ffb347, #ff3d2e); border-radius: 0; }
+
+/* ============================================================
+   phosphor ▮: an old-future green CRT. VT323 headings, monospace
+   body, scanlines, a soft vignette, a blinking cursor on titles.
+   ============================================================ */
+[data-theme="phosphor"] {
+  --v-grad: linear-gradient(90deg, #39ff6a, #b8ff3d);
+  --v-grad-lime: linear-gradient(90deg, #39ff6a, #39ff6a);
+  --c-tint: rgb(57 255 106 / 0.05);
+  --c-tint-strong: rgb(57 255 106 / 0.11);
+  --c-edge: rgb(57 255 106 / 0.3);
+  --c-glow: rgb(57 255 106 / 0.1);
+  --c-edge-top: rgb(57 255 106 / 0.15);
+  font-family: "JetBrains Mono Variable", ui-monospace, monospace;
+  text-shadow: 0 0 2px rgb(57 255 106 / 0.35);
+}
+[data-theme="phosphor"] h1,
+[data-theme="phosphor"] h2,
+[data-theme="phosphor"] .v-display,
+[data-theme="phosphor"] .v-stat-num,
+[data-theme="phosphor"] .v-logo {
+  font-family: "VT323", "JetBrains Mono Variable", monospace;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+[data-theme="phosphor"] .v-stat-num { font-size: 2.4rem; }
+[data-theme="phosphor"] body { background: radial-gradient(ellipse at center, #062110 0%, var(--c-base) 75%) fixed; }
+/* Scanlines and vignette over everything, click-through. */
+[data-theme="phosphor"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, rgb(0 0 0 / 0.22) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at center, transparent 60%, rgb(0 0 0 / 0.55) 100%);
+}
+@media (prefers-reduced-motion: no-preference) {
+  [data-theme="phosphor"] body::after { animation: p-flicker 6s steps(1) infinite; }
+}
+@keyframes p-flicker { 0%, 96%, 100% { opacity: 1; } 97% { opacity: 0.86; } 98% { opacity: 1; } 99% { opacity: 0.92; } }
+[data-theme="phosphor"] .v-shell { background-color: transparent; }
+[data-theme="phosphor"] ::selection { background: #39ff6a; color: #021006; text-shadow: none; }
+[data-theme="phosphor"] * { scrollbar-color: #39ff6a transparent; scrollbar-width: thin; }
+[data-theme="phosphor"] .border-muted { border-color: rgb(57 255 106 / 0.25); }
+[data-theme="phosphor"] .v-head { background: rgb(2 7 3 / 0.9); border-bottom: 1px dashed rgb(57 255 106 / 0.45); }
+[data-theme="phosphor"] .v-logo { color: #39ff6a; font-size: 1.6rem; text-shadow: 0 0 8px #39ff6a; }
+[data-theme="phosphor"] .v-logo::before { content: "> "; }
+[data-theme="phosphor"] .v-logo-mark { display: none; }
+[data-theme="phosphor"] .i-card {
+  border-radius: 0;
+  border: 1px solid rgb(57 255 106 / 0.45);
+  background: rgb(4 14 7 / 0.92);
+  box-shadow: 0 0 18px -8px rgb(57 255 106 / 0.5), inset 0 0 40px -20px rgb(57 255 106 / 0.35);
+}
+[data-theme="phosphor"] .i-card:hover { border-color: #39ff6a; }
+[data-theme="phosphor"] .i-card > header { border-bottom: 1px dashed rgb(57 255 106 / 0.35); }
+[data-theme="phosphor"] .i-card > header > span.truncate {
+  font-family: "VT323", monospace;
+  font-size: 1.15rem;
+  text-transform: uppercase;
+  color: #39ff6a;
+}
+[data-theme="phosphor"] .i-card > header > span.truncate::before { content: "["; opacity: 0.7; }
+[data-theme="phosphor"] .i-card > header > span.truncate::after { content: "]_"; opacity: 0.7; }
+@media (prefers-reduced-motion: no-preference) {
+  [data-theme="phosphor"] .i-card:hover > header > span.truncate::after { animation: p-blink 1s steps(1) infinite; }
+}
+@keyframes p-blink { 50% { opacity: 0; } }
+[data-theme="phosphor"] .bg-accent { border-radius: 0; text-transform: uppercase; text-shadow: none; box-shadow: 0 0 12px rgb(57 255 106 / 0.6); }
+[data-theme="phosphor"] .bg-accent:hover { box-shadow: 0 0 22px #39ff6a; }
+[data-theme="phosphor"] .v-btn,
+[data-theme="phosphor"] .v-chip,
+[data-theme="phosphor"] .v-stat,
+[data-theme="phosphor"] .v-kbd { border-radius: 0; }
+[data-theme="phosphor"] .v-btn { border-style: dashed; text-transform: uppercase; font-size: 0.8rem; }
+[data-theme="phosphor"] .v-btn:hover { background: #39ff6a; color: #021006; text-shadow: none; }
+[data-theme="phosphor"] .v-stat { border: 1px dashed rgb(57 255 106 / 0.35); background: transparent; }
+[data-theme="phosphor"] .v-grad-text { color: #39ff6a; background: none; -webkit-background-clip: initial; background-clip: initial; text-shadow: 0 0 10px #39ff6a; }
+[data-theme="phosphor"] .v-strip { background: rgb(57 255 106 / 0.05); border-bottom: 1px dashed rgb(57 255 106 / 0.4); }
+[data-theme="phosphor"] .v-strip .v-display { color: #39ff6a; text-shadow: 0 0 12px #39ff6a; }
+[data-theme="phosphor"] .d-led-live { background: #39ff6a; box-shadow: 0 0 8px #39ff6a; border-radius: 0; }
+[data-theme="phosphor"] .i-row:hover,
+[data-theme="phosphor"] .i-row[data-selected="true"] { background-color: rgb(57 255 106 / 0.1); }
+[data-theme="phosphor"] .i-row[data-selected="true"]::before { background: #39ff6a; }
+[data-theme="phosphor"] input,
+[data-theme="phosphor"] textarea,
+[data-theme="phosphor"] select { border-radius: 0; caret-color: #39ff6a; }
+[data-theme="phosphor"] :focus-visible { outline: 1px dashed #39ff6a; outline-offset: 3px; }
+[data-theme="phosphor"] .v-palette { border-radius: 0; border: 1px solid #39ff6a; background: rgb(2 7 3 / 0.97); }
+[data-theme="phosphor"] .v-palette-sel { background: #39ff6a; }
+[data-theme="phosphor"] .v-palette-sel span { color: #021006 !important; text-shadow: none; }
+[data-theme="phosphor"] .v-signin { border-radius: 0; border: 1px solid #39ff6a; padding: 2rem 1.75rem; background: rgb(2 7 3 / 0.92); }
+[data-theme="phosphor"] .v-signin-title { font-family: "VT323", monospace; font-size: 2.4rem; line-height: 2.4rem; }
+[data-theme="phosphor"] .d-calendar {
+  --fc-border-color: rgb(57 255 106 / 0.18);
+  --fc-button-bg-color: transparent;
+  --fc-button-border-color: rgb(57 255 106 / 0.45);
+  --fc-button-hover-bg-color: rgb(57 255 106 / 0.15);
+  --fc-button-active-text-color: #021006;
+  --fc-today-bg-color: rgb(57 255 106 / 0.07);
+  --fc-event-bg-color: #0d4a1f;
+  --fc-event-border-color: #39ff6a;
+}
+[data-theme="phosphor"] .d-calendar .fc .fc-button { border-radius: 0; }
+[data-theme="phosphor"] .d-calendar .fc .fc-button-active { color: #021006; text-shadow: none; }
+[data-theme="phosphor"] .v-bar { background: #39ff6a; border-radius: 0; box-shadow: 0 0 6px #39ff6a; }
+[data-theme="phosphor"] .xterm { text-shadow: 0 0 3px rgb(57 255 106 / 0.5); }
+
+/* ============================================================
+   holo ◎: the light future. Pearl-white glass, an iridescent
+   gradient that shifts over every rim, soft long shadows, round
+   everything, Unbounded display type in deep indigo.
+   ============================================================ */
+[data-theme="holo"] {
+  --v-grad: linear-gradient(120deg, #5b21e6, #c026d3 35%, #0891b2 70%, #5b21e6);
+  --v-grad-lime: linear-gradient(120deg, #5b21e6, #7c3aed 50%, #0e7490);
+  --v-iris: linear-gradient(120deg, #ffb3f0, #b3c7ff 25%, #a8fff1 50%, #fff3b0 75%, #ffb3f0);
+  --c-tint: rgb(91 33 230 / 0.05);
+  --c-tint-strong: rgb(91 33 230 / 0.10);
+  --c-edge: rgb(91 33 230 / 0.16);
+  --c-glow: rgb(91 33 230 / 0.08);
+  --c-edge-top: rgb(255 255 255 / 0.9);
+  font-family: "Space Grotesk Variable", system-ui, sans-serif;
+}
+[data-theme="holo"] h1,
+[data-theme="holo"] h2,
+[data-theme="holo"] .v-display,
+[data-theme="holo"] .v-stat-num,
+[data-theme="holo"] .v-logo {
+  font-family: "Unbounded Variable", system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+[data-theme="holo"] .font-mono,
+[data-theme="holo"] code,
+[data-theme="holo"] pre { font-family: "JetBrains Mono Variable", ui-monospace, monospace !important; }
+[data-theme="holo"] body {
+  background-color: var(--c-base);
+  background-image:
+    radial-gradient(60vmax 50vmax at 0% 0%, rgb(255 179 240 / 0.55), transparent 60%),
+    radial-gradient(60vmax 50vmax at 100% 20%, rgb(168 255 241 / 0.55), transparent 60%),
+    radial-gradient(70vmax 50vmax at 50% 120%, rgb(179 199 255 / 0.7), transparent 60%),
+    radial-gradient(40vmax 30vmax at 80% 90%, rgb(255 243 176 / 0.5), transparent 60%);
+  background-attachment: fixed;
+}
+@media (prefers-reduced-motion: no-preference) {
+  [data-theme="holo"] body { animation: h-shift 24s ease-in-out infinite alternate; }
+}
+@keyframes h-shift {
+  0% { background-position: 0% 0%, 100% 0%, 50% 100%, 100% 100%; }
+  100% { background-position: 10% 10%, 90% 15%, 45% 90%, 85% 85%; }
+}
+[data-theme="holo"] .v-shell { background-color: transparent; }
+[data-theme="holo"] ::selection { background: #c4b5fd; color: #14122b; }
+[data-theme="holo"] * { scrollbar-color: rgb(91 33 230 / 0.35) transparent; scrollbar-width: thin; }
+[data-theme="holo"] .border-muted { border-color: rgb(82 79 114 / 0.16); }
+[data-theme="holo"] .v-head {
+  background: rgb(255 255 255 / 0.55);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border-bottom: 1px solid rgb(255 255 255 / 0.8);
+  box-shadow: 0 8px 30px -20px rgb(91 33 230 / 0.35);
+}
+[data-theme="holo"] nav[aria-label="Primary"] { background: rgb(255 255 255 / 0.35); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+[data-theme="holo"] .v-logo { font-weight: 800; background: var(--v-grad); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; }
+[data-theme="holo"] .v-logo-mark { color: #c026d3; -webkit-text-fill-color: #c026d3; }
+@media (prefers-reduced-motion: no-preference) {
+  [data-theme="holo"] .v-logo { animation: h-sheen 6s linear infinite; }
+}
+@keyframes h-sheen { to { background-position: 200% 0; } }
+[data-theme="holo"] .i-card {
+  position: relative;
+  border-radius: 1.75rem;
+  border-color: transparent;
+  background: rgb(255 255 255 / 0.62);
+  backdrop-filter: blur(22px) saturate(1.4);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.9) inset, 0 30px 60px -36px rgb(60 30 140 / 0.45), 0 2px 8px -4px rgb(60 30 140 / 0.12);
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+/* Iridescent rim: a shifting rainbow hairline. */
+[data-theme="holo"] .i-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1.5px;
+  border-radius: inherit;
+  background: var(--v-iris);
+  background-size: 300% 300%;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  [data-theme="holo"] .i-card::before { animation: h-iris 9s ease-in-out infinite alternate; }
+}
+@keyframes h-iris { to { background-position: 100% 100%; } }
+[data-theme="holo"] .i-card:hover { transform: translateY(-3px); box-shadow: 0 1px 0 rgb(255 255 255 / 0.9) inset, 0 40px 70px -34px rgb(91 33 230 / 0.5); }
+[data-theme="holo"] .i-card > header { border-bottom-color: rgb(82 79 114 / 0.10); }
+[data-theme="holo"] .i-card > header > span.truncate {
+  font-family: "Unbounded Variable", system-ui, sans-serif;
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+}
+[data-theme="holo"] .bg-accent { border-radius: 9999px; background: var(--v-grad-lime); font-weight: 600; box-shadow: 0 10px 24px -10px rgb(91 33 230 / 0.6); }
+[data-theme="holo"] .bg-accent:hover { transform: translateY(-1px); box-shadow: 0 14px 30px -10px rgb(192 38 211 / 0.6); }
+[data-theme="holo"] .v-btn { background: rgb(255 255 255 / 0.7); border-color: rgb(82 79 114 / 0.14); box-shadow: 0 4px 14px -8px rgb(60 30 140 / 0.3); }
+[data-theme="holo"] .v-btn:hover { background: #ffffff; border-color: #5b21e6; }
+/* Pressed (arrange "✓ done"): the glass .v-btn above has the same
+   specificity as vibe.css's shared pressed rule and loads later, which
+   left white text on white glass. Indigo-violet-teal ink, white text. */
+[data-theme="holo"] .v-btn[aria-pressed="true"],
+[data-theme="holo"] .v-btn[aria-pressed="true"]:hover { background: var(--v-grad-lime); color: #ffffff; border-color: transparent; }
+[data-theme="holo"] .v-stat { background: rgb(255 255 255 / 0.7); border-color: rgb(82 79 114 / 0.10); border-radius: 1.25rem; }
+[data-theme="holo"] .v-stat-num { background: var(--v-grad-lime); -webkit-background-clip: text; background-clip: text; color: transparent; }
+[data-theme="holo"] .v-strip { background: rgb(255 255 255 / 0.45); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border-bottom-color: rgb(255 255 255 / 0.8); }
+[data-theme="holo"] .d-led-live { background: #10b981; box-shadow: 0 0 8px #10b981; }
+[data-theme="holo"] .i-row:hover,
+[data-theme="holo"] .i-row[data-selected="true"] { background-color: rgb(91 33 230 / 0.07); }
+[data-theme="holo"] .i-row[data-selected="true"]::before { background: var(--v-grad-lime); width: 4px; }
+[data-theme="holo"] input,
+[data-theme="holo"] textarea,
+[data-theme="holo"] select { border-radius: 0.9rem; }
+[data-theme="holo"] :focus-visible { outline: 2px solid #5b21e6; outline-offset: 2px; box-shadow: 0 0 0 5px rgb(91 33 230 / 0.15); }
+[data-theme="holo"] .v-palette { border-radius: 1.5rem; background: rgb(255 255 255 / 0.85); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: 0 40px 100px -30px rgb(91 33 230 / 0.45); }
+[data-theme="holo"] .v-palette-sel { background: rgb(91 33 230 / 0.08); box-shadow: inset 3px 0 0 #5b21e6; }
+[data-theme="holo"] .v-signin { max-width: 24rem; border-radius: 2rem; padding: 2rem 1.75rem; background: rgb(255 255 255 / 0.65); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: 0 40px 90px -40px rgb(91 33 230 / 0.55); }
+[data-theme="holo"] .v-signin-title { font-family: "Unbounded Variable", system-ui, sans-serif; font-weight: 800; background: var(--v-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+[data-theme="holo"] .d-calendar {
+  --fc-border-color: rgb(82 79 114 / 0.12);
+  --fc-button-bg-color: rgb(255 255 255 / 0.7);
+  --fc-button-border-color: rgb(82 79 114 / 0.16);
+  --fc-button-hover-bg-color: #ffffff;
+  --fc-button-text-color: #14122b;
+  --fc-button-active-text-color: #ffffff;
+  --fc-today-bg-color: rgb(192 38 211 / 0.06);
+  --fc-event-bg-color: #5b21e6;
+  --fc-event-border-color: #5b21e6;
+}
+[data-theme="holo"] .d-calendar .fc .fc-button { border-radius: 9999px; }
+[data-theme="holo"] .d-calendar .fc-timegrid-now-indicator-line { border-color: #c026d3; }
+[data-theme="holo"] .v-bar { background: var(--v-grad-lime); box-shadow: none; }
+[data-theme="holo"] .v-live-badge { color: #14122b; background: rgb(255 255 255 / 0.8); border-color: rgb(91 33 230 / 0.4); box-shadow: 0 8px 24px -10px rgb(91 33 230 / 0.5); }
+
+/* FullCalendar paints the active view button with the plain button
+   text colour; make every theme honour its active-text token so
+   "week" stays readable on the accent fill. */
+.d-calendar .fc .fc-button-primary:not(:disabled).fc-button-active,
+.d-calendar .fc .fc-button-primary:not(:disabled):active {
+  color: var(--fc-button-active-text-color);
+  text-shadow: none;
+}
+[data-theme="phosphor"] .d-calendar .fc-toolbar-title { font-size: 1.6rem; }
+[data-theme="phosphor"] .v-ring > span { font-size: 1rem; }

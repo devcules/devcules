@@ -3,7 +3,7 @@
 // never come back over HTTP, so this screen lists the names you set and
 // never what you set them to.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { deleteSecret, listSecrets, putSecret } from '../lib/deskApi';
 import { toast } from '../lib/toast';
 
@@ -13,16 +13,35 @@ export default function Secrets({ onSessionExpired, onSummary }: { onSessionExpi
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [removing, setRemoving] = useState('');
+  const [failed, setFailed] = useState(false);
+
+  // The callbacks ride in refs so `load` is stable: a parent that
+  // passes a fresh arrow per render must not refetch the list.
+  const expiredRef = useRef(onSessionExpired);
+  const summaryRef = useRef(onSummary);
+  useEffect(() => {
+    expiredRef.current = onSessionExpired;
+    summaryRef.current = onSummary;
+  });
 
   const load = useCallback(() => {
     void listSecrets().then((r) => {
-      if (r === 'unauthorized') { onSessionExpired(); return; }
-      if (r === 'unreachable') { setErr('server unreachable'); setNames([]); return; }
+      if (r === 'unauthorized') { expiredRef.current(); return; }
+      if (r === 'unreachable') {
+        // Unknown, not empty: keep any list already shown.
+        setErr('server unreachable');
+        setFailed(true);
+        summaryRef.current?.("Couldn't load");
+        return;
+      }
       const list = Array.isArray(r?.names) ? r.names : [];
+      setFailed(false);
+      setErr((e) => (e === 'server unreachable' ? '' : e));
       setNames(list);
-      onSummary?.(list.length === 0 ? 'None' : `${list.length} stored`);
+      summaryRef.current?.(list.length === 0 ? 'None' : `${list.length} stored`);
     });
-  }, [onSessionExpired, onSummary]);
+  }, []);
   useEffect(load, [load]);
 
   const add = async (e: React.FormEvent) => {
@@ -41,9 +60,12 @@ export default function Secrets({ onSessionExpired, onSummary }: { onSessionExpi
   };
 
   const remove = async (n: string) => {
+    setRemoving(n);
     const r = await deleteSecret(n);
+    setRemoving('');
     if (r === 'unauthorized') { onSessionExpired(); return; }
     if (r !== true) { setErr(`could not remove ${n}`); return; }
+    setErr('');
     toast(`Removed ${n}`);
     load();
   };
@@ -56,7 +78,7 @@ export default function Secrets({ onSessionExpired, onSummary }: { onSessionExpi
       </p>
 
       {names === null ? (
-        <div className="text-body text-muted">loading…</div>
+        <div className="text-body text-muted">{failed ? "couldn't load the list" : 'loading…'}</div>
       ) : names.length === 0 ? (
         <div className="text-body text-muted">No secrets yet. The Desk's Tavily and ticket tokens live here once you add them.</div>
       ) : (
@@ -64,7 +86,7 @@ export default function Secrets({ onSessionExpired, onSummary }: { onSessionExpi
           {names.map((n) => (
             <li key={n} className="flex items-center gap-2">
               <code className="min-w-0 flex-1 truncate rounded bg-base px-2 py-1 font-mono text-body text-text">{n}</code>
-              <button type="button" className="min-h-11 rounded px-3 text-body text-red-400 hover:bg-base" onClick={() => void remove(n)} aria-label={`remove ${n}`}>
+              <button type="button" className="min-h-11 rounded px-3 text-body text-red-400 hover:bg-base disabled:opacity-60" disabled={removing === n} onClick={() => void remove(n)} aria-label={`remove ${n}`}>
                 remove
               </button>
             </li>

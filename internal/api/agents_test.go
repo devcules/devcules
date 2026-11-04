@@ -212,14 +212,15 @@ func TestAgentsAPI(t *testing.T) {
 		Launch launch.Launch
 	}
 	_ = json.Unmarshal(w.Body.Bytes(), &own)
-	if w.Code != http.StatusCreated || own.ID == "" || own.Launch.Provider != "" {
-		t.Fatalf("self-auth start = %d %s, want 201 with no provider", w.Code, w.Body)
+	if w.Code != http.StatusCreated || own.ID == "" || own.Launch.Provider != launch.NoProvider {
+		t.Fatalf("self-auth start = %d %s, want 201 with the no-provider scope", w.Code, w.Body)
 	}
-	// It still mints the token the approval hook and MCP use.
+	// It still mints the token the approval hook and MCP use, scoped to
+	// no provider: "" would let it spend every stored key.
 	if list, _ := f.tokens.List(ctx); !slices.ContainsFunc(list, func(l launch.Launch) bool {
-		return l.Label == "Selfauth on laptop" && l.Provider == "" && l.Active
+		return l.Label == "Selfauth on laptop" && l.Provider == launch.NoProvider && l.Active
 	}) {
-		t.Fatalf("tokens = %+v, want an active token with no provider", list)
+		t.Fatalf("tokens = %+v, want an active token scoped to no provider", list)
 	}
 	if w := doJSON(f.mux, http.MethodDelete, "/api/terminals/"+own.ID, "", f.session); w.Code != http.StatusNoContent {
 		t.Fatalf("close self-auth = %d %s", w.Code, w.Body)

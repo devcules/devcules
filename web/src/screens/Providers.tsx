@@ -49,6 +49,8 @@ export default function Providers({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // The list failed to load: unknown, not "none".
+  const [failed, setFailed] = useState(false);
 
   const load = useCallback(() => {
     void listProviders().then((res) => {
@@ -56,7 +58,12 @@ export default function Providers({
         onSessionExpired();
         return;
       }
-      setList(Array.isArray(res) ? res : []);
+      if (!Array.isArray(res)) {
+        setFailed(true);
+        return; // keep whatever list is already shown
+      }
+      setFailed(false);
+      setList(res);
     });
   }, [onSessionExpired]);
 
@@ -176,7 +183,14 @@ export default function Providers({
   const keyKept = editing?.ready === true;
 
   useEffect(() => {
-    if (!onSummary || list === null) {
+    if (!onSummary) {
+      return;
+    }
+    if (failed) {
+      onSummary("Couldn't load");
+      return;
+    }
+    if (list === null) {
       return; // loading or nothing to say: the header keeps the title
     }
     if (list.length === 0) {
@@ -187,7 +201,7 @@ export default function Providers({
     const defName = def && (def.name ?? providerLabel(def.id));
     const suffix = def ? ` · ${defName} default` : '';
     onSummary(`${list.length} ${list.length === 1 ? 'provider' : 'providers'}${suffix}`);
-  }, [list, onSummary]);
+  }, [list, failed, onSummary]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -195,8 +209,13 @@ export default function Providers({
         Agents reach their models through Devcules, on one of these providers. A key is kept encrypted on this server and
         never shown again.
       </p>
+      {failed && (
+        <p role="alert" className="text-body text-text">
+          Couldn&apos;t load the providers. Try again.
+        </p>
+      )}
       {list === null ? (
-        <div aria-busy="true" className="h-11" />
+        failed ? null : <div aria-busy="true" className="h-11" />
       ) : list.length === 0 ? (
         <p className="text-body text-muted">No providers yet: add one below.</p>
       ) : (

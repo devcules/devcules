@@ -200,6 +200,38 @@ describe('SignIn', () => {
     );
   });
 
+  it('says to wait when the passkey begin is limited, never blames the passkey', async () => {
+    const user = userEvent.setup();
+    route({
+      '/auth/passkeys/status': { status: 200, body: { enabled: true } },
+      '/auth/passkeys/login/begin': { status: 429 },
+    });
+    vi.stubGlobal('PublicKeyCredential', {});
+    const get = vi.fn(async () => fakeAssertion);
+    mockCredentials({ get });
+    render(<SignIn onSignedIn={vi.fn()} />);
+    await user.click(await screen.findByRole('button', { name: 'Sign in with a passkey' }));
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Too many tries. Wait a minute and try again.',
+    );
+    expect(get).not.toHaveBeenCalled();
+  });
+
+  it('says to wait when the autofill passkey begin is limited', async () => {
+    route({
+      '/auth/passkeys/status': { status: 200, body: { enabled: true } },
+      '/auth/passkeys/login/begin': { status: 429 },
+    });
+    vi.stubGlobal('PublicKeyCredential', { isConditionalMediationAvailable: async () => true });
+    const get = vi.fn(async () => fakeAssertion);
+    mockCredentials({ get });
+    render(<SignIn onSignedIn={vi.fn()} />);
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Too many tries. Wait a minute and try again.',
+    );
+    expect(get).not.toHaveBeenCalled();
+  });
+
   it('shows the passkey error when begin fails', async () => {
     const user = userEvent.setup();
     route({

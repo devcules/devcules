@@ -9,8 +9,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/devcules/devcules/internal/auth"
 	"github.com/devcules/devcules/internal/link/hub"
@@ -181,5 +183,23 @@ func TestMachinesEnrolNilIssuerIs503(t *testing.T) {
 	mux.ServeHTTP(w, r)
 	if w.Code != http.StatusServiceUnavailable {
 		t.Fatalf("nil issuer = %d, want 503", w.Code)
+	}
+}
+
+// TestEnrolLimiterSweepsStaleIPs checks the per-IP map does not keep
+// addresses whose tries have aged out once it reaches its bound.
+func TestEnrolLimiterSweepsStaleIPs(t *testing.T) {
+	l := newEnrolLimiter()
+	now := time.Unix(1_000_000, 0)
+	l.now = func() time.Time { return now }
+	for i := range enrolMaxIPs {
+		l.allow("10.0." + strconv.Itoa(i/256) + "." + strconv.Itoa(i%256))
+	}
+	now = now.Add(enrolWindow)
+	if !l.allow("192.0.2.1") {
+		t.Fatal("fresh address refused")
+	}
+	if n := len(l.tries); n != 1 {
+		t.Fatalf("%d addresses kept, want 1", n)
 	}
 }

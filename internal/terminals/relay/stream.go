@@ -33,6 +33,14 @@ const (
 	browserPingTimeout = 5 * time.Second
 )
 
+// pingText is the application-level heartbeat sent beside each
+// protocol ping. Browsers answer protocol pings natively and never
+// surface them to JS, so a pane on an idle shell would see no frames
+// at all and its watchdog would tear it down; a text frame is visible
+// to onmessage (which stamps the watchdog and never writes text into
+// the terminal).
+var pingText = []byte(`{"type":"ping"}`)
+
 // onOutput routes runner bytes to the browser's bounded queue. It
 // never blocks the link read loop: a full queue closes that browser
 // with 1013 (in the background) and tells the runner to detach the
@@ -185,6 +193,10 @@ func (r *Relay) AttachStream(ctx context.Context, runner, term string, cols, row
 	// 64 KiB input frame, so the socket takes up to one link frame.
 	conn.SetReadLimit(link.MaxFrameBytes)
 	streamID := terminals.NewID()
+	// Clamp rather than refuse: a pane wider than the limit (a tiny
+	// font on an ultrawide, or browser zoom-out) gets the widest window
+	// allowed instead of a refusal the UI reads as "terminal gone".
+	cols, rows = terminals.ClampSize(cols, rows)
 	// Register before attaching: tmux redraws the screen the moment
 	// the client attaches, and those first term.output frames can
 	// beat term.ok here. Without the stream in place they would be
@@ -224,9 +236,28 @@ func (r *Relay) AttachStream(ctx context.Context, runner, term string, cols, row
 		return
 	}
 
-	writerDone := make(chan struct{})
 	go func() {
-		defer close(writerDone)
+		// The writer exits on its own when a ping or write fails (pong
+		// too slow, peer gone). coder's Ping does not close the conn on
+		// a pong timeout, so without this the read loop would keep
+		// forwarding keystrokes into a pane nobody drains: close the
+		// socket so the read loop ends, cleanup runs, and the browser
+		// sees the drop and reattaches. An exit on closed or ctx leaves
+		// the close to its owner (onChange, onExit, dropSlow, the read
+		// loop), which picks the close code.
+		failed := false
+		defer func() {
+			if !failed || ctx.Err() != nil {
+				return
+			}
+			select {
+			case <-s.closed:
+				// Retired mid-write: its owner is already sending
+				// the close that carries the right code.
+			default:
+				_ = conn.CloseNow()
+			}
+		}()
 		// The serve→browser hop has no transport heartbeat of its own
 		// (unlike the runner link). Without one a socket that died
 		// silently — NAT idle-timeout, a phone switching networks, a
@@ -234,7 +265,7 @@ func (r *Relay) AttachStream(ctx context.Context, runner, term string, cols, row
 		// write, so an idle shell would sit frozen forever. Ping on a
 		// ticker with a bounded write: a dead pane errs and closes,
 		// which the browser sees and reconnects from.
-		ping := time.NewTicker(pingEveryBrowser)
+		ping := time.NewTicker(r.pingEvery)
 		defer ping.Stop()
 		for {
 			select {
@@ -243,10 +274,14 @@ func (r *Relay) AttachStream(ctx context.Context, runner, term string, cols, row
 			case <-s.closed:
 				return
 			case <-ping.C:
-				wctx, stop := context.WithTimeout(ctx, browserPingTimeout)
-				err := conn.Ping(wctx)
+				wctx, stop := context.WithTimeout(ctx, r.pingTimeout)
+				err := conn.Write(wctx, websocket.MessageText, pingText)
+				if err == nil {
+					err = conn.Ping(wctx)
+				}
 				stop()
 				if err != nil {
+					failed = true
 					return
 				}
 			case chunk, ok := <-s.toUI:
@@ -260,6 +295,7 @@ func (r *Relay) AttachStream(ctx context.Context, runner, term string, cols, row
 				err := conn.Write(wctx, websocket.MessageBinary, chunk)
 				stop()
 				if err != nil {
+					failed = true
 					return
 				}
 			}
@@ -301,10 +337,8 @@ func (r *Relay) AttachStream(ctx context.Context, runner, term string, cols, row
 			if jerr := json.Unmarshal(raw, &ctrl); jerr != nil || ctrl.Type != "resize" {
 				continue
 			}
-			if !terminals.ValidSize(ctrl.Cols, ctrl.Rows) {
-				continue
-			}
-			_ = r.send(runner, terminals.TypeResize, terminals.Resize{Stream: streamID, Cols: ctrl.Cols, Rows: ctrl.Rows})
+			cols, rows := terminals.ClampSize(ctrl.Cols, ctrl.Rows)
+			_ = r.send(runner, terminals.TypeResize, terminals.Resize{Stream: streamID, Cols: cols, Rows: rows})
 		}
 	}
 }

@@ -102,7 +102,9 @@ type CalendarEvent struct {
 
 // CalendarRepo stores desk plans.
 type CalendarRepo interface {
-	// List answers the plans (unexpanded — recurrence expands at read).
+	// List answers the plans (unexpanded — recurrence expands at read):
+	// the one-offs overlapping [from, to] and every recurring plan,
+	// whatever its first instance's dates.
 	List(ctx context.Context, from, to time.Time) ([]*CalendarEvent, error)
 	// Get answers one plan, or ErrNotFound.
 	Get(ctx context.Context, id string) (*CalendarEvent, error)

@@ -83,8 +83,15 @@ attach, because tmux's first redraw can arrive before `term.ok`.
 
 - Terminal id: 16 hex chars minted by serve, validated both ends;
   the tmux session is `dvc-<id>`.
-- At most 16 terminals per runner; cols/rows 1–500; input frames up
-  to 64 KiB.
+- At most 16 terminals per runner; input frames up to 64 KiB.
+- Size: cols and rows are 1..500 on the link (`terminals.ValidSize`).
+  At the browser edge they are clamped, not refused: the attach query
+  and every resize control go through `terminals.ClampSize`, so a
+  pane wider than 500 columns (an ultrawide screen, browser zoom-out)
+  attaches at 500 instead of closing with 4404. The web client clamps
+  to the same 1..500 (`clampDims` in `TerminalView.tsx`) before it
+  sends. Non-numeric `cols`/`rows` in the stream URL still close with
+  4404 (a distinct "bad request" code is a known follow-up).
 - Output batches: flush at 32 KiB or after 10 ms, whichever first.
 - Browser queue: 256 frames or 4 MiB; a slower browser is closed
   with 1013 "too slow, reattach" (tmux redraws, nothing is lost). A
@@ -96,6 +103,29 @@ attach, because tmux's first redraw can arrive before `term.ok`.
   reattaches.
 - Terminal gone: 1000 (the shell exited, or another device closed
   it) and 4404 (unknown terminal) stop the UI's reattach loop.
+- Runner relink: when the runner's link drops, it ends the old link's
+  attach clients before it can be welcomed on the new link
+  (`dial.Client.OnDown`), so an attach made on the new link is never
+  killed by the old one's cleanup; browsers on the old link see 1012
+  and reattach.
+
+## Heartbeat
+
+The serve→browser hop has no transport heartbeat of its own, so serve
+pings each browser stream every 15 s: first a text frame
+`{"type":"ping"}`, then a WebSocket protocol ping, both within a 5 s
+timeout. The text frame exists because browsers answer protocol pings
+themselves and never show them to JavaScript; without it a pane on an
+idle shell would see no frames at all. The client treats any text
+frame as a control, never as terminal output: it only stamps the
+pane's last-frame time. A visible pane that has heard nothing (output
+or ping) for 45 s closes its socket (code 4000 "stale") and
+reattaches.
+
+If a ping or a write fails (a pong slower than 5 s, a dead socket),
+serve's writer closes the browser socket, so the read loop's cleanup
+(detach, forget the stream) runs and the browser reattaches; the
+stream is never left registered with a dead writer.
 
 ## Resume model
 
@@ -136,8 +166,10 @@ read `/link/runner.token`. Separate uids come later; the file stays
 - `GET /api/terminals/{id}/stream`: the terminal WebSocket.
   Session cookie plus an Origin check (same host or
   `DEVCULES_PUBLIC_URL`) against cross-site hijacking. Binary
-  messages carry raw terminal bytes both ways; text messages carry
-  resize controls (`{"type":"resize","cols","rows"}`).
+  messages carry raw terminal bytes both ways. Text messages carry
+  controls: browser → serve, resize (`{"type":"resize","cols","rows"}`,
+  clamped to 1..500); serve → browser, the `{"type":"ping"}` heartbeat
+  every 15 s (see Heartbeat).
 
 Terminal input and output are never logged: they can hold secrets.
 
@@ -145,15 +177,91 @@ Terminal input and output are never logged: they can hold secrets.
 
 The Terminals tab lists shells, opens one per view, and closes with
 a confirm. xterm.js (`@xterm/xterm`, `@xterm/addon-fit`, MIT)
-renders; the phone key strip holds Esc, Tab, sticky Ctrl (a
-one-shot modifier for the next key), arrows and Enter at 44 px
-targets, riding above the software keyboard through
-`visualViewport`. Visibility and online events reattach, so locking
-and unlocking the phone resumes the session; any `/api` 401 returns
-to sign-in. CSP keeps `script-src` at `default-src 'self'` and adds
+renders. Visibility and online events reattach, so locking and
+unlocking the phone resumes the session; any `/api` 401 returns to
+sign-in. CSP keeps `script-src` at `default-src 'self'` and adds
 only `style-src 'self' 'unsafe-inline'`, which xterm.js needs for
 its runtime styles (proven by the Playwright CSP-violation check in
 `e2e/tests/terminals.spec.js`).
+
+## Phone key strip
+
+On a phone (the `useMobile()` flag, `docs/web.md`) an open terminal
+or Assistant pane gets a custom key strip, `web/src/screens/TermKeyboard.tsx`.
+It docks at the top of the pane, so the pane sits between the strip
+and the OS keyboard. It binds to whichever pane owns a live stream
+through `web/src/screens/keybus.ts` and shows only while one does; a
+pane that unmounts takes its binding, and any armed or held Ctrl, with
+it.
+
+The strip is one horizontally scrolling row; a sideways swipe scrolls
+it, and a press that travels more than 10 px is a scroll, not a key.
+Keys, in order:
+
+| Key | Sends / does |
+|---|---|
+| Esc | `ESC` |
+| ⇥ | Tab |
+| Ctrl | tap: arm Ctrl for the next key (tap again to cancel); hold 300 ms: Ctrl held until release |
+| ← ↑ ↓ → | cursor keys; hold 300 ms to repeat (every 70 ms) |
+| ^C | `0x03` (shown in the danger colour) |
+| ^D | `0x04` (end of input) |
+| ^R | `0x12` (history search) |
+| ^Z | `0x1a` (suspend) |
+| ^L | `0x0c` (clear) |
+| `\|` `/` `~` `-` | the character |
+| Home, End | `ESC[H`, `ESC[F` |
+| PgUp, PgDn | `ESC[5~`, `ESC[6~`; hold to repeat |
+| Paste | paste the clipboard (safe paste, below) |
+| A−, A+ | terminal text size down or up |
+| ▾ | collapse the strip |
+
+Pinned outside the scrolling row, always in reach: **⏎** (Enter),
+**☰** (show the tabs: leaves terminal fullscreen, or asks the
+Assistant to show its own tab strip) and **⌨** (raise the software
+keyboard on the pane). Collapsed, the strip keeps ⌨ (show the strip
+again), ⏎ and ☰, so a fullscreen pane can always get back to the
+tabs.
+
+Ctrl applies the way a physical Ctrl does: to a letter (`A`–`Z`,
+either case, `@ [ \ ] ^ _`, space and `/`) as its control code, and to
+a cursor or editing key as the xterm modifier form (`ESC[A` →
+`ESC[1;5A`, `ESC[5~` → `ESC[5;5~`). An armed Ctrl is used up by the
+next key, strip or OS keyboard, including Paste (which is not itself
+modified). A held Ctrl released mid-repeat switches the repeat back to
+the plain key.
+
+Keys never take focus from the terminal (each key cancels the mousedown
+that would move it), so the Android soft keyboard stays up between taps; taps
+give a short vibration where the browser supports it. Keyboard Enter
+or Space and a screen reader's click activate a key too, and the Ctrl
+key reports its state with `aria-pressed`.
+
+**Safe paste.** Paste reads the clipboard and hands the text to the
+pane's xterm `paste()`, so bracketed paste applies (a multi-line
+clipboard does not run line by line) and `\n` becomes `\r` exactly as
+in a desktop paste. Before that, `stripPasteControls` removes every C0
+control except tab, LF and CR, plus DEL and every C1 control (`0x80`–
+`0x9f`). That drops ESC (so the text cannot close the bracket early
+with `ESC[201~`, however it is nested), `^C`, `^Z` and `^\` (which the
+tty would turn into signals below the shell's bracketed paste) and
+XOFF. It only removes characters, so it cannot build a new sequence.
+A desktop paste (Ctrl+Shift+V, the context menu) goes through the
+same sanitiser: the pane catches the `paste` event first.
+
+**Text size.** A− and A+ step the terminal font between 9 and 22 px.
+The size is stored per browser in `localStorage` under
+`devcules.termFont`. With nothing stored the default is 12 px when the
+screen's short edge is ≤ 480 px and 14 px otherwise, so it does not
+depend on the orientation the pane opened in.
+
+**Fullscreen.** Opening a terminal pane on a phone asks the shell to
+fold its header and tab bar (`requestFs` in `keybus.ts`); ☰ or leaving
+the pane hands them back. Fullscreen respects the safe areas (notch,
+home indicator, landscape side insets).
+
+There is no touch scrollback through tmux on a phone yet (a known
+follow-up).
 
 ## Projects
 

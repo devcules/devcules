@@ -123,7 +123,7 @@ func TestUpstreamError(t *testing.T) {
 		t.Fatal(err)
 	}
 	a, _ := builtin.New(loop)
-	_, err = a.Chat(context.Background(), "", "hello")
+	_, _, err = a.Chat(context.Background(), "", "hello")
 	if err == nil || !strings.Contains(err.Error(), "helper model") {
 		t.Fatalf("err = %v", err)
 	}

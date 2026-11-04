@@ -137,11 +137,10 @@ type Loop struct {
 
 	// turns gives each session its own lock, so one Chat per session
 	// runs at a time (the per-session conversation record is under
-	// it); sessions do not wait on each other. fresh records the id
-	// minted for the most recent "" chat so its caller can keep the
-	// conversation; it drops on the next "".
+	// it); sessions do not wait on each other. A "" chat's minted id
+	// goes back to its own caller through Chat's return, never through
+	// shared state, so concurrent fresh chats cannot swap ids.
 	turns map[string]*sync.Mutex
-	fresh string
 	mu    sync.Mutex
 }
 
@@ -172,22 +171,23 @@ func NewLoop(id string, o Options, red RedactIO) (*Loop, error) {
 }
 
 // Chat implements Assistant.Chat: append in to sess ("" starts a new
-// session) and play the turn out, returning what happened.
-func (l *Loop) Chat(ctx context.Context, sess, in string) ([]Event, error) {
+// session) and play the turn out, returning the conversation's id (the
+// minted one for "") and what happened.
+func (l *Loop) Chat(ctx context.Context, sess, in string) (string, []Event, error) {
 	if in = trunc(in, maxInput); in == "" {
-		return nil, errors.New("assistants: a message is required")
+		return "", nil, errors.New("assistants: a message is required")
 	}
 	masked := in
 	if l.red != nil {
 		var err error
 		masked, err = l.red.RedactIn(in)
 		if err != nil {
-			return nil, &errBlocked{err}
+			return "", nil, &errBlocked{err}
 		}
 	}
-	c, turn, err := l.session(sess)
+	sess, c, turn, err := l.session(sess)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 	turn.Lock()
 	defer turn.Unlock()
@@ -216,7 +216,7 @@ func (l *Loop) Chat(ctx context.Context, sess, in string) ([]Event, error) {
 			Tools:    l.o.Tools(),
 		})
 		if err != nil {
-			return nil, fmt.Errorf("assistants: the helper model could not be reached: %w", err)
+			return "", nil, fmt.Errorf("assistants: the helper model could not be reached: %w", err)
 		}
 		if len(c.Msgs) > maxMessages/2 {
 			compact(c, l.o.Now().UTC(), ev)
@@ -260,7 +260,7 @@ func (l *Loop) Chat(ctx context.Context, sess, in string) ([]Event, error) {
 	for len(c.Shown) > maxMessages {
 		c.Shown = append([]Message(nil), c.Shown[len(c.Shown)-maxMessages/2:]...)
 	}
-	return held, nil
+	return sess, held, nil
 }
 
 // compact folds the front of the history into one recalled-exchange
@@ -303,17 +303,15 @@ func compact(c *Conversation, at time.Time, ev func(Event)) {
 func quote(s string) string { return strconv.Quote(s) }
 
 // session finds (or, for "", mints) the conversation and its turn
-// lock; a bad or unknown id is store.ErrNotFound, never a new session.
-func (l *Loop) session(sess string) (*Conversation, *sync.Mutex, error) {
+// lock, and returns its id (the minted one for ""); a bad or unknown id
+// is store.ErrNotFound, never a new session.
+func (l *Loop) session(sess string) (string, *Conversation, *sync.Mutex, error) {
 	if sess != "" && !ValidSessionID(sess) {
-		return nil, nil, store.ErrNotFound
+		return "", nil, nil, store.ErrNotFound
 	}
 	mint := sess == ""
 	if mint {
 		sess = newSessionID()
-		l.mu.Lock()
-		l.fresh = sess
-		l.mu.Unlock()
 	}
 	c, err := l.o.Convos.Get(sess)
 	if err != nil {
@@ -321,7 +319,7 @@ func (l *Loop) session(sess string) (*Conversation, *sync.Mutex, error) {
 		// a typo never smuggles history into a fresh conversation and a
 		// caller never mistakes another turn's text for theirs.
 		if !mint || !errors.Is(err, store.ErrNotFound) {
-			return nil, nil, err
+			return "", nil, nil, err
 		}
 		c = &Conversation{ID: sess, Assistant: l.id, Created: l.o.Now().UTC()}
 		l.o.Convos.Put(c)
@@ -333,20 +331,7 @@ func (l *Loop) session(sess string) (*Conversation, *sync.Mutex, error) {
 		l.turns[sess] = turn
 	}
 	l.mu.Unlock()
-	return c, turn, nil
-}
-
-// FreshChat returns the id the latest "" Chat minted, or "", and
-// clears it: the web tier resolves a fresh conversation's id once. It
-// never returns an id that predates the caller's chat — Chat sets it
-// right before the turn starts, and another fresh Chat after this one
-// returns would only move it forward.
-func (l *Loop) FreshChat() string {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	id := l.fresh
-	l.fresh = ""
-	return id
+	return sess, c, turn, nil
 }
 
 // Session implements Assistant.Session. It copies the view under the

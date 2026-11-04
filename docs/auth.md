@@ -51,10 +51,16 @@ verification, so logins cannot be enumerated by message or timing.
 
 Past 5 failures per minute per client IP (the connection's remote
 address; no proxy headers are trusted) sign-in answers 429 with a
-`Retry-After: 60`. A success clears the IP's count, so mistyping
-never locks anyone out. Password and passkey sign-ins share this
-limiter and its map: the map holds at most 10,000 addresses, and a
-new one past the bound evicts the address with the oldest failure.
+`Retry-After: 60`. An IPv6 client counts per /64, so rotating
+addresses inside one subscriber block buys nothing; IPv4 counts per
+address. Each attempt is reserved as a failure before the argon2id
+check, so attempts still in flight count and a concurrent burst gets
+at most 5 checks. A success clears the IP's count, so mistyping
+never locks anyone out, and an attempt whose check never ran (the
+request was cancelled while waiting, or a store error) is refunded.
+Password and passkey sign-ins share this limiter and its map: the map
+holds at most 10,000 addresses, and a new one past the bound evicts
+the address with the oldest failure.
 
 At most 2 argon2id verifications run at once (one hash holds 64 MiB
 briefly); extra sign-ins wait their turn, bounded by the request
@@ -127,12 +133,21 @@ keys. Sign-in opens a session exactly like a password sign-in: the
 same cookie, the same timeouts, 204.
 
 Challenges are 32 random bytes, single use, expiring after 5 minutes.
-They live in an in-memory map of at most 1,000 entries, keyed by a
-random ceremony id carried in a short-lived `HttpOnly`,
+They live in memory, keyed by a random ceremony id carried in a
+short-lived `HttpOnly`,
 `SameSite=Strict` cookie scoped to `/auth/passkeys` (deliberately not
 `Secure`: the id alone completes nothing, only the passkey's private
 key signs). A `serve` restart cancels in-flight ceremonies; the
 client simply begins again.
+
+Login and register ceremonies are kept apart. Login ceremonies are
+anonymous: at most 1,000 in total (past that the earliest to expire
+goes) and 8 live per client IP (a ninth
+begin evicts that IP's own oldest, never another's), and
+`/auth/passkeys/login/begin` answers 429 with `Retry-After: 60` past
+20 begins per IP per minute. IPv6 counts per /64 here too. Register
+ceremonies need a session, sit in their own map of at most 100, and
+are never evicted by login begins.
 
 The user handle is 32 random bytes minted on first registration
 (`users.webauthn_handle`); it is never the username. Stored per key:
@@ -156,7 +171,7 @@ are 401 and count against the shared per-IP limiter.
 | `GET /auth/passkeys/status` | public | `{"enabled":true}`, or `{"enabled":false,"reason":"…"}` |
 | `POST /auth/passkeys/register/begin` | session + CSRF | 200 creation options + ceremony cookie |
 | `POST /auth/passkeys/register/finish` | session + CSRF | credential JSON with optional `{name}` → 201 |
-| `POST /auth/passkeys/login/begin` | public + CSRF | 200 request options + ceremony cookie |
+| `POST /auth/passkeys/login/begin` | public + CSRF | 200 request options + ceremony cookie, or 429 + `Retry-After` past 20 begins per IP per minute |
 | `POST /auth/passkeys/login/finish` | public + CSRF | 204 + session cookie, or 401 / 429 |
 | `GET /api/passkeys` | session | `{"passkeys":[{id,name,created,lastUsed,backedUp}]}` |
 | `PATCH /api/passkeys/{id}` | session + CSRF | `{name}` → 204 (404 unknown) |
@@ -169,7 +184,9 @@ name; Settings says so instead of offering Add). Conditional
 mediation (`autocomplete="username webauthn"`) runs where supported
 and stays quiet until the user picks a passkey. The accent stays on
 the one primary action. A cancel shows nothing; a failure says
-`That passkey didn't work. Try again or use your password.`
+`That passkey didn't work. Try again or use your password.` A 429
+from begin or finish says `Too many tries. Wait a minute and try
+again.` instead, never blaming the passkey.
 
 ## Routes
 

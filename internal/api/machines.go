@@ -1,10 +1,12 @@
 package api
 
 import (
+	"container/list"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/netip"
 	"sort"
 	"strings"
 	"sync"
@@ -52,37 +54,98 @@ func machinesEnrolCode(iss *machines.Issuer, rec auditor) http.Handler {
 // enrolLimiter bounds enrolment attempts per client IP: a code is 60
 // bits, so guessing is hopeless already, but PLAN.md asks for rate
 // limits and failed tries are cheap to count. Ten tries per ten
-// minutes; a success does not reset the window.
+// minutes; a success does not reset the window. An IPv6 client counts
+// per /64, the block one host is routinely handed.
 type enrolLimiter struct {
-	mu    sync.Mutex
-	tries map[string][]time.Time
+	mu sync.Mutex
+	// tries maps a client key to its entry in order.
+	tries map[string]*list.Element
+	// order holds the *enrolEntry values, first seen at the front: the
+	// entry evicted when the map is full.
+	order *list.List
+	swept time.Time
 	now   func() time.Time
+}
+
+type enrolEntry struct {
+	key string
+	ts  []time.Time
 }
 
 const (
 	enrolTries  = 10
 	enrolWindow = 10 * time.Minute
+	// enrolMaxIPs bounds the map: past it, addresses whose tries have
+	// all aged out are swept (at most once per enrolSweepEvery, so a
+	// caller cycling addresses cannot make every request scan the
+	// map), and if it is still full the oldest address is dropped.
+	enrolMaxIPs     = 4096
+	enrolSweepEvery = time.Minute
 )
 
 func newEnrolLimiter() *enrolLimiter {
-	return &enrolLimiter{tries: map[string][]time.Time{}, now: time.Now}
+	return &enrolLimiter{tries: map[string]*list.Element{}, order: list.New(), now: time.Now}
+}
+
+// enrolKey is the limiter key for a client address: the address itself,
+// or its /64 for IPv6 (an IPv4-mapped address counts as IPv4).
+func enrolKey(ip string) string {
+	a, err := netip.ParseAddr(ip)
+	if err != nil {
+		return ip
+	}
+	a = a.Unmap()
+	if a.Is4() {
+		return a.String()
+	}
+	p, err := a.WithZone("").Prefix(64)
+	if err != nil {
+		return ip
+	}
+	return p.String()
 }
 
 func (l *enrolLimiter) allow(ip string) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	now := l.now()
-	kept := l.tries[ip][:0]
-	for _, t := range l.tries[ip] {
+	key := enrolKey(ip)
+	el, known := l.tries[key]
+	if !known && len(l.tries) >= enrolMaxIPs {
+		if now.Sub(l.swept) >= enrolSweepEvery {
+			l.swept = now
+			for e := l.order.Front(); e != nil; {
+				next := e.Next()
+				ts := e.Value.(*enrolEntry).ts
+				if len(ts) == 0 || now.Sub(ts[len(ts)-1]) >= enrolWindow {
+					delete(l.tries, e.Value.(*enrolEntry).key)
+					l.order.Remove(e)
+				}
+				e = next
+			}
+		}
+		for len(l.tries) >= enrolMaxIPs {
+			oldest := l.order.Front()
+			delete(l.tries, oldest.Value.(*enrolEntry).key)
+			l.order.Remove(oldest)
+		}
+	}
+	if !known {
+		el = l.order.PushBack(&enrolEntry{key: key})
+		l.tries[key] = el
+	}
+	e := el.Value.(*enrolEntry)
+	kept := e.ts[:0]
+	for _, t := range e.ts {
 		if now.Sub(t) < enrolWindow {
 			kept = append(kept, t)
 		}
 	}
 	if len(kept) >= enrolTries {
-		l.tries[ip] = kept
+		e.ts = kept
 		return false
 	}
-	l.tries[ip] = append(kept, now)
+	e.ts = append(kept, now)
 	return true
 }
 

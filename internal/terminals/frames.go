@@ -129,6 +129,13 @@ func ValidSize(cols, rows int) bool {
 	return cols >= MinCols && cols <= MaxCols && rows >= MinRows && rows <= MaxRows
 }
 
+// ClampSize pins cols/rows into the valid window. The browser edge
+// clamps instead of refusing: an oversized pane still gets a terminal,
+// and the web client clamps to the same 1..500 before it sends.
+func ClampSize(cols, rows int) (int, int) {
+	return min(max(cols, MinCols), MaxCols), min(max(rows, MinRows), MaxRows)
+}
+
 // Open asks the runner to create the terminal's tmux session. With
 // Agent set, the session runs that coding agent instead of a shell.
 // Dir starts it in a directory (relative paths resolve against the

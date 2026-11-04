@@ -17,6 +17,11 @@ export interface Theme {
 
 // One home set above, then the extra palettes, grouped dark then light in the dropdown.
 export const THEMES: Theme[] = [
+  { id: 'vibe', label: 'vibe ✦', scheme: 'dark', swatch: ['#0b0614', '#1a1030', '#c6ff3d'] },
+  { id: 'tron', label: 'gridrunner ◈', scheme: 'dark', swatch: ['#02060f', '#071426', '#00e5ff'] },
+  { id: 'ember', label: 'ember 2049 ▲', scheme: 'dark', swatch: ['#120a06', '#1e120b', '#ff7a1a'] },
+  { id: 'phosphor', label: 'phosphor ▮', scheme: 'dark', swatch: ['#020703', '#07130a', '#39ff6a'] },
+  { id: 'holo', label: 'holo ◎', scheme: 'light', swatch: ['#eef0fa', '#ffffff', '#5b21e6'] },
   { id: 'arc', label: 'arc', scheme: 'dark', swatch: ['#101418', '#1a212b', '#e0a63f'] },
   { id: 'slate', label: 'slate', scheme: 'dark', swatch: ['#11151c', '#1b222e', '#9fb8d4'] },
   { id: 'midnight', label: 'midnight', scheme: 'dark', swatch: ['#0a0f24', '#131a34', '#92b4fb'] },
@@ -34,6 +39,10 @@ export const THEMES: Theme[] = [
   { id: 'flexoki-light', label: 'flexoki light', scheme: 'light', swatch: ['#fffcf0', '#f2f0e5', '#1d6f68'] },
   { id: 'solarized-light', label: 'solarized light', scheme: 'light', swatch: ['#fdf6e3', '#eee8d5', '#1f6aa6'] },
 ];
+
+// The five showcase themes, listed first in the picker so the demo set
+// (holo, the light one, included) sits at the top of the list.
+export const FEATURED_THEMES: readonly string[] = ['vibe', 'tron', 'ember', 'phosphor', 'holo'];
 
 const FALLBACK = THEMES[0];
 
@@ -57,6 +66,9 @@ export function applyTheme(id: string): void {
   // other theme is explicit, so the media query stops governing it
   // (the CSS keys off the attribute too).
   root.style.colorScheme = theme.scheme;
+  // The scheme as an attribute too: light-scheme CSS (tokens.css)
+  // repoints the dark-tuned status utilities at AA tokens.
+  root.setAttribute('data-scheme', theme.scheme);
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) {
     meta.setAttribute('content', theme.swatch[0]);

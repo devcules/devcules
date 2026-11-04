@@ -75,7 +75,15 @@ type stdioSession struct {
 	cancel context.CancelFunc
 	mu     sync.Mutex
 	nextID int
+	// closeOnce makes Close idempotent: after the first Close has reaped
+	// bash, its pid (and so the group id) may be reused, and a second
+	// kill(-pid) could hit an unrelated process group.
+	closeOnce sync.Once
 }
+
+// stdioWaitDelay bounds how long Close waits for the killed server's
+// pipes to close.
+const stdioWaitDelay = 2 * time.Second
 
 func dialStdio(ctx context.Context, command string, args []string, timeout time.Duration) (*stdioSession, error) {
 	cctx, cancel := context.WithTimeout(ctx, timeout)
@@ -90,6 +98,12 @@ func dialStdio(ctx context.Context, command string, args []string, timeout time.
 	// Deliberately NOT inheriting Devcules' own environment (which may hold
 	// its own secrets) -- just HOME, so bash finds the right rc files.
 	cmd.Env = []string{"HOME=" + os.Getenv("HOME"), "TERM=dumb"}
+	// bash does not pass a kill on to the server it started, so the
+	// whole group goes: on the timeout (Cancel) and in Close. WaitDelay
+	// stops Wait hanging on a pipe a stray grandchild still holds.
+	ownGroup(cmd)
+	cmd.Cancel = func() error { return killGroup(cmd) }
+	cmd.WaitDelay = stdioWaitDelay
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -161,13 +175,18 @@ func (s *stdioSession) notify(ctx context.Context, method string, params any) er
 }
 
 func (s *stdioSession) Close() error {
-	if s.cmd != nil && s.cmd.Process != nil {
-		_ = s.cmd.Process.Kill()
-		_ = s.cmd.Wait()
-	}
-	if s.cancel != nil {
-		s.cancel()
-	}
+	s.closeOnce.Do(func() {
+		// exec watches the context from Start's goroutine; ProcessState can
+		// already be set before Close is called. Wait is still required to
+		// reap that child; closeOnce prevents a second group kill later.
+		if s.cmd != nil && s.cmd.Process != nil {
+			_ = killGroup(s.cmd)
+			_ = s.cmd.Wait()
+		}
+		if s.cancel != nil {
+			s.cancel()
+		}
+	})
 	return nil
 }
 

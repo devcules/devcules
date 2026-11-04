@@ -701,3 +701,43 @@ func TestReplacedRunnerStops(t *testing.T) {
 		t.Fatalf("younger relinked (%d -> %d attempts): the pair is flapping", before, younger.Attempts())
 	}
 }
+
+// TestOnDownRunsBeforeRedial proves the down hook fires once per
+// ended link, after Send stops working and before the next welcome:
+// state tied to the dead link is gone before any new-link request.
+func TestOnDownRunsBeforeRedial(t *testing.T) {
+	t.Parallel()
+	h := testHub()
+	s := linktest.Serve(t, h.Handler())
+	c := dial.New("ws://pipe/link", "r1", "test", testToken, testOptions(discardLogger(), s.Client()))
+	type seen struct {
+		linked  bool
+		session string
+	}
+	downs := make(chan seen, 4)
+	c.OnDown(func() { downs <- seen{c.Linked(), c.Session()} })
+	stop := runClient(t, c)
+	defer stop()
+
+	pollLinked(t, c, true)
+	first := c.Session()
+	h2 := testHub()
+	s.Restart(h2.Handler())
+	select {
+	case d := <-downs:
+		if d.linked || d.session != "" {
+			t.Fatalf("down hook saw linked=%v session=%q, want a fully dropped link", d.linked, d.session)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("down hook never ran after the link dropped")
+	}
+	pollLinked(t, c, true)
+	if c.Session() == first {
+		t.Fatal("no fresh session after restart")
+	}
+	select {
+	case <-downs:
+		t.Fatal("down hook ran again without a second drop")
+	default:
+	}
+}

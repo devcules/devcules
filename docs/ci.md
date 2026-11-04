@@ -31,6 +31,15 @@ and `vitest run` (with a 70% coverage threshold) in `lint`/`unit`,
 `npm audit --omit=dev` plus a `license-checker` production allowlist
 in `security`.
 
+The web allowlist is `npm --prefix web run licences`: MIT, BSD-2-Clause,
+BSD-3-Clause, ISC, Apache-2.0 and, since 2026-11-04, OFL-1.1. OFL-1.1
+is there for font data only (the six `@fontsource` fonts the vibe
+themes bundle); a code dependency under it would still be refused in
+review (`CONTRIBUTING.md`). The fonts' licence texts live in
+`LICENSES/OFL-1.1/` and ship in the build as `/licenses/OFL-1.1.txt`
+(`THIRD_PARTY_NOTICES.md`). The Go `go-licenses` allow-list is
+unchanged (MIT, BSD, ISC and Apache-2.0 only).
+
 Since M0.5 the integration job really runs: `docker compose up -d
 --wait` followed by `scripts/smoke.sh` (health endpoints, non-root
 user, read-only rootfs, loopback-only port, SIGTERM drain), then

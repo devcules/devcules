@@ -1,0 +1,107 @@
+# V5 merge review
+
+## Review outcome
+
+**Review branch, not yet recommended for an unqualified merge to main.**
+Current `main` is the base; its newer README site, Pages workflow and
+sidebar-width work are retained. The 2026-11-04 archive was based on
+`6ba67eb`, so it was compared against the complete repository, not
+copied over the latest checkout.
+
+Useful tested changes include bounded sign-in throttling, safer registry
+process cleanup and audit redaction, slow-HTTP responses, terminal
+heartbeat and control-message ordering, local Desk widgets, and theme
+and shell improvements. New regression tests account for much of the
+large diff.
+
+Review correction: always reap a killed MCP child even if `exec` has
+already reaped or marked it after a cancellation; Close itself stays
+idempotent and kills its process group once.
+
+## Verification
+
+- `go test ./...` and `go vet ./...`: passed.
+- Frontend unit tests: 46 files, 734 tests passed.
+- Frontend lint, TypeScript and production build: passed. One existing
+  `TerminalView.tsx` hook-dependency warning remains.
+- Not run: Playwright browser/e2e tests and real passkey/browser testing.
+
+## Merge considerations
+
+- Some candidate tests target a different version of interfaces than
+  `main`; ensure Git preserves all their matching package changes when
+  reviewing/picking this change.
+- Repeated/full-race terminal runs failed on both baseline `main` and the
+  candidate (runner timeouts and closed streams), so no candidate-specific
+  cause was established. Follow this up separately before relying on a
+  fully green race gate.
+- MCP shutdown is best-effort: a stuck child has a two-second wait
+  ceiling before the caller cancels its context.
+- An earlier sandboxed frontend run leaked fake timers between toast and
+  App tests; the final run passed after correcting the sandbox dependency
+  isolation. No production behavior was changed for this issue.
+
+## Supplied follow-ups
+
+Open items left by the 2026-11-04 bug bounty on the `vibe-glowup`
+branch. These are known gaps, not closed by this review. IDs refer to
+the findings in `CHANGELOG.md`.
+
+## Deferred findings
+
+| ID | Sev | What | Why it waits |
+|---|---|---|---|
+| GOSEC-17 | P2 | MCP install secret handling: hardening deferred. | Deferred to a later release. |
+| GORT-11 | P2 | Attach and detach can race on the runner's async handlers and leave orphan tmux attach clients. | Medium confidence, from reading the code. The fix needs runner-side tombstones or serialisation in the pty manager; the risk of a new terminal regression outweighed it. |
+| GORT-12 | P2 | A runner input-queue overflow (more than 256 queued input frames) ends the attach with `term.exit`, so the browser shows "gone" instead of reattaching. | Rare trigger. A proper fix adds an exit reason to `term.exit` across runner, relay and web. |
+| GORT-10 (part) | – | Non-numeric `cols`/`rows` in the stream URL close with 4404 ("unknown terminal") rather than a distinct bad-request code (4400). The size clamp itself shipped. | Waits with GORT-12's protocol change. |
+| MOB-12 | P2 | No way to scroll back through terminal output on a phone. | Feature work (touch scrollback through tmux copy-mode) that needs a UX design, not a regression. |
+| BUILD-07 | P3 | `web/package-lock.json` churn: `libc` constraints stripped from 20+ optional native packages. | Regenerating with npm@11 needs the network and risks unrelated churn; no runtime impact found. |
+
+BUILD-08 (an unrelated `go.mod` tidy inside a web commit) was rejected:
+the tidy is correct, and splitting it would rewrite merged history.
+
+## Follow-ups noted during review
+
+Web:
+
+- The theme picker stays open when focus leaves it with Tab (Escape and
+  an outside click close it).
+- Arc under an OS light scheme renders its light palette, but
+  `applyTheme()` still sets `color-scheme: dark` and
+  `data-scheme="dark"` for it, so native controls and scrollbars stay
+  dark.
+- Activity (and the Desk's agent feed) has no friendly labels for the
+  newer audit actions: `calendar.*`, `registry.*` and `machine.input`
+  show as raw action names.
+- The comment above the `html` font stack in `web/src/main.css` still
+  says the system font stack keeps the app offline-capable; the vibe
+  themes now use bundled fonts (still local files, no CDN). Comment
+  only.
+- The old five-key phone strip component is no longer used: the
+  `TermKeyboard` strip replaced it, and only its own test imports it.
+  It can be deleted. The architecture diagram
+  (`docs/diagrams/devcules-architecture.drawio`) still shows the old
+  strip.
+- UI polish lists from the bounty (not findings): emoji that render as
+  tofu on some systems, terminal names in pane headers, and xterm
+  colours that follow the theme.
+
+Server:
+
+- When a launch token is scoped to no provider (self-auth agents, see
+  GOSEC-15), the router's 403 names the provider as `"-"`; it should
+  say the launch has no provider access.
+- Per-IP limits (sign-in, enrol, passkeys) see the proxy's address when
+  serve runs behind Docker's port mapping or Tailscale serve. A
+  trusted-proxy setting would let them use the client's address.
+- Recurring timed plans are exported to ICS with `DTSTART` in UTC and
+  the rule as stored, with no `TZID`/`VTIMEZONE`. A subscribing
+  calendar expands the rule in UTC, so instances drift by an hour
+  across DST, and a `BYDAY` rule near midnight can land on the wrong
+  day (Monday 00:30 Amsterdam exports as Sunday 23:30Z with
+  `BYDAY=MO`). An all-day rule's `UNTIL` is exported as a DATE-TIME
+  beside a DATE `DTSTART`. All of this predates the bounty; the fix is
+  `DTSTART;TZID=` plus a `VTIMEZONE` block. (Noted while reviewing B8,
+  which was not merged when this was written; recheck after it lands.)
+- Further network hardening of outbound fetches is planned.

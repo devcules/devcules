@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addWidget, COLS, defaultPrefs, DESK_VERSION, generateLayouts, newWidgetId, normalizePrefs,
-  removeWidget, setLayouts, toDocument, updateWidget,
+  removeWidget, sameLayout, setLayouts, toDocument, updateWidget,
 } from './deskPrefs';
 
 describe('deskPrefs', () => {
@@ -23,7 +23,8 @@ describe('deskPrefs', () => {
 
   it('normalizePrefs drops unknown widget types but keeps known ones', () => {
     const p = normalizePrefs({ version: 2, widgets: [{ id: 'a', type: 'now' }, { id: 'b', type: 'nonsense' }], layouts: {}, seen: {} });
-    expect(p.widgets.map((w) => w.type)).toEqual(['now']);
+    // A pre-v4 desk also gains the showcase tiles up top (Pulse after the feed, v5).
+    expect(p.widgets.map((w) => w.type)).toEqual(['vibe', 'ship', 'feed', 'pulse', 'now']);
   });
 
   it('keeps a current-version saved layout and backfills the missing breakpoints', () => {
@@ -48,7 +49,8 @@ describe('deskPrefs', () => {
     // calendar takes the whole width (the saved order, not the default
     // one, decides whether it leads).
     expect(doc.layouts.lg.find((l) => l.i === 'b')).toMatchObject({ x: 0, w: COLS.lg });
-    expect(doc.layouts.lg.find((l) => l.i === 'a')).toMatchObject({ x: 0, y: 0 });
+    expect(doc.widgets[0].type).toBe('vibe');
+    expect(doc.layouts.lg.find((l) => l.i === 'w-vibe')).toMatchObject({ x: 0, y: 0 });
     // And the re-pack is written back, so the next read is stable.
     expect(toDocument(doc).version).toBe(DESK_VERSION);
   });
@@ -161,12 +163,12 @@ describe('deskPrefs', () => {
     }
   });
 
-  it('the calendar leads the default desk at full width, tall enough for a month', () => {
+  it('the showcase leads, then the calendar at full width, tall enough for a month', () => {
     const p = defaultPrefs();
-    expect(p.widgets[0].type).toBe('calendar');
-    const lg = p.layouts.lg.find((l) => l.i === p.widgets[0].id);
+    expect(p.widgets[0].type).toBe('vibe');
+    const cal = p.widgets.find((w) => w.type === 'calendar')!;
+    const lg = p.layouts.lg.find((l) => l.i === cal.id);
     expect(lg?.x).toBe(0);
-    expect(lg?.y).toBe(0);
     expect(lg?.w).toBe(COLS.lg);
     // Six week rows plus the toolbar need the height.
     expect(lg!.h).toBeGreaterThanOrEqual(14);
@@ -174,5 +176,89 @@ describe('deskPrefs', () => {
 
   it('newWidgetId is unique per call', () => {
     expect(newWidgetId('scratch')).not.toBe(newWidgetId('scratch'));
+  });
+
+  // DESK-07: the caller can name the new widget, so it can open its sheet.
+  it('addWidget uses the id it is given', () => {
+    const p = addWidget(defaultPrefs(), 'custom', { query: '' }, undefined, 'w-custom-x');
+    expect(p.widgets.at(-1)).toMatchObject({ id: 'w-custom-x', type: 'custom' });
+    expect(p.layouts.lg.some((l) => l.i === 'w-custom-x')).toBe(true);
+    // The same id twice is refused rather than duplicated.
+    expect(addWidget(p, 'custom', {}, undefined, 'w-custom-x')).toBe(p);
+  });
+
+  // DESK-05: the grid lists the same layout in another order on a
+  // breakpoint echo; that is not a change.
+  it('sameLayout compares by widget id, not by array index', () => {
+    const a = [{ i: 'a', x: 0, y: 0, w: 4, h: 5 }, { i: 'b', x: 4, y: 0, w: 4, h: 5 }];
+    const b = [{ i: 'b', x: 4, y: 0, w: 4, h: 5, minW: 2 }, { i: 'a', x: 0, y: 0, w: 4, h: 5 }];
+    expect(sameLayout(a, b)).toBe(true);
+    expect(sameLayout(a, [{ ...b[0], x: 5 }, b[1]])).toBe(false);
+    expect(sameLayout(a, [b[0], { ...b[0] }])).toBe(false);
+    expect(sameLayout(a, undefined)).toBe(false);
+  });
+
+  it('normalizePrefs sends a saved null y (an unplaced Infinity) to the bottom', () => {
+    const doc = normalizePrefs({ version: DESK_VERSION, widgets: [{ id: 'a', type: 'now' }], layouts: { lg: [{ i: 'a', x: 0, y: null, w: 4, h: 5 }] }, seen: {} });
+    expect(doc.layouts.lg[0].y).toBe(Infinity);
+  });
+
+  // B19: the server stamped every saved desk version 2, so a desk a v4
+  // page arranged came back "v2" and was re-packed on every reload.
+  describe('stored version (B19)', () => {
+    const lg = (doc: ReturnType<typeof normalizePrefs>, id: string) => doc.layouts.lg.find((l) => l.i === id);
+    const arranged = (version: number, extra: Array<{ id: string; type: string }> = []) => ({
+      version,
+      widgets: [{ id: 'w-vibe', type: 'vibe' }, { id: 'w-ship', type: 'ship' }, { id: 'w-feed', type: 'feed' }, { id: 'w-now', type: 'now' }, ...extra],
+      // The owner dragged the vibe tile to the bottom.
+      layouts: { lg: [{ i: 'w-vibe', x: 0, y: 40, w: 8, h: 9 }, { i: 'w-ship', x: 0, y: 0, w: 4, h: 8 }, { i: 'w-feed', x: 4, y: 0, w: 4, h: 10 }, { i: 'w-now', x: 8, y: 0, w: 4, h: 5 }, ...extra.map((e, n) => ({ i: e.id, x: 0, y: 20 + n, w: 4, h: 7 }))] },
+      seen: {},
+    });
+
+    it('a v2-stamped desk a v4 page wrote keeps its arrangement', () => {
+      const doc = normalizePrefs(arranged(2, [{ id: 'w-pulse', type: 'pulse' }]));
+      expect(lg(doc, 'w-vibe')).toMatchObject({ x: 0, y: 40, w: 8 });
+      expect(lg(doc, 'w-now')).toMatchObject({ x: 8, y: 0 });
+      expect(doc.widgets.filter((w) => w.type === 'pulse')).toHaveLength(1);
+    });
+
+    it('a v2 desk with no showcase tile is still a legacy desk and is re-packed', () => {
+      const doc = normalizePrefs({ version: 2, widgets: [{ id: 'a', type: 'now' }], layouts: { lg: [{ i: 'a', x: 5, y: 30, w: 4, h: 5 }] }, seen: {} });
+      expect(doc.widgets[0].type).toBe('vibe');
+      expect(lg(doc, 'a')).not.toMatchObject({ x: 5, y: 30 });
+    });
+
+    it('the document the page writes reads back unchanged', () => {
+      const once = normalizePrefs(arranged(DESK_VERSION, [{ id: 'w-pulse', type: 'pulse' }]));
+      const twice = normalizePrefs(JSON.parse(JSON.stringify(toDocument(once))));
+      expect(sameLayout(twice.layouts.lg, once.layouts.lg)).toBe(true);
+      expect(lg(twice, 'w-vibe')).toMatchObject({ y: 40 });
+      expect(twice.widgets.map((w) => w.id)).toEqual(once.widgets.map((w) => w.id));
+    });
+
+    it('a v4 desk gains Pulse once, after the feed, at the bottom, keeping its layout', () => {
+      const doc = normalizePrefs(arranged(4));
+      expect(doc.widgets.map((w) => w.type)).toEqual(['vibe', 'ship', 'feed', 'pulse', 'now']);
+      expect(lg(doc, 'w-vibe')).toMatchObject({ y: 40 });
+      const pulse = lg(doc, 'w-pulse')!;
+      expect(pulse.y).toBe(Infinity);
+      for (const bp of Object.keys(COLS)) expect(doc.layouts[bp].filter((l) => l.i === 'w-pulse')).toHaveLength(1);
+      // Normalising the saved result again adds nothing.
+      const again = normalizePrefs(JSON.parse(JSON.stringify(toDocument(doc))));
+      expect(again.widgets.filter((w) => w.type === 'pulse')).toHaveLength(1);
+    });
+
+    it('never duplicates an existing Pulse, and a v5 desk that removed it stays without', () => {
+      const kept = normalizePrefs(arranged(4, [{ id: 'w-pulse-x', type: 'pulse' }]));
+      expect(kept.widgets.filter((w) => w.type === 'pulse').map((w) => w.id)).toEqual(['w-pulse-x']);
+      const removed = normalizePrefs(arranged(DESK_VERSION));
+      expect(removed.widgets.some((w) => w.type === 'pulse')).toBe(false);
+    });
+
+    it('a stray w-pulse id of another type does not collide with the added Pulse', () => {
+      const doc = normalizePrefs({ ...arranged(4), widgets: [...arranged(4).widgets, { id: 'w-pulse', type: 'timer' }] });
+      expect(new Set(doc.widgets.map((w) => w.id)).size).toBe(doc.widgets.length);
+      expect(doc.widgets.filter((w) => w.type === 'pulse')).toHaveLength(1);
+    });
   });
 });

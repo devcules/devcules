@@ -1,4 +1,6 @@
 @import "./theme/tokens.css";
+@import "./theme/vibe.css";
+@import "./theme/future.css";
 
 @layer components {
   /* Interactive rows (project, terminal, machine): a quiet surface
@@ -95,8 +97,30 @@ body.devcules-mobile {
    page pan under a focused pane loses the selection. Scoped to the pane
    instead of the whole document so the desk and the other screens stay
    scrollable. */
-body.devcules-mobile .d-term-pane {
+body.devcules-mobile .d-term-host {
   touch-action: none;
+}
+/* Only the xterm canvas is locked. The pane used to carry touch-action:
+   none, and because touch-action intersects down the tree it also
+   killed the key strip's pan-x: the row could not scroll natively and
+   juddered. The strip row now pans with momentum. */
+.mk-scroll {
+  overscroll-behavior-x: contain;
+  scroll-behavior: auto;
+  will-change: scroll-position;
+}
+.mk-key {
+  touch-action: pan-x;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.mk-key:active {
+  transform: scale(0.94);
+}
+.mk-enter {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
 }
 /* The desk's grid is the one long, vertical region on mobile: it owns
    its pan, and contain stops a flick at its edge from chain-scrolling
@@ -182,6 +206,25 @@ system font stack keeps the app offline-capable and tracking-free. */
 .react-grid-item > .react-resizable-handle::after {
   border-color: var(--c-accent);
 }
+/* react-resizable draws its corner as a data: SVG background, which the
+   CSP (default-src 'self', no img-src) blocks, and RGL hides the handle
+   until hover. The handle only exists in arrange mode, so draw the
+   corner in CSS (no image) and keep it visible there. */
+.react-grid-layout .react-grid-item > .react-resizable-handle {
+  background-image: none;
+  opacity: 1;
+}
+.react-grid-layout .react-grid-item > .react-resizable-handle::after {
+  right: 4px;
+  bottom: 4px;
+  width: 9px;
+  height: 9px;
+  border-right-width: 2px;
+  border-bottom-width: 2px;
+  border-right-style: solid;
+  border-bottom-style: solid;
+  border-color: var(--c-accent);
+}
 .d-led {
   width: 8px;
   height: 8px;
@@ -240,7 +283,10 @@ system font stack keeps the app offline-capable and tracking-free. */
    the tokens, and the now-indicator is the accent so today reads live. */
 .d-calendar .fc-timegrid-slot {
   height: 2.2em;
-  border-color: var(--c-muted);
+  /* The grid's own border token, so a theme that softens its lines
+     (--fc-border-color) softens the hour rows with them. Themes that
+     set none inherit --c-muted from .d-calendar above, as before. */
+  border-color: var(--fc-border-color);
 }
 .d-calendar .fc-timegrid-slot-label {
   color: var(--c-muted);
@@ -299,4 +345,18 @@ system font stack keeps the app offline-capable and tracking-free. */
   .d-calendar .fc-timegrid-slot {
     height: 2.6em;
   }
+}
+
+/* Phone terminal fullscreen: the pane's own header row slims down so
+   the code gets the rows; the strip above it is the only chrome. */
+body.devcules-mobile .v-shell-fs .d-term-head {
+  min-height: 2.25rem;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+body.devcules-mobile .v-shell-fs .d-term-head button {
+  min-height: 2.25rem;
+}
+body.devcules-mobile .v-shell-fs main {
+  padding: 0;
 }

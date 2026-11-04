@@ -141,3 +141,16 @@ func TestMintOnRunner(t *testing.T) {
 		}
 	}
 }
+
+// TestNoProviderAllowsNone: a self-login launch's token (NoProvider)
+// may call no provider at all, unlike "" which allows every provider.
+func TestNoProviderAllowsNone(t *testing.T) {
+	for _, p := range []string{"meta", "openai", "anthropic", "", NoProvider} {
+		if (Launch{Provider: NoProvider}).Allows(p) {
+			t.Errorf("NoProvider token allows %q", p)
+		}
+	}
+	if !(Launch{}).Allows("meta") || !(Launch{Provider: "meta"}).Allows("meta") || (Launch{Provider: "meta"}).Allows("openai") {
+		t.Fatal(`"" must still allow every provider, and a named one only itself`)
+	}
+}

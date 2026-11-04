@@ -242,7 +242,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("/api/machines-budget", requireSession(o.Auth, machinesBudget(o.Machines)))
 	mux.Handle("/api/machines-screen", requireSession(o.Auth, machinesScreen(o.Machines)))
 	mux.Handle("/api/machines-tree", requireSession(o.Auth, machinesTree(o.Machines)))
-	mux.Handle("/api/machines-input", requireSession(o.Auth, machinesInput(o.Machines, o.PublicURL)))
+	mux.Handle("/api/machines-input", requireSession(o.Auth, machinesInput(o.Machines, o.PublicURL, rec)))
 	mux.Handle("/api/machines-ground", requireSession(o.Auth, machinesGround(o.Machines, o.PublicURL)))
 	mux.Handle("/api/machines-verify", requireSession(o.Auth, machinesVerify(o.Machines, o.PublicURL)))
 	// The status bar: processor, memory and the checked-out branch
@@ -271,7 +271,7 @@ func Handler(o Options) http.Handler {
 	// against the local coding agents (Claude Code, Codex); fleet routes
 	// read the on-disk truth. Session-guarded like the desk/settings
 	// surface — the operator managing their own machine's agents.
-	registerRegistry(mux, o.Auth, newRegistryBag(o.ClaudeBin, o.CodexBin))
+	registerRegistry(mux, o.Auth, newRegistryBag(o.ClaudeBin, o.CodexBin), o.PublicURL, rec)
 	// Secrets: name-only management of the vault (never reads a value
 	// back). The frontend's Secrets screen drives these.
 	mux.Handle("/api/secrets", csrf(o.PublicURL, requireSession(o.Auth, secretsListPut(o.Vault, rec))))
@@ -406,7 +406,11 @@ func signIn(svc *auth.Service, rec auditor) http.HandlerFunc {
 		value, err := svc.SignIn(r.Context(), username, r.PostFormValue("password"), clientIP(r))
 		switch {
 		case errors.Is(err, auth.ErrTooManyAttempts):
-			rec.signInFailed(r, "password", "throttled")
+			// One row per IP per window: a throttled client must not
+			// be able to grow the audit log for free.
+			if !errors.Is(err, auth.ErrThrottledAgain) {
+				rec.signInFailed(r, "password", "throttled")
+			}
 			w.Header().Set("Retry-After", "60")
 			writeAuthError(w, http.StatusTooManyRequests, "too many sign-in attempts, try again later")
 		case errors.Is(err, auth.ErrInvalidCredentials):

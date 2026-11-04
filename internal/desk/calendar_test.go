@@ -116,7 +116,9 @@ func TestExpandPlansSkipsBrokenRules(t *testing.T) {
 		{ID: "b", Title: "bad rule", Start: day, End: day.Add(time.Hour), RRule: "FREQ=SOMETIMES"},
 		{ID: "c", Title: "before", Start: day.Add(-48 * time.Hour), End: day.Add(-47 * time.Hour)},
 	}, from, to)
-	if len(out) != 0 {
+	// A rule that fails the plan checks (stored before them) shows the
+	// plan once, not as a series, so it can still be opened and fixed.
+	if len(out) != 1 || out[0].ID != "b" || out[0].Occurrence || !out[0].Start.Equal(day) {
 		t.Fatalf("expanded = %+v", out)
 	}
 }

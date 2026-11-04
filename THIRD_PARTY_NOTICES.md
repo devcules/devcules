@@ -1,7 +1,9 @@
 # Third-party notices
 
-Devcules uses only permissive-licence dependencies (MIT, BSD, ISC or
-Apache-2.0) from the official registries. Every runtime dependency is
+Devcules uses only permissive-licence code dependencies (MIT, BSD, ISC
+or Apache-2.0) from the official registries. The one exception is font
+data: the web app bundles six fonts under the SIL Open Font License 1.1
+(OFL-1.1), listed under "Fonts" below. Every runtime dependency is
 listed here with its licence.
 
 ## Runtime dependencies
@@ -86,9 +88,58 @@ M1.4 adds the terminal renderer below, both MIT
 | `@xterm/xterm` 6.0.0 | MIT |
 | `@xterm/addon-fit` 0.11.0 | MIT |
 
-System fonts only: no remote fonts, CDNs or analytics. Dev-only
-tooling (Vite, Vitest, Playwright, ESLint and friends) ships in no
-image.
+The Desk (calendar tile, arranged grid) and their transitive production
+dependencies are below, all MIT. They were not listed here before
+2026-11-04; `npm --prefix web run licences` (`license-checker
+--production`) reproduces the full list:
+
+| Package | Licence |
+|---|---|
+| `@fullcalendar/core` 6.1.22 | MIT |
+| `@fullcalendar/daygrid` 6.1.22 | MIT |
+| `@fullcalendar/interaction` 6.1.22 | MIT |
+| `@fullcalendar/list` 6.1.22 | MIT |
+| `@fullcalendar/react` 6.1.22 | MIT |
+| `@fullcalendar/timegrid` 6.1.22 | MIT |
+| `preact` 10.12.1 | MIT |
+| `react-grid-layout` 2.3.0 | MIT |
+| `react-draggable` 4.7.2 | MIT |
+| `react-resizable` 3.2.0 | MIT |
+| `clsx` 2.1.1 | MIT |
+| `fast-equals` 4.0.3 | MIT |
+| `prop-types` 15.8.1 | MIT |
+| `object-assign` 4.1.1 | MIT |
+| `react-is` 16.13.1 | MIT |
+| `resize-observer-polyfill` 1.5.1 | MIT |
+
+### Fonts (vibe-glowup, 2026-11-04)
+
+The web app bundles the font files of the six `@fontsource` packages
+below (imported in `web/src/main.tsx`; Vite emits the woff2 files into
+the build, which is embedded in the binary). Each font is licensed
+under the SIL Open Font License, Version 1.1, and ships unmodified.
+`npm --prefix web run licences` allows `OFL-1.1` for exactly this
+reason.
+
+| Package | Version | Font licence | Copyright |
+|---|---|---|---|
+| `@fontsource-variable/space-grotesk` | 5.3.0 | OFL-1.1 | Copyright 2020 The Space Grotesk Project Authors (https://github.com/floriankarsten/space-grotesk) |
+| `@fontsource-variable/unbounded` | 5.3.0 | OFL-1.1 | Copyright 2022 The Unbounded Project Authors (https://github.com/googlefonts/unbounded) |
+| `@fontsource-variable/jetbrains-mono` | 5.3.0 | OFL-1.1 | Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono) |
+| `@fontsource-variable/orbitron` | 5.3.0 | OFL-1.1 | Copyright 2018 The Orbitron Project Authors (https://github.com/theleagueof/orbitron) |
+| `@fontsource/chakra-petch` | 5.3.0 | OFL-1.1 | Copyright 2018 The Chakra Petch Project Authors (https://github.com/m4rc1e/Chakra-Petch.git) |
+| `@fontsource/vt323` | 5.3.0 | OFL-1.1 | Copyright 2011, The VT323 Project Authors |
+
+The full licence text of each package (verbatim from its `LICENSE`
+file) is in `LICENSES/OFL-1.1/<font>.txt`. The same texts, combined,
+ship with the app as `web/public/licenses/OFL-1.1.txt`: Vite copies
+`web/public/` into the build, so the binary serves it at
+`/licenses/OFL-1.1.txt`.
+
+The fonts are files in the build, not remote fonts: there are no font
+CDNs, no remote requests and no analytics, and the CSP's `font-src
+'self' data:` is unchanged. Dev-only tooling (Vite, Vitest, Playwright,
+ESLint and friends) ships in no image.
 
 ## Container image contents
 
@@ -101,6 +152,9 @@ archives. Agent CLIs are never baked in.
 ## Standing rules (PLAN.md §1)
 
 - Never add a GPL, AGPL or SSPL dependency.
+- Code dependencies are MIT, BSD, ISC or Apache-2.0 only. Font data may
+  also be OFL-1.1 (the six fonts above), with its licence text shipped
+  alongside.
 - The Gitleaks detection rule data (MIT) is the one exception allowed to
   be converted into `internal/redact/rules/gitleaks.json` (module M2.2);
   its notice is below.

@@ -35,10 +35,12 @@ type Assistant interface {
 	// "hermes", "openclaw".
 	ID() string
 	// Chat appends in to the conversation sess ("" starts one) and
-	// returns the events the reply produced. It returns when the turn
-	// is fully played out, including any tool calls and their
-	// approvals; the caller shows the events in order.
-	Chat(ctx context.Context, sess string, in string) ([]Event, error)
+	// returns the conversation's id (the newly minted one for "") and
+	// the events the reply produced. It returns when the turn is fully
+	// played out, including any tool calls and their approvals; the
+	// caller shows the events in order. The id comes back to this
+	// caller only, so concurrent fresh chats never see each other's.
+	Chat(ctx context.Context, sess string, in string) (string, []Event, error)
 	// Session returns the conversation, or store.ErrNotFound.
 	Session(sess string) (Session, error)
 }

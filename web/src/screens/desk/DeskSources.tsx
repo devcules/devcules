@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import { getSources, putSources, type Sources } from '../../lib/deskApi';
 import { toast } from '../../lib/toast';
+import Modal from '../../shell/Modal';
 
 export default function DeskSources({ onClose, onSaved, onUnauthorized }: { onClose: () => void; onSaved: () => void; onUnauthorized?: () => void }) {
   const [cur, setCur] = useState<Sources | null>(null);
@@ -137,19 +138,20 @@ export default function DeskSources({ onClose, onSaved, onUnauthorized }: { onCl
   );
 }
 
+// The drawer is a Modal (aria-modal, Escape, focus in, Tab trap, focus
+// back on close), so the global shortcuts yield to it like any dialog.
 function Drawer({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-40 flex justify-end bg-black/40" role="dialog" aria-label="Desk sources" onClick={onClose}>
+    <Modal label="Desk sources" onClose={onClose} className="fixed inset-0 z-40 flex justify-end bg-black/40">
       {/* Full-bleed on a phone: the sheet reaches the notch and the home
           indicator, so its content carries the insets rather than being
           clipped under them. */}
       <div
         className="h-full w-full max-w-md overflow-y-auto overscroll-contain border-l border-muted bg-surface"
         style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
-        onClick={(e) => e.stopPropagation()}
       >
         {children}
       </div>
-    </div>
+    </Modal>
   );
 }

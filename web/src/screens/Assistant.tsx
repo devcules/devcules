@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   closeTerminal,
   listAgents,
@@ -45,6 +45,13 @@ export default function Assistant({
   const [busy, setBusy] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The last poll failed. The list keeps its last good value so an
+  // open pane (and its fullscreen, keyboard and screen) survives one
+  // network blip; only the alert says the server went quiet.
+  const [pollFailed, setPollFailed] = useState(false);
+  // Which runner the held list came from: a failed poll after a runner
+  // switch must not keep showing the other runner's terminals.
+  const listedOn = useRef('');
   // Which runner this screen's terminals live on. Empty while unknown;
   // with two runners linked an untargeted call is a 400, so this must
   // be resolved before anything is listed or opened.
@@ -75,9 +82,12 @@ export default function Assistant({
         return;
       }
       if (typeof res === 'string') {
-        setTerms('unreachable');
+        setPollFailed(true);
+        setTerms((prev) => (Array.isArray(prev) && listedOn.current === chosen ? prev : 'unreachable'));
         return;
       }
+      setPollFailed(false);
+      listedOn.current = chosen;
       // Project terminals belong to a project; they are not
       // assistants and must not appear here (a ✕ on the strip then
       // can't kill a project's shell by mistake).
@@ -245,7 +255,7 @@ export default function Assistant({
           No runner is linked. Start the runner and this screen fills in.
         </p>
       )}
-      {terms === 'unreachable' && chosen !== '' && (
+      {(terms === 'unreachable' || pollFailed) && chosen !== '' && (
         <p role="alert" className="text-body text-text">
           Couldn't reach the server. Try again.
         </p>

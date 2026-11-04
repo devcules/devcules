@@ -1,7 +1,10 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import DeskSources from './DeskSources';
+import CommandPalette from '../../shell/CommandPalette';
+import { isPresenting, setPresenting } from '../../shell/present';
 
 type Seen = { method: string; body: string };
 
@@ -20,6 +23,7 @@ function serve(get: { status: number; body?: unknown }, put = 204): Seen[] {
 }
 
 afterEach(() => {
+  if (isPresenting()) act(() => setPresenting(false));
   vi.restoreAllMocks();
 });
 
@@ -114,5 +118,39 @@ describe('DeskSources', () => {
     render(<DeskSources onClose={vi.fn()} onSaved={vi.fn()} onUnauthorized={expired} />);
     await user.click(await screen.findByRole('button', { name: 'save sources' }));
     await waitFor(() => expect(expired).toHaveBeenCalled());
+  });
+
+  it('is a modal: global shortcuts yield to it and Esc closes only the drawer', async () => {
+    const user = userEvent.setup();
+    serve({ status: 200, body: stored });
+    const home = vi.fn();
+    const nav = [{ id: 'desk', label: 'Desk', key: 'd', go: vi.fn() }, { id: 'home', label: 'Home', key: 'h', go: home }];
+    function Host() {
+      const [open, setOpen] = useState(true);
+      return (
+        <>
+          <CommandPalette nav={nav} />
+          {open && <DeskSources onClose={() => setOpen(false)} onSaved={vi.fn()} />}
+        </>
+      );
+    }
+    render(<Host />);
+    const drawer = screen.getByRole('dialog', { name: 'Desk sources' });
+    expect(drawer.getAttribute('aria-modal')).toBe('true');
+    await screen.findByDisplayValue('Berlin');
+    // Focus is in the drawer (on the drawer itself while it loaded), not
+    // in a field, so only the modal bail can stop the keys.
+    expect(drawer.contains(document.activeElement)).toBe(true);
+    await user.keyboard('?');
+    expect(screen.queryByRole('dialog', { name: 'Keyboard shortcuts' })).toBeNull();
+    await user.keyboard('p');
+    expect(isPresenting()).toBe(false);
+    await user.keyboard('gh');
+    expect(home).not.toHaveBeenCalled();
+    // Presenting behind it: Esc closes the drawer and nothing else.
+    act(() => setPresenting(true));
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Desk sources' })).toBeNull();
+    expect(isPresenting()).toBe(true);
   });
 });

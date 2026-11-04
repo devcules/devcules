@@ -12,9 +12,15 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "licences": "license-checker --production --excludePrivatePackages --onlyAllow 'MIT;BSD-2-Clause;BSD-3-Clause;ISC;Apache-2.0'"
+    "licences": "license-checker --production --excludePrivatePackages --onlyAllow 'MIT;BSD-2-Clause;BSD-3-Clause;ISC;Apache-2.0;OFL-1.1'"
   },
   "dependencies": {
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@fontsource-variable/orbitron": "^5.3.0",
+    "@fontsource-variable/space-grotesk": "^5.3.0",
+    "@fontsource-variable/unbounded": "^5.3.0",
+    "@fontsource/chakra-petch": "^5.3.0",
+    "@fontsource/vt323": "^5.3.0",
     "@fullcalendar/core": "^6.1.22",
     "@fullcalendar/daygrid": "^6.1.22",
     "@fullcalendar/interaction": "^6.1.22",

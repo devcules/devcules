@@ -10,7 +10,25 @@ export const MARGIN: [number, number] = [10, 10];
 // DESK_VERSION is the document shape this module writes. v3 re-packed
 // the desk gap-free with the calendar first and full width, so a v2
 // document's saved layouts are rebuilt once on read (normalizePrefs).
-export const DESK_VERSION = 3;
+// v4 added the showcase tiles (vibe, ship, feed); v5 adds Pulse, which
+// joined the default desk after v4 shipped, to existing desks once.
+export const DESK_VERSION = 5;
+
+// SHOWCASE_TYPES are tiles only a v4-or-later page can write: older
+// pages dropped any type missing from their catalog on read.
+const SHOWCASE_TYPES = ['vibe', 'ship', 'feed', 'pulse'];
+
+// storedVersion is the version a document was really written at. Until
+// B19 the server stamped every saved desk version 2 whatever the page
+// sent, so a "v2" document holding a showcase tile was written by a v4
+// page and carries an arrangement the owner made: it reads as v4 and
+// keeps its layouts. A v2 document without one is a genuine pre-v4 desk
+// (or one indistinguishable from it) and is re-packed as before.
+function storedVersion(d: Partial<PrefsDoc>): number {
+  const v = typeof d.version === 'number' && Number.isFinite(d.version) ? d.version : 0;
+  if (v === 2 && Array.isArray(d.widgets) && d.widgets.some((w) => !!w && SHOWCASE_TYPES.includes((w as Widget).type))) return 4;
+  return v;
+}
 
 export type WidgetType = {
   title: string; desc: string;
@@ -22,6 +40,10 @@ export type WidgetType = {
 // tile collapses into Meetings (the ICS-backed list) and the email tile
 // surfaces as Meetings too; tickets is the Jira/Asana/Linear union.
 export const WIDGET_TYPES: Record<string, WidgetType> = {
+  vibe:     { title: 'Vibe check',    desc: 'Live headline numbers: terminals, machines, approvals, models.', size: { w: 8, h: 9 }, min: { w: 3, h: 6 } },
+  ship:     { title: 'Ship clock',    desc: 'Countdown ring to your demo or deadline.',                     size: { w: 4, h: 8 }, min: { w: 2, h: 4 } },
+  pulse:    { title: 'Pulse',         desc: 'The last 24 hours of activity as hourly bars.',                size: { w: 4, h: 7 }, min: { w: 2, h: 4 } },
+  feed:     { title: 'Agent feed',    desc: 'Everything agents and people did, as a live timeline.',        size: { w: 4, h: 10 }, min: { w: 2, h: 4 } },
   now:      { title: 'Now',           desc: 'Clock, date and the weather where you are.',                     size: { w: 4, h: 5 }, min: { w: 2, h: 4 } },
   meetings: { title: 'Meetings',      desc: 'Next 7 days from your calendar feeds (Google, Outlook).',      size: { w: 6, h: 7 }, min: { w: 3, h: 4 } },
   // The calendar leads the desk and takes the full width at every
@@ -39,7 +61,7 @@ export const WIDGET_TYPES: Record<string, WidgetType> = {
   scratch:  { title: 'Scratchpad',    desc: 'A note that is always there.',                                 size: { w: 4, h: 6 }, min: { w: 2, h: 3 }, multiple: true },
 };
 
-export const DEFAULT_WIDGET_ORDER = ['calendar', 'now', 'meetings', 'brief', 'tickets', 'security', 'tech', 'timer', 'links', 'scratch'];
+export const DEFAULT_WIDGET_ORDER = ['vibe', 'ship', 'calendar', 'feed', 'pulse', 'now', 'meetings', 'brief', 'tickets', 'security', 'tech', 'timer', 'links', 'scratch'];
 
 export type Widget = { id: string; type: string; title?: string; config?: Record<string, unknown> };
 export type LayoutItem = { i: string; x: number; y: number; w: number; h: number; minW?: number; minH?: number };
@@ -127,11 +149,26 @@ export function normalizePrefs(doc: unknown): PrefsDoc {
     .filter((w): w is Widget => !!w && typeof (w as Widget).id === 'string' && !!WIDGET_TYPES[(w as Widget).type])
     .map((w) => ({ id: w.id, type: w.type, title: w.title, config: (w.config as Record<string, unknown>) || {} }));
   if (widgets.length === 0) return defaultPrefs();
-  // Version 2 desks predate the gap-free packing and the full-width
-  // calendar. Their saved layouts are re-packed once here, so an
-  // existing desk picks up the new shape instead of keeping its ragged
-  // rows; v3 keeps whatever the owner has since arranged.
-  const legacy = typeof d.version !== 'number' || d.version < 3;
+  const version = storedVersion(d);
+  // Version 4 adds the showcase tiles: an older desk gets them once, up top.
+  if (version < 4) {
+    for (const type of ['feed', 'ship', 'vibe']) {
+      if (!widgets.some((w) => w.type === type)) widgets.unshift({ id: `w-${type}`, type, title: undefined, config: {} });
+    }
+  }
+  // Version 5 adds Pulse once, after the agent feed as on a new desk.
+  // A desk that kept its layouts gets it at the bottom (the missing-cell
+  // path below); a removal saved at v5 is never undone.
+  if (version < 5 && !widgets.some((w) => w.type === 'pulse')) {
+    const at = widgets.findIndex((w) => w.type === 'feed');
+    const id = widgets.some((w) => w.id === 'w-pulse') ? newWidgetId('pulse') : 'w-pulse';
+    widgets.splice(at < 0 ? widgets.length : at + 1, 0, { id, type: 'pulse', title: undefined, config: {} });
+  }
+  // Pre-v4 desks predate the gap-free packing, the full-width calendar
+  // and the showcase row. Their saved layouts are re-packed once here, so
+  // an existing desk picks up the new shape instead of keeping its ragged
+  // rows; v4 and later keep whatever the owner has since arranged.
+  const legacy = version < 4;
   const layouts = { ...generateLayouts(widgets) };
   if (!legacy && d.layouts && typeof d.layouts === 'object') {
     for (const bp of Object.keys(COLS)) {
@@ -144,7 +181,9 @@ export function normalizePrefs(doc: unknown): PrefsDoc {
           ...saved.map((s) => {
             const w = widgets.find((x) => x.id === s.i)!;
             const t = WIDGET_TYPES[w.type];
-            return { ...s, minW: Math.min(t.min.w, (COLS as Record<string, number>)[bp]), minH: t.min.h };
+            // A widget added and saved before the grid placed it has
+            // y: Infinity, which JSON writes as null: send it to the bottom.
+            return { ...s, y: Number.isFinite(s.y) ? s.y : Infinity, minW: Math.min(t.min.w, (COLS as Record<string, number>)[bp]), minH: t.min.h };
           }),
           ...missing,
         ];
@@ -154,11 +193,14 @@ export function normalizePrefs(doc: unknown): PrefsDoc {
   return { version: DESK_VERSION, widgets, layouts, seen: { ...(d.seen && typeof d.seen === "object" ? d.seen : {}) } };
 }
 
-export function addWidget(prefs: PrefsDoc, type: string, config: Record<string, unknown> = {}, title?: string): PrefsDoc {
+// addWidget appends a widget of `type`. Pass `id` when the caller needs
+// to refer to the new widget afterwards (the custom feed's configure sheet).
+export function addWidget(prefs: PrefsDoc, type: string, config: Record<string, unknown> = {}, title?: string, id?: string): PrefsDoc {
   const t = WIDGET_TYPES[type];
   if (!t) return prefs;
   if (!t.multiple && prefs.widgets.some((w) => w.type === type)) return prefs;
-  const widget: Widget = { id: newWidgetId(type), type, config, ...(title ? { title } : {}) };
+  if (id && prefs.widgets.some((w) => w.id === id)) return prefs;
+  const widget: Widget = { id: id || newWidgetId(type), type, config, ...(title ? { title } : {}) };
   const widgets = [...prefs.widgets, widget];
   const layouts: Record<string, LayoutItem[]> = {};
   for (const [bp, cols] of Object.entries(COLS)) {
@@ -184,6 +226,18 @@ export function setLayouts(prefs: PrefsDoc, layouts: Record<string, LayoutItem[]
     clean[bp] = (layouts[bp] || prefs.layouts[bp] || []).map((l) => ({ i: l.i, x: l.x, y: l.y, w: l.w, h: l.h }));
   }
   return { ...prefs, layouts: clean };
+}
+
+// sameLayout is geometry-only equality (i/x/y/w/h) keyed by widget id: it
+// ignores minW/minH and the order the grid lists items in, so a
+// round-trip through the grid counts as "unchanged".
+type Geo = { i: string; x: number; y: number; w: number; h: number };
+export function sameLayout(a: readonly Geo[] | undefined, b: readonly Geo[] | undefined): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  const byId = new Map(b.map((m) => [m.i, m]));
+  if (byId.size !== b.length) return false;
+  return a.every((l) => { const m = byId.get(l.i); return !!m && l.x === m.x && l.y === m.y && l.w === m.w && l.h === m.h; });
 }
 
 export function toDocument(prefs: PrefsDoc): { version: number; widgets: Widget[]; layouts: Record<string, LayoutItem[]>; seen: Record<string, boolean> } {

@@ -21,9 +21,12 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 
+	"github.com/devcules/devcules/internal/audit"
 	"github.com/devcules/devcules/internal/auth"
 	"github.com/devcules/devcules/internal/registry"
 )
@@ -103,9 +106,13 @@ func newRegistryBag(claudeBin, codexBin string) *registryBag {
 //
 // Everything rides the browser session (requireSession): this is the
 // operator managing their own machine's agents, the same trust level as
-// the rest of the desk/settings surface.
-func registerRegistry(mux *http.ServeMux, svc *auth.Service, bag *registryBag) {
-	mux.Handle("/api/registry/", requireSession(svc, registryDispatch(bag)))
+// the rest of the desk/settings surface. The writes (install, remove)
+// shell out to the agent CLIs, so the prefix also carries the CSRF
+// origin check every other write route has; it passes GETs untouched.
+// A successful install or remove records an audit row: both rewrite
+// what the coding agents will execute.
+func registerRegistry(mux *http.ServeMux, svc *auth.Service, bag *registryBag, publicURL string, rec auditor) {
+	mux.Handle("/api/registry/", csrf(publicURL, requireSession(svc, registryDispatch(bag, rec))))
 	mux.Handle("/api/skills/fleet", requireSession(svc, handleSkillsFleet()))
 	mux.Handle("/api/mcp/fleet", requireSession(svc, handleMCPFleet(bag)))
 }
@@ -114,7 +121,7 @@ func registerRegistry(mux *http.ServeMux, svc *auth.Service, bag *registryBag) {
 // path. Devcules' mux is path-prefix (not the method-pattern form), so
 // the kind and the rest of the route come off the URL here instead of
 // r.PathValue.
-func registryDispatch(bag *registryBag) http.HandlerFunc {
+func registryDispatch(bag *registryBag, rec auditor) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		rest := strings.TrimPrefix(r.URL.Path, "/api/registry/")
 		// /api/registry/explain is the one route with no kind in it.
@@ -134,12 +141,12 @@ func registryDispatch(bag *registryBag) http.HandlerFunc {
 		case tail == "inspect" && r.Method == http.MethodPost:
 			handleRegistryInspect(w, r, bag, k)
 		case tail == "install" && r.Method == http.MethodPost:
-			handleRegistryInstall(w, r, bag, k)
+			handleRegistryInstall(w, r, bag, k, rec)
 		case tail == "installed" && r.Method == http.MethodGet:
 			handleRegistryInstalled(w, r, bag, k)
 		case strings.HasPrefix(tail, "installed/") && r.Method == http.MethodDelete:
 			name := strings.TrimPrefix(tail, "installed/")
-			handleRegistryRemove(w, r, bag, k, name)
+			handleRegistryRemove(w, r, bag, k, name, rec)
 		default:
 			http.NotFound(w, r)
 		}
@@ -165,6 +172,10 @@ func parseArtifactKind(w http.ResponseWriter, seg string) (registry.ArtifactKind
 }
 
 func handleRegistrySearch(w http.ResponseWriter, r *http.Request, bag *registryBag, kind registry.ArtifactKind) {
+	// The upstream sources can take longer than serve's WriteTimeout
+	// (skills.sh has a 15 s client, the official MCP registry none), so
+	// the results or the 502 would be lost to it (GOSEC-01).
+	w = liftWrite(w)
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	// ?loose=1 skips the sources' relevance filter — the "no strong
 	// matches, show the loose list" escape hatch. Everything else filters.
@@ -253,6 +264,8 @@ func handleRegistryInspect(w http.ResponseWriter, r *http.Request, bag *registry
 		writeErr(w, http.StatusBadRequest, "bad_entry", "entry.install: "+err.Error())
 		return
 	}
+	// A dry-run starts the server (often a cold `npx -y`): past 10 s.
+	w = liftWrite(w)
 	got, err := ins.Inspect(r.Context(), entry)
 	if err != nil {
 		writeErr(w, http.StatusBadGateway, "inspect_failed", err.Error())
@@ -261,7 +274,7 @@ func handleRegistryInspect(w http.ResponseWriter, r *http.Request, bag *registry
 	writeJSON(w, http.StatusOK, got)
 }
 
-func handleRegistryInstall(w http.ResponseWriter, r *http.Request, bag *registryBag, kind registry.ArtifactKind) {
+func handleRegistryInstall(w http.ResponseWriter, r *http.Request, bag *registryBag, kind registry.ArtifactKind, rec auditor) {
 	in := bag.installers[kind]
 	if in == nil {
 		writeErr(w, http.StatusNotImplemented, "not_implemented", "no installer for this kind")
@@ -280,10 +293,13 @@ func handleRegistryInstall(w http.ResponseWriter, r *http.Request, bag *registry
 		writeErr(w, http.StatusBadRequest, "bad_entry", "entry.install: "+err.Error())
 		return
 	}
+	// The agent CLIs (and a cold `npx skills add`) outlive serve's 10 s.
+	w = liftWrite(w)
 	if err := in.Install(r.Context(), body.Name, entry, body.Params); err != nil {
 		writeErr(w, http.StatusInternalServerError, "install_failed", err.Error())
 		return
 	}
+	rec.record(r, audit.RegistryInstall, strings.TrimSpace(body.Name), installDetail(kind, entry))
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
@@ -307,13 +323,15 @@ func handleRegistryInstalled(w http.ResponseWriter, r *http.Request, bag *regist
 // handleRegistryRemove uninstalls by name. For MCP it also understands
 // ?harness= so one harness can drop a server another keeps (both share
 // the name in the catalog view).
-func handleRegistryRemove(w http.ResponseWriter, r *http.Request, bag *registryBag, kind registry.ArtifactKind, name string) {
+func handleRegistryRemove(w http.ResponseWriter, r *http.Request, bag *registryBag, kind registry.ArtifactKind, name string, rec auditor) {
+	w = liftWrite(w)
 	if kind == registry.KindMCP {
 		if harness := r.URL.Query().Get("harness"); harness != "" {
 			if err := registry.RemoveMCPTargeted(r.Context(), harness, name, bag.claudeBin, bag.codexBin); err != nil {
 				writeErr(w, http.StatusInternalServerError, "remove_failed", err.Error())
 				return
 			}
+			rec.record(r, audit.RegistryRemove, name, map[string]string{"kind": string(kind), "harness": harness})
 			writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 			return
 		}
@@ -327,7 +345,129 @@ func handleRegistryRemove(w http.ResponseWriter, r *http.Request, bag *registryB
 		writeErr(w, http.StatusInternalServerError, "remove_failed", err.Error())
 		return
 	}
+	rec.record(r, audit.RegistryRemove, name, map[string]string{"kind": string(kind)})
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// installDetail is the audit row's context for an install: what will
+// run, never a credential. The row is permanent (hash-chained) and
+// shown on the Activity screen, so:
+//   - params (env values such as API keys) are never kept;
+//   - a stdio command keeps only its program name (a leading
+//     `TOKEN=… ` assignment or a path is dropped; anything shell-like
+//     records "(unparsed)"), and its arguments are counted, not kept
+//     (servers take tokens as flags);
+//   - an http/sse URL keeps only scheme and host: hosted endpoints
+//     carry the key in the path (…/mcp/<key>/sse) as well as in the
+//     query or userinfo;
+//   - a skill repo given as a URL loses its userinfo, query and
+//     fragment (the owner/repo path stays).
+func installDetail(kind registry.ArtifactKind, entry registry.CatalogEntry) map[string]string {
+	d := map[string]string{"kind": string(kind)}
+	if entry.ID != "" {
+		d["entry"] = entry.ID
+	}
+	switch spec := entry.Install.(type) {
+	case registry.MCPInstallSpec:
+		d["type"] = spec.Type
+		if spec.Command != "" {
+			if prog := programName(spec.Command); prog != "" {
+				d["command"] = prog
+			}
+			d["args"] = strconv.Itoa(len(spec.Args))
+		}
+		if spec.URL != "" {
+			d["url"] = urlOrigin(spec.URL)
+		}
+	case registry.SkillInstallSpec:
+		d["repo"] = scrubRepo(spec.Repo)
+		if spec.Skill != "" {
+			d["skill"] = spec.Skill
+		}
+	}
+	return d
+}
+
+// programName is the base name of the program a command line runs,
+// or "(unparsed)". It does not emulate a shell: it accepts only the
+// plain form `[NAME=value ...] program [args]` and refuses anything
+// else, because the row is permanent and must never hold a credential.
+//   - Any shell metacharacter, quote, backslash or line break before the
+//     program token gives "(unparsed)": `$`, a backtick, `(`, `)`, `;`,
+//     `|`, `&`, `<`, `>`, `'`, `"`, `\`, CR, LF. Those are the forms
+//     (quoting, escapes, `$(…)`, `$'…'`, `${…}`, separators) where a
+//     shell would split differently from a plain whitespace split.
+//   - Otherwise the command is split on spaces and tabs, and leading
+//     NAME=value fields (NAME an identifier) are skipped.
+//   - The program token must be [A-Za-z0-9._:/\-]+, else "(unparsed)".
+//   - Its base name is taken on both / and \, so `C:\tools\uvx.exe`
+//     gives `uvx.exe` (claude/codex take the command literally, and the
+//     server is built for Windows too).
+//
+// A blank command gives "" (no command key in the row).
+func programName(command string) string {
+	rest := command
+	for {
+		rest = strings.TrimLeft(rest, " \t")
+		if rest == "" {
+			return ""
+		}
+		end := strings.IndexAny(rest, " \t")
+		if end < 0 {
+			end = len(rest)
+		}
+		field := rest[:end]
+		if assignmentField.MatchString(field) && !strings.ContainsAny(field, prefixUnsafe) {
+			rest = rest[end:]
+			continue
+		}
+		if strings.ContainsAny(command[:len(command)-len(rest)], prefixUnsafe) || !programToken.MatchString(field) {
+			return "(unparsed)"
+		}
+		if i := strings.LastIndexAny(field, `/\`); i >= 0 {
+			field = field[i+1:]
+		}
+		if field == "" {
+			return "(unparsed)"
+		}
+		return field
+	}
+}
+
+// prefixUnsafe are the bytes that make a command prefix shell syntax
+// rather than plain words (see programName).
+const prefixUnsafe = "$`();|&<>'\"\\\r\n"
+
+var (
+	assignmentField = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*=`)
+	programToken    = regexp.MustCompile(`^[A-Za-z0-9._:/\\-]+$`)
+)
+
+// urlOrigin keeps scheme and host only.
+func urlOrigin(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return "(unparsed)"
+	}
+	return u.Scheme + "://" + u.Host
+}
+
+// scrubRepo drops userinfo, query and fragment from a repo given as a
+// URL, including a scheme-relative `//user:token@host/path`. A scp-style `user:token@host:path` loses the part up to the @
+// (userinfo has no slash, which keeps the `owner/repo@skill` form whole).
+// The owner/repo shorthand passes as is.
+func scrubRepo(repo string) string {
+	if u, err := url.Parse(repo); err == nil && u.Host != "" {
+		u.User, u.RawQuery, u.ForceQuery, u.Fragment, u.RawFragment = nil, "", false, "", ""
+		return u.String()
+	}
+	if i := strings.IndexByte(repo, '@'); i >= 0 && !strings.Contains(repo[:i], "/") {
+		repo = repo[i+1:]
+	}
+	if i := strings.IndexAny(repo, "?#"); i >= 0 {
+		repo = repo[:i]
+	}
+	return repo
 }
 
 // handleSkillsFleet answers the on-disk truth about skills across the

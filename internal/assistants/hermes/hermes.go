@@ -58,7 +58,7 @@ func (a *Assistant) ID() string { return "hermes" }
 func (a *Assistant) State() string { return a.state }
 
 // Chat implements assistants.Assistant.
-func (a *Assistant) Chat(ctx context.Context, sess, in string) ([]assistants.Event, error) {
+func (a *Assistant) Chat(ctx context.Context, sess, in string) (string, []assistants.Event, error) {
 	return a.loop.Chat(ctx, sess, in)
 }
 

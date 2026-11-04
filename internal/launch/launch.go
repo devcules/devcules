@@ -56,8 +56,18 @@ type Launch struct {
 	Active   bool      `json:"active"`
 }
 
+// NoProvider is the provider of a token that may call no provider at
+// all: an agent on its own CLI login, which keeps the token for the
+// approval hook and MCP but must not spend a stored key. It is not a
+// valid provider id, so Allows never matches it. (An empty provider is
+// different: it means every provider.)
+const NoProvider = "-"
+
 // Allows reports whether the token may call provider.
 func (l Launch) Allows(provider string) bool {
+	if l.Provider == NoProvider {
+		return false
+	}
 	return l.Provider == "" || l.Provider == provider
 }
 

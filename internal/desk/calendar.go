@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -13,26 +12,30 @@ import (
 	"time"
 
 	"github.com/devcules/devcules/internal/store"
-	"github.com/teambition/rrule-go"
 )
 
 // calendarItem is one visible event: a desk plan (own row) or an ICS feed
 // meeting, expanded over the requested range by the route. Occurrence marks
-// a recurrence instance so an edit can say "the whole series".
+// a recurrence instance so an edit can say "the whole series"; an
+// occurrence also carries the series' own stored start and end, so the
+// editor can shift or keep the series rather than restart it at the
+// occurrence it was opened from.
 type calendarItem struct {
-	ID          string    `json:"id"`
-	Title       string    `json:"title"`
-	Start       time.Time `json:"start"`
-	End         time.Time `json:"end"`
-	AllDay      bool      `json:"all_day"`
-	Location    string    `json:"location,omitempty"`
-	URL         string    `json:"url,omitempty"`
-	Notes       string    `json:"notes,omitempty"`
-	ReminderMin int       `json:"reminder_min,omitempty"`
-	RRule       string    `json:"rrule,omitempty"`
-	Feed        string    `json:"feed,omitempty"`
-	Plan        bool      `json:"plan,omitempty"`
-	Occurrence  bool      `json:"occurrence,omitempty"`
+	ID          string     `json:"id"`
+	Title       string     `json:"title"`
+	Start       time.Time  `json:"start"`
+	End         time.Time  `json:"end"`
+	AllDay      bool       `json:"all_day"`
+	Location    string     `json:"location,omitempty"`
+	URL         string     `json:"url,omitempty"`
+	Notes       string     `json:"notes,omitempty"`
+	ReminderMin int        `json:"reminder_min,omitempty"`
+	RRule       string     `json:"rrule,omitempty"`
+	Feed        string     `json:"feed,omitempty"`
+	Plan        bool       `json:"plan,omitempty"`
+	Occurrence  bool       `json:"occurrence,omitempty"`
+	SeriesStart *time.Time `json:"series_start,omitempty"`
+	SeriesEnd   *time.Time `json:"series_end,omitempty"`
 }
 
 // CalendarService adds the user's own plans (stored) on top of the desk
@@ -40,7 +43,11 @@ type calendarItem struct {
 type CalendarService struct {
 	Desk  *Service
 	Store store.Store
-	hc    *http.Client
+	// Loc is the user's zone: plans expand, and all-day plans export,
+	// in it. Nil means the server's zone (time.Local), the zone
+	// quick-add already parses in.
+	Loc *time.Location
+	hc  *http.Client
 }
 
 func NewCalendarService(d *Service, st store.Store, hc *http.Client) *CalendarService {
@@ -54,55 +61,137 @@ func newEventID() string {
 }
 
 // expandPlans turns stored plans into visible items over [from, to],
-// expanding each RRule into instances. A plan with no recurrence is one
-// item; a recurring one is stamped Occurrence so the editor knows.
+// expanding each RRule into instances in the server's zone.
 func expandPlans(plans []*store.CalendarEvent, from, to time.Time) []calendarItem {
-	out := []calendarItem{}
+	out, _ := expandPlansIn(plans, from, to, time.Local)
+	return out
+}
+
+// expandPlansIn expands in loc, the user's zone: a weekly 09:00 plan
+// stays at 09:00 local across a DST change (plans are stored in UTC).
+// A plan with no recurrence is one item; a recurring one is stamped
+// Occurrence so the editor knows. An all-day plan recurs by calendar
+// date. A stored rule that fails parsePlanRule, or a series that starts
+// outside the recurring years, shows as its first instance only.
+// truncated reports a cap was hit (maxPlanInstances per plan,
+// maxPlanItems in all).
+func expandPlansIn(plans []*store.CalendarEvent, from, to time.Time, loc *time.Location) (out []calendarItem, truncated bool) {
+	out, truncated, _ = expandPlansCtx(context.Background(), plans, from, to, loc)
+	return out, truncated
+}
+
+// expandPlansCtx is expandPlansIn that stops when ctx is done. Each
+// plan's walk is bounded (planWalker) wherever the window sits.
+func expandPlansCtx(ctx context.Context, plans []*store.CalendarEvent, from, to time.Time, loc *time.Location) (out []calendarItem, truncated bool, err error) {
+	out = []calendarItem{}
+	add := func(it calendarItem) bool {
+		if len(out) >= maxPlanItems {
+			truncated = true
+			return false
+		}
+		out = append(out, it)
+		return true
+	}
 	for _, e := range plans {
+		if err := ctx.Err(); err != nil {
+			return out, truncated, err
+		}
 		base := calendarItem{
 			ID: e.ID, Title: e.Title, Start: e.Start, End: e.End, AllDay: e.AllDay,
 			Location: e.Location, URL: e.URL, Notes: e.Notes, ReminderMin: e.ReminderMin,
 			RRule: e.RRule, Plan: true,
 		}
-		if e.AllDay || e.RRule == "" {
-			if !e.End.Before(from) && e.Start.Before(to) {
-				out = append(out, base)
+		s0, zone := planStart(e.Start, e.AllDay, loc)
+		opt, err := parsePlanRule(e.RRule)
+		var next func() (time.Time, bool)
+		if err == nil && opt != nil {
+			// The span an instance covers: how far before the window
+			// one that is still running may have begun.
+			span := e.End.Sub(e.Start)
+			if span > maxAnchorSpan {
+				span = maxAnchorSpan
+			}
+			fromC := civil(from, loc).Add(-span - 48*time.Hour)
+			toC := civil(to, loc).Add(48 * time.Hour)
+			next, err = planWalker(*opt, s0, untilCivil(opt, e.AllDay, loc), fromC, toC)
+		}
+		if next == nil || err != nil {
+			if !e.End.Before(from) && e.Start.Before(to) && !add(base) {
+				return out, truncated, nil
 			}
 			continue
 		}
-		dur := e.End.Sub(e.Start)
-		if dur <= 0 {
-			continue
-		}
-		rule, err := rrule.StrToRRule(strings.TrimPrefix(e.RRule, "RRULE:"))
-		if err != nil {
-			continue
-		}
-		set := rrule.Set{}
-		set.DTStart(e.Start)
-		set.RRule(rule)
-		for _, st := range set.Between(from.Add(-dur), to, true) {
-			end := st.Add(dur)
-			if !end.After(from) || !st.Before(to) {
+		var build func(c time.Time) calendarItem
+		if e.AllDay {
+			// By calendar date: each instance is built at midnight in
+			// the zone the plan was stored in.
+			d1, _ := civilDate(e.End, loc)
+			days := int(d1.Sub(s0).Round(24*time.Hour) / (24 * time.Hour))
+			if days < 1 {
+				days = 1
+			}
+			build = func(c time.Time) calendarItem {
+				it := base
+				it.Start = time.Date(c.Year(), c.Month(), c.Day(), 0, 0, 0, 0, zone).UTC()
+				it.End = time.Date(c.Year(), c.Month(), c.Day()+days, 0, 0, 0, 0, zone).UTC()
+				return it
+			}
+		} else {
+			dur := e.End.Sub(e.Start)
+			if dur <= 0 {
 				continue
 			}
-			it := base
-			it.Start, it.End, it.Occurrence = st, end, true
-			out = append(out, it)
+			build = func(c time.Time) calendarItem {
+				st := time.Date(c.Year(), c.Month(), c.Day(), c.Hour(), c.Minute(), c.Second(), 0, loc)
+				it := base
+				it.Start, it.End = st.UTC(), st.Add(dur).UTC()
+				return it
+			}
+		}
+		seriesStart, seriesEnd := e.Start, e.End
+		n, walked := 0, 0
+		for c, ok := next(); ok; c, ok = next() {
+			if walked++; walked%256 == 0 {
+				if err := ctx.Err(); err != nil {
+					return out, truncated, err
+				}
+			}
+			it := build(c)
+			if !it.Start.Before(to) {
+				break
+			}
+			if !it.End.After(from) {
+				continue
+			}
+			if n == maxPlanInstances {
+				truncated = true
+				break
+			}
+			it.Occurrence = true
+			it.SeriesStart, it.SeriesEnd = &seriesStart, &seriesEnd
+			if !add(it) {
+				return out, truncated, nil
+			}
+			n++
 		}
 	}
-	return out
+	return out, truncated, nil
 }
 
 // List answers the visible window: plans expanded on the left, feeds
 // expanded on the right, sorted together, with the feed status flags the
 // tile shows ("3 feeds · updated 14:02").
 func (c *CalendarService) List(ctx context.Context, from, to time.Time, refresh bool) (json.RawMessage, error) {
+	// The store answers every recurring plan, however old its first
+	// instance, plus the one-offs near the window.
 	plans, err := c.Store.Calendar().List(ctx, from.Add(-365*24*time.Hour), to.Add(365*24*time.Hour))
 	if err != nil {
 		return nil, err
 	}
-	items := expandPlans(plans, from, to)
+	items, truncated, err := expandPlansCtx(ctx, plans, from, to, c.loc())
+	if err != nil {
+		return nil, err
+	}
 
 	feedsRaw, ferr := c.Desk.FeedMeetings(ctx, from, to, refresh, 0)
 	var feeds []Meeting
@@ -126,16 +215,51 @@ func (c *CalendarService) List(ctx context.Context, from, to time.Time, refresh 
 	sort.Slice(items, func(i, j int) bool { return items[i].Start.Before(items[j].Start) })
 	return json.Marshal(map[string]any{
 		"events": items, "from": from, "to": to,
-		"configured": configured, "plans": len(plans),
+		"configured": configured, "plans": len(plans), "truncated": truncated,
 	})
 }
 
-func (c *CalendarService) Create(ctx context.Context, e *store.CalendarEvent) (*store.CalendarEvent, error) {
+// Zone is the user's zone (Loc, or the server's): the zone the API
+// day-rounds all-day plans in.
+func (c *CalendarService) Zone() *time.Location {
+	if c == nil {
+		return time.Local
+	}
+	return c.loc()
+}
+
+// loc is the zone plans expand and export in: Loc, or the server's.
+func (c *CalendarService) loc() *time.Location {
+	if c.Loc != nil {
+		return c.Loc
+	}
+	return time.Local
+}
+
+// check validates a plan for create and update, and stores its rule in
+// re-serialised form. Its errors are ErrInvalidPlan.
+func (c *CalendarService) check(e *store.CalendarEvent) error {
 	if strings.TrimSpace(e.Title) == "" {
-		return nil, errors.New("title required")
+		return badPlan("title required")
 	}
 	if e.End.Before(e.Start) {
-		return nil, errors.New("end before start")
+		return badPlan("end before start")
+	}
+	if e.RRule == "" {
+		return nil
+	}
+	start, _ := planStart(e.Start, e.AllDay, c.loc())
+	rule, err := normalizePlanRule(e.RRule, start, e.AllDay, c.loc())
+	if err != nil {
+		return err
+	}
+	e.RRule = rule
+	return nil
+}
+
+func (c *CalendarService) Create(ctx context.Context, e *store.CalendarEvent) (*store.CalendarEvent, error) {
+	if err := c.check(e); err != nil {
+		return nil, err
 	}
 	e.ID = newEventID()
 	now := time.Now()
@@ -151,8 +275,8 @@ func (c *CalendarService) Get(ctx context.Context, id string) (*store.CalendarEv
 }
 
 func (c *CalendarService) Update(ctx context.Context, e *store.CalendarEvent) (*store.CalendarEvent, error) {
-	if e.End.Before(e.Start) {
-		return nil, errors.New("end before start")
+	if err := c.check(e); err != nil {
+		return nil, err
 	}
 	e.UpdatedAt = time.Now()
 	if err := c.Store.Calendar().Upsert(ctx, e); err != nil {
@@ -169,7 +293,7 @@ func (c *CalendarService) Delete(ctx context.Context, id string) error {
 func (c *CalendarService) QuickAdd(ctx context.Context, text string, loc *time.Location) (*store.CalendarEvent, error) {
 	q, err := ParseQuickAdd(text, time.Now(), loc)
 	if err != nil {
-		return nil, err
+		return nil, invalidPlan(err.Error())
 	}
 	e := &store.CalendarEvent{
 		Title: q.Title, Start: q.Start, End: q.End, AllDay: q.AllDay,
@@ -178,7 +302,11 @@ func (c *CalendarService) QuickAdd(ctx context.Context, text string, loc *time.L
 	return c.Create(ctx, e)
 }
 
-// Export renders the plans as an ICS feed another calendar can subscribe to.
+// Export renders the plans as an ICS feed another calendar can subscribe
+// to: every recurring plan, and the one-offs within a year of now. A
+// rule is exported re-serialised; one that fails parsePlanRule (stored
+// before the checks) is left out, so the plan exports as one event. An
+// all-day plan exports its calendar date (DATE values are floating).
 func (c *CalendarService) Export(ctx context.Context) (string, error) {
 	plans, err := c.Store.Calendar().List(ctx, time.Now().Add(-365*24*time.Hour), time.Now().Add(365*24*time.Hour))
 	if err != nil {
@@ -186,7 +314,15 @@ func (c *CalendarService) Export(ctx context.Context) (string, error) {
 	}
 	var out []ExportEvent
 	for _, e := range plans {
-		out = append(out, ExportEvent{UID: e.ID, Title: e.Title, Location: e.Location, URL: e.URL, Notes: e.Notes, RRule: e.RRule, Start: e.Start, End: e.End, AllDay: e.AllDay, Updated: e.UpdatedAt})
+		ev := ExportEvent{UID: e.ID, Title: e.Title, Location: e.Location, URL: e.URL, Notes: e.Notes, Start: e.Start, End: e.End, AllDay: e.AllDay, Updated: e.UpdatedAt}
+		if opt, err := parsePlanRule(e.RRule); err == nil && opt != nil {
+			ev.RRule = opt.RRuleString()
+		}
+		if e.AllDay {
+			ev.Start, _ = civilDate(e.Start, c.loc())
+			ev.End, _ = civilDate(e.End, c.loc())
+		}
+		out = append(out, ev)
 	}
 	return ICSExport("Devcules desk plans", out), nil
 }

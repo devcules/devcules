@@ -85,8 +85,8 @@ func TestSecretsRoutes(t *testing.T) {
 	if w := f.do(http.MethodDelete, "/api/secrets/TAVILY_KEY", ""); w.Code != http.StatusNoContent {
 		t.Fatalf("delete = %d", w.Code)
 	}
-	// Deleting again is a no-op, like every delete here.
-	if w := f.do(http.MethodDelete, "/api/secrets/TAVILY_KEY", ""); w.Code != http.StatusNoContent {
+	// Deleting again finds nothing to delete (and audits nothing).
+	if w := f.do(http.MethodDelete, "/api/secrets/TAVILY_KEY", ""); w.Code != http.StatusNotFound {
 		t.Fatalf("delete again = %d", w.Code)
 	}
 	if w := f.do(http.MethodDelete, "/api/secrets/", ""); w.Code != http.StatusNotFound {
@@ -114,6 +114,20 @@ func TestDeskRoutes(t *testing.T) {
 	}
 	if w := f.do(http.MethodPost, "/api/desk/prefs", "{}"); w.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("POST prefs = %d", w.Code)
+	}
+	// B19: the version the page sends round-trips (it was forced to 2,
+	// so the page re-packed every saved desk on reload); out of range is
+	// refused.
+	if w := f.do(http.MethodPut, "/api/desk/prefs", `{"version":5,"widgets":[{"id":"w-now","type":"now"}]}`); w.Code != http.StatusNoContent {
+		t.Fatalf("PUT v5 = %d", w.Code)
+	}
+	if w := f.do(http.MethodGet, "/api/desk/prefs", ""); !strings.Contains(w.Body.String(), `"version":5`) {
+		t.Fatalf("version not kept: %s", w.Body)
+	}
+	for _, body := range []string{`{"version":-1,"widgets":[]}`, `{"version":1001,"widgets":[]}`} {
+		if w := f.do(http.MethodPut, "/api/desk/prefs", body); w.Code != http.StatusBadRequest {
+			t.Errorf("PUT %s = %d, want 400", body, w.Code)
+		}
 	}
 
 	// Sources: a token is write-only; blank keeps it, *_clear wipes it.

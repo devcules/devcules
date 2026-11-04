@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   beginRegisterPasskey,
   deletePasskey,
@@ -39,6 +39,9 @@ export default function Settings({
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
+  // The passkey list itself failed to load: the summary must not
+  // claim "None yet" for a list it never saw.
+  const [listFailed, setListFailed] = useState(false);
 
   // Promise chains, not await: states resolve off the effect's
   // synchronous path, the way the Terminals refresh does.
@@ -60,12 +63,15 @@ export default function Settings({
               return;
             }
             if (res === 'unreachable') {
+              setListFailed(true);
               setNotice("Couldn't load your passkeys. Try again.");
               return;
             }
+            setListFailed(false);
             setKeys(res.passkeys);
           },
           () => {
+            setListFailed(true);
             setNotice("Couldn't load your passkeys. Try again.");
           },
         );
@@ -189,14 +195,27 @@ export default function Settings({
     });
   }, []);
 
-  // One line: child  section -> header. Writing a summary remounts
-  // nothing (identity changes only on fresh data).
+  // One line: child  section -> header. Each section gets one setter
+  // for the life of the page: a fresh arrow per render would change
+  // the child's onSummary identity, re-run its load effect, and
+  // refetch (DESK-16: GET /api/secrets six times on open).
   const [summaries, setSummaries] = useState<Record<string, string>>({});
-  const summariser = useCallback((id: string) => {
-    return (line: string) =>
+  const summariser = useMemo(() => {
+    const one = (id: string) => (line: string) =>
       setSummaries((s) => (s[id] === line ? s : { ...s, [id]: line }));
+    const fns = {
+      providers: one('providers'),
+      secrets: one('secrets'),
+      notifications: one('notifications'),
+      access: one('access'),
+      redaction: one('redaction'),
+    };
+    return (id: keyof typeof fns) => fns[id];
   }, []);
 
+  // Answers from the status endpoint ("Off", "Managed on the web
+  // address") are server facts and win; a failed list only replaces
+  // the claims that come from the list (the count / "None yet").
   const passkeySummary =
     status === 'unreachable'
       ? 'Unreachable'
@@ -204,9 +223,11 @@ export default function Settings({
         ? 'Off'
         : status === 'elsewhere'
           ? 'Managed on the web address'
-          : keys.length === 0
-            ? 'None yet'
-            : `${keys.length} ${keys.length === 1 ? 'passkey' : 'passkeys'}`;
+          : listFailed
+            ? "Couldn't load"
+            : keys.length === 0
+              ? 'None yet'
+              : `${keys.length} ${keys.length === 1 ? 'passkey' : 'passkeys'}`;
 
   // One readable column: full width on a phone, centred and capped on
   // wider screens.

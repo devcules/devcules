@@ -72,6 +72,19 @@ func machineUp(t *testing.T, s *linktest.Server, name string, sign func([]byte) 
 	return conn, next, nil
 }
 
+// pollMachines waits for the hub to list want machine links.
+func pollMachines(t *testing.T, h *hub.Hub, want int) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if len(h.Machines()) == want {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("machines = %v, want %d", h.Machines(), want)
+}
+
 func TestMachineSignsChallenge(t *testing.T) {
 	t.Parallel()
 	keys := linktest.NewMachineKeys()
@@ -86,9 +99,14 @@ func TestMachineSignsChallenge(t *testing.T) {
 	if welcome.Type != "welcome" {
 		t.Fatalf("after answer = %q, want welcome", welcome.Type)
 	}
-	pollCount(t, h, 1)
+	pollMachines(t, h, 1)
 	if got := h.Machines(); len(got) != 1 || got[0] != "laptop" {
 		t.Fatalf("Machines() = %v, want [laptop]", got)
+	}
+	// Count is the runner count /readyz reports: a machine link alone
+	// is not a runner.
+	if n := h.Count(); n != 0 {
+		t.Fatalf("Count() = %d with one machine and no runner, want 0", n)
 	}
 	if got := h.Runners(); len(got) != 0 {
 		t.Fatalf("Runners() = %v, want none", got)
@@ -110,7 +128,8 @@ func TestMachineAndRunnerShareName(t *testing.T) {
 		t.Fatalf("machine link: %v %q", err, welcome.Type)
 	}
 	defer mc.CloseNow()
-	pollCount(t, h, 2)
+	pollMachines(t, h, 1)
+	pollCount(t, h, 1)
 	if got := h.Runners(); len(got) != 1 || got[0] != "mac" {
 		t.Fatalf("Runners() = %v, want [mac]", got)
 	}

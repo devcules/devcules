@@ -6,8 +6,10 @@ import MachineScreen from './MachineScreen';
 type Reply = { status: number; body?: unknown; headers?: Record<string, string> };
 
 function reply(r: Reply): Response {
-  if (r.body instanceof Blob) {
-    return new Response(r.body, { status: r.status, headers: r.headers });
+  // Raw bytes, not a jsdom Blob: newer Node's Response cannot stream a
+  // jsdom Blob ("object.stream is not a function").
+  if (r.body instanceof Uint8Array) {
+    return new Response(r.body as unknown as BodyInit, { status: r.status, headers: r.headers });
   }
   return r.body === undefined ? new Response(null, { status: r.status }) : Response.json(r.body, { status: r.status });
 }
@@ -23,7 +25,7 @@ function serve(handler: (key: string) => Reply | undefined): void {
   }) as typeof fetch;
 }
 
-const frame = { status: 200, body: new Blob(['png'], { type: 'image/png' }), headers: { 'X-Devcules-Screen-Scale': '2' } };
+const frame = { status: 200, body: new TextEncoder().encode('png'), headers: { 'Content-Type': 'image/png', 'X-Devcules-Screen-Scale': '2' } };
 
 beforeEach(() => {
   URL.createObjectURL = vi.fn(() => 'blob:frame');

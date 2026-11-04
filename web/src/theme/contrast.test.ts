@@ -89,3 +89,87 @@ describe('arc default light (OS) contrast', () => {
     });
   }
 });
+
+// Status colours on the light schemes (DESK-20 / MOB-13). The screens
+// use Tailwind's dark-tuned red-400 / amber-400 / the vibe hot pink;
+// every light scheme carries danger / warn / hot tokens that hold AA
+// on both its base and its surface, and tokens.css repoints the
+// utilities at them under data-scheme="light" (and for Arc under the
+// OS light query).
+const statusTokens = ['--c-danger', '--c-warn', '--c-hot'];
+const lightBlocks: Array<[string, () => string]> = [
+  ...THEMES.filter((t) => t.scheme === 'light').map((t): [string, () => string] => [t.id, () => themeBlock(t.id)]),
+  ['arc (OS light)', lightBlock],
+];
+
+for (const [name, block] of lightBlocks) {
+  describe(`${name} status colours`, () => {
+    for (const fg of statusTokens) {
+      for (const bg of ['--c-base', '--c-surface']) {
+        it(`${fg} on ${bg} meets AA`, () => {
+          const t = blockTokens(block());
+          expect(t[fg], `${fg} missing in ${name}`).toBeDefined();
+          expect(contrast(t[fg], t[bg])).toBeGreaterThanOrEqual(4.5);
+        });
+      }
+    }
+  });
+}
+
+describe('light scheme repoints the dark-tuned status utilities', () => {
+  const mapBlock = /:root\[data-scheme="light"\]\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+  it.each([
+    ['--color-red-400', '--c-danger'],
+    ['--color-red-300', '--c-danger'],
+    ['--color-amber-400', '--c-warn'],
+  ])('%s -> var(%s)', (util, token) => {
+    expect(mapBlock).toMatch(new RegExp(`${util}\\s*:\\s*var\\(${token}\\)`));
+  });
+  it('the hot pink and amber-500 text classes are overridden (escaped selector)', () => {
+    expect(css).toMatch(/:root\[data-scheme="light"\]\)\s*\.text-\\\[\\#ff4fd8\\\]\s*\{\s*color:\s*var\(--c-hot\)/);
+    expect(css).toMatch(/:root\[data-scheme="light"\]\)\s*\.text-amber-500\s*\{\s*color:\s*var\(--c-warn\)/);
+  });
+  it('Arc repeats the mapping under the OS light query', () => {
+    expect(css).toMatch(/@media \(prefers-color-scheme: light\)\s*\{\s*:root\[data-theme="arc"\]\s*\{[^}]*--color-red-400:\s*var\(--c-danger\)/);
+  });
+});
+
+// Holo pressed button (DESK-08): white text on the holo ink gradient,
+// so every stop of --v-grad-lime must hold AA against white.
+describe('holo pressed .v-btn', () => {
+  const future = readFileSync('src/theme/future.css', 'utf8');
+  it('has its own pressed rule after the glass .v-btn rule', () => {
+    const glass = future.indexOf('[data-theme="holo"] .v-btn {');
+    const pressed = future.indexOf('[data-theme="holo"] .v-btn[aria-pressed="true"]');
+    expect(glass).toBeGreaterThan(-1);
+    expect(pressed).toBeGreaterThan(glass);
+    expect(future.slice(pressed, future.indexOf('}', pressed))).toMatch(/background:\s*var\(--v-grad-lime\);\s*color:\s*#ffffff/);
+  });
+  it('white meets AA on every stop of holo --v-grad-lime', () => {
+    const holo = future.slice(future.indexOf('[data-theme="holo"]'));
+    const grad = /--v-grad-lime:\s*linear-gradient\(([^;]*)\);/.exec(holo)?.[1] ?? '';
+    const stops = grad.match(/#[0-9a-fA-F]{6}/g) ?? [];
+    expect(stops.length).toBeGreaterThan(1);
+    for (const s of stops) {
+      expect(contrast('#ffffff', s), s).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+});
+
+// Calendar slot lines (DESK-09) and the CSP-safe resize corner (DESK-11).
+describe('main.css desk rules', () => {
+  const main = readFileSync('src/main.css', 'utf8');
+  it('hour slots use the grid border token, not a solid muted line', () => {
+    const rule = /\.d-calendar \.fc-timegrid-slot \{([^}]*)\}/.exec(main)?.[1] ?? '';
+    expect(rule).toMatch(/border-color:\s*var\(--fc-border-color\)/);
+    expect(rule).not.toMatch(/var\(--c-muted\)/);
+  });
+  it('the resize handle drops the data: SVG (CSP) and draws a visible CSS corner', () => {
+    const handle = /\.react-grid-layout \.react-grid-item > \.react-resizable-handle \{([^}]*)\}/.exec(main)?.[1] ?? '';
+    expect(handle).toMatch(/background-image:\s*none/);
+    expect(handle).toMatch(/opacity:\s*1/);
+    const corner = /\.react-grid-layout \.react-grid-item > \.react-resizable-handle::after \{([^}]*)\}/.exec(main)?.[1] ?? '';
+    expect(corner).toMatch(/border-right-style:\s*solid/);
+    expect(corner).toMatch(/border-color:\s*var\(--c-accent\)/);
+  });
+});

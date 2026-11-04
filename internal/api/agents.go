@@ -185,7 +185,14 @@ func startAgent(w http.ResponseWriter, r *http.Request, rl *relay.Relay, tokens 
 	// The launch token is issued like any agent's for the audit and
 	// trace trail; an off-router assistant's never leaves serve — its
 	// launch runs the CLI itself, with no token file and no hook.
-	token, l, err := tokens.MintOn(r.Context(), runner, info.Name+" on "+runner, provider, launch.DefaultTTL)
+	// A self-login agent's token funds the hook and MCP only: minted
+	// with NoProvider, the router refuses it for every provider (an
+	// empty provider would allow them all).
+	scope := provider
+	if selfAuth {
+		scope = launch.NoProvider
+	}
+	token, l, err := tokens.MintOn(r.Context(), runner, info.Name+" on "+runner, scope, launch.DefaultTTL)
 	if err != nil {
 		writeAuthError(w, http.StatusInternalServerError, "internal error")
 		return

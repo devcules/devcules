@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { me } from './api';
 import SignIn from './screens/SignIn';
 import Shell from './shell/Shell';
+import ToastHost from './shell/ToastHost';
 import { useMobile, useMobileBodyClass } from './screens/useMobile';
 
 type Session = 'checking' | 'signed-out' | { user: string };
@@ -20,7 +21,13 @@ export default function App() {
   // synchronous reset lives in the sign-in handler below.
   const check = useCallback(() => {
     me().then(
-      (user) => setSession(user ? { user } : 'signed-out'),
+      // Keep the same session object while the user is unchanged: a
+      // fresh {user} on every visibility check re-renders the whole
+      // shell and, with it, every open terminal pane.
+      (user) =>
+        setSession((prev) =>
+          !user ? 'signed-out' : typeof prev === 'object' && prev.user === user ? prev : { user },
+        ),
       () => setSession('signed-out'),
     );
   }, []);
@@ -42,6 +49,11 @@ export default function App() {
     };
   }, [check]);
 
+  // Any /api 401 lands here: the session is gone, so the shell
+  // unmounts and sign-in shows, instead of stranding dead screens.
+  // Stable, since screens (terminal panes among them) depend on it.
+  const sessionExpired = useCallback(() => setSession('signed-out'), []);
+
   function signedIn(): void {
     setSession('checking');
     check();
@@ -53,17 +65,15 @@ export default function App() {
   if (session === 'signed-out') {
     return <SignIn onSignedIn={signedIn} />;
   }
-  // Any /api 401 lands here: the session is gone, so the shell
-  // unmounts and sign-in shows, instead of stranding dead screens.
-  function sessionExpired(): void {
-    setSession('signed-out');
-  }
-
   return (
-    <Shell
-      username={session.user}
-      onSignedOut={() => setSession('signed-out')}
-      onSessionExpired={sessionExpired}
-    />
+    <>
+      <Shell
+        username={session.user}
+        onSignedOut={() => setSession('signed-out')}
+        onSessionExpired={sessionExpired}
+      />
+      {/* One toast host for every screen (Secrets, Settings, the Desk). */}
+      <ToastHost />
+    </>
   );
 }

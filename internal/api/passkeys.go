@@ -122,16 +122,21 @@ func passkeyRegisterFinish(svc *auth.Service, rec auditor) http.HandlerFunc {
 
 // passkeyLoginBegin opens a discoverable login ceremony, public: 200
 // with the request options, and the ceremony id in the ceremony
-// cookie.
+// cookie. Too many begins from one IP answer 429.
 func passkeyLoginBegin(svc *auth.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !requireMethod(w, r, http.MethodPost) {
 			return
 		}
-		options, ceremonyID, err := svc.BeginLogin()
+		options, ceremonyID, err := svc.BeginLogin(clientIP(r))
 		if err != nil {
 			if errors.Is(err, auth.ErrPasskeysDisabled) {
 				writeAuthError(w, http.StatusBadRequest, "passkeys are not enabled")
+				return
+			}
+			if errors.Is(err, auth.ErrTooManyAttempts) {
+				w.Header().Set("Retry-After", "60")
+				writeAuthError(w, http.StatusTooManyRequests, "too many sign-in attempts, try again later")
 				return
 			}
 			writeAuthError(w, http.StatusInternalServerError, "internal error")
@@ -170,7 +175,10 @@ func passkeyLoginFinish(svc *auth.Service, rec auditor) http.HandlerFunc {
 			setSessionCookie(w, r, value)
 			w.WriteHeader(http.StatusNoContent)
 		case errors.Is(err, auth.ErrTooManyAttempts):
-			rec.signInFailed(r, "passkey", "throttled")
+			// One row per IP per window, as for passwords.
+			if !errors.Is(err, auth.ErrThrottledAgain) {
+				rec.signInFailed(r, "passkey", "throttled")
+			}
 			w.Header().Set("Retry-After", "60")
 			writeAuthError(w, http.StatusTooManyRequests, "too many sign-in attempts, try again later")
 		case errors.Is(err, auth.ErrBadCeremony):

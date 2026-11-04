@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"unicode/utf8"
 )
 
 // runMockLLM serves a fake model provider for the smoke test: it
@@ -61,8 +62,20 @@ func mockLLM(seen io.Writer) http.Handler {
 		for i := len(msgs) - 1; i >= 0; i-- {
 			m, _ := msgs[i].(map[string]any)
 			if m["role"] == "user" {
-				if s, ok := m["content"].(string); ok {
-					return s
+				switch c := m["content"].(type) {
+				case string:
+					return c
+				case []any:
+					// Content blocks (Anthropic, and OpenAI's array
+					// form): the text blocks, in order.
+					var b strings.Builder
+					for _, block := range c {
+						if bm, _ := block.(map[string]any); bm["type"] == "text" {
+							t, _ := bm["text"].(string)
+							b.WriteString(t)
+						}
+					}
+					return b.String()
 				}
 			}
 		}
@@ -124,11 +137,18 @@ func mockLLM(seen io.Writer) http.Handler {
 	})
 }
 
+// splitEvery cuts s into pieces of n runes (not bytes), so no piece
+// splits a UTF-8 sequence and every streamed chunk is valid text.
 func splitEvery(s string, n int) []string {
 	var out []string
-	for len(s) > n {
-		out = append(out, s[:n])
-		s = s[n:]
+	for utf8.RuneCountInString(s) > n {
+		i := 0
+		for range n {
+			_, size := utf8.DecodeRuneInString(s[i:])
+			i += size
+		}
+		out = append(out, s[:i])
+		s = s[i:]
 	}
 	return append(out, strings.Clone(s))
 }

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/devcules/devcules/internal/audit"
 	"github.com/devcules/devcules/internal/machframes"
 	"github.com/devcules/devcules/internal/machines/elements"
 	"github.com/devcules/devcules/internal/machines/ground"
@@ -81,8 +82,11 @@ func machinesTree(relay *machrelay.Relay) http.Handler {
 // machinesInput serves POST /api/machines-input {kind,x,y,key,text}:
 // one injected input event — the take-control call. The action
 // budget is spent at the machine, which refuses at zero; a refusal
-// comes back as the machine's own reason.
-func machinesInput(relay *machrelay.Relay, publicURL string) http.Handler {
+// comes back as the machine's own reason. Each injected event records
+// an audit row with its kind and machine only: the key and text are
+// what the owner typed into the remote machine (passwords included)
+// and never reach the log.
+func machinesInput(relay *machrelay.Relay, publicURL string, rec auditor) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if relay == nil {
 			writeAuthError(w, http.StatusServiceUnavailable, "machines not configured")
@@ -93,14 +97,22 @@ func machinesInput(relay *machrelay.Relay, publicURL string) http.Handler {
 		}
 		csrf(publicURL, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var ev machframes.Input
-			if err := json.NewDecoder(r.Body).Decode(&ev); err != nil || ev.Kind == "" {
+			if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&ev); err != nil || ev.Kind == "" {
 				writeAuthError(w, http.StatusBadRequest, "kind, x, y, key and text: kind is required")
 				return
 			}
-			if aerr := relay.Inject(r.Context(), r.URL.Query().Get("machine"), ev); aerr != nil {
+			// Resolve the machine first so the audit row names the one
+			// that took the input (an empty ?machine= picks the only one).
+			machine, aerr := relay.PickMachine(r.URL.Query().Get("machine"))
+			if aerr != nil {
 				writeAuthError(w, aerr.Status, aerr.Msg)
 				return
 			}
+			if aerr := relay.Inject(r.Context(), machine, ev); aerr != nil {
+				writeAuthError(w, aerr.Status, aerr.Msg)
+				return
+			}
+			rec.record(r, audit.MachineInput, machine, map[string]string{"kind": ev.Kind})
 			w.WriteHeader(http.StatusNoContent)
 		})).ServeHTTP(w, r)
 	})
@@ -122,7 +134,7 @@ func machinesGround(relay *machrelay.Relay, publicURL string) http.Handler {
 			var body struct {
 				Phrase string `json:"phrase"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Phrase == "" {
+			if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&body); err != nil || body.Phrase == "" {
 				writeAuthError(w, http.StatusBadRequest, "phrase is required")
 				return
 			}

@@ -3,7 +3,7 @@
 // timer, quick links and the scratchpad — which persist to the widget
 // config (todos/links/scratch) or the small deskTimer store (timer).
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Tile, { CopyButton } from './Tile';
 import { listApprovals, type Approval } from '../../api';
 import { getMeetings } from '../../lib/deskApi';
@@ -233,19 +233,39 @@ export function LinksTile({ widget, arranging, onRemove, onSettings, onConfig }:
 }
 
 // ---- Scratchpad (config-persisted note) ----
+// DESK_FLUSH asks tiles holding a debounced change to hand it over now.
+export const DESK_FLUSH = 'devcules:desk-flush';
 export function ScratchTile({ widget, arranging, onRemove, onConfig, debounceMs = 800 }: TileProps & { debounceMs?: number }) {
   const [text, setText] = useState(String(widget.config?.text ?? ''));
   const [saved, setSaved] = useState(true);
   const timer = useRef<number | null>(null);
   const last = useRef(String(widget.config?.text ?? ''));
-  useEffect(() => () => { if (timer.current !== null) window.clearTimeout(timer.current); }, []);
+  // The latest typed text and onConfig, so a flush from cleanup or
+  // pagehide saves what is on screen, not what the closure saw.
+  const pending = useRef<string | null>(null);
+  const onConfigRef = useRef(onConfig);
+  useLayoutEffect(() => { onConfigRef.current = onConfig; });
+  const flush = useCallback(() => {
+    if (timer.current !== null) { window.clearTimeout(timer.current); timer.current = null; }
+    const v = pending.current;
+    pending.current = null;
+    if (v !== null && v !== last.current) { last.current = v; onConfigRef.current?.({ text: v }); }
+  }, []);
+  // Leaving the Desk (unmount) or the page (the Desk dispatches DESK_FLUSH
+  // on pagehide or a hidden tab, before it sends) inside the debounce
+  // window saves the note with the rest of the desk, in one save.
+  useEffect(() => {
+    window.addEventListener(DESK_FLUSH, flush);
+    return () => { window.removeEventListener(DESK_FLUSH, flush); flush(); };
+  }, [flush]);
   const change = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const v = e.target.value;
     setText(v);
     setSaved(false);
+    pending.current = v;
     if (timer.current !== null) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => {
-      if (v !== last.current) { last.current = v; onConfig?.({ text: v }); }
+      flush();
       setSaved(true);
     }, debounceMs);
   };

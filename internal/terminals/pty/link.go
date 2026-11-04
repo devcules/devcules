@@ -27,10 +27,10 @@ const maxTmuxCalls = 4
 
 // Serve wires the manager to the link: it registers every term.*
 // handler on the dialer before returning, so call it before the
-// dialer's Run and no early frame finds a missing handler. A
-// background watcher kills all attach clients whenever the link drops
-// (serve forgets its streams on unlink, so stale pumps must not write
-// into the next link) and when ctx ends. tmux sessions keep running
+// dialer's Run and no early frame finds a missing handler. Every
+// attach client is killed when the link drops, before the dialer
+// redials (serve forgets its streams on unlink, so stale pumps must
+// not write into the next link), and when ctx ends. tmux sessions keep running
 // for reattach.
 //
 // Dial handlers run inline in the link read loop, so nothing here may
@@ -50,8 +50,13 @@ func Serve(ctx context.Context, d *dial.Client, m *Manager, agents Launcher) {
 	d.On(terminals.TypeList, h.async(h.list))
 	d.On(terminals.TypeAgents, h.async(h.agentList))
 	d.On(terminals.TypeBrowse, h.async(h.browse))
+	// Drop on link end, synchronously, before the dialer can welcome
+	// the next link: a fresh attach on the new link is never mistaken
+	// for a stale one (polling the session string used to kill those
+	// attaches up to 500 ms after a relink).
+	d.OnDown(m.dropStreams)
 	go func() {
-		h.watchSession(ctx)
+		<-ctx.Done()
 		m.dropStreams()
 	}()
 }
@@ -415,24 +420,4 @@ func (h *linkRunner) pump(a *attach) {
 func (h *linkRunner) exit(stream string) {
 	data, _ := json.Marshal(terminals.Exit{Stream: stream})
 	_ = h.sendFrame(link.Frame{V: link.Version, Type: terminals.TypeExit, ID: link.NewID(), Data: data})
-}
-
-// watchSession kills every attach client when the welcome session
-// changes: a drop means serve forgot its streams, so stale pumps must
-// not write into the next link. tmux sessions survive for reattach.
-func (h *linkRunner) watchSession(ctx context.Context) {
-	last := h.d.Session()
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			if cur := h.d.Session(); cur != last {
-				last = cur
-				h.m.dropStreams()
-			}
-		}
-	}
 }

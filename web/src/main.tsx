@@ -1,7 +1,15 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './app';
+import ErrorBoundary from './shell/ErrorBoundary';
 import { initTheme } from './theme/themes';
+import '@fontsource-variable/space-grotesk';
+import '@fontsource-variable/unbounded';
+import '@fontsource-variable/jetbrains-mono';
+import '@fontsource-variable/orbitron';
+import '@fontsource/chakra-petch/latin-500.css';
+import '@fontsource/chakra-petch/latin-700.css';
+import '@fontsource/vt323/latin-400.css';
 import './main.css';
 
 // Pin the stored theme before the first paint: the attribute sets
@@ -16,7 +24,11 @@ if (!root) {
 }
 createRoot(root).render(
   <StrictMode>
-    <App />
+    {/* Last line of defence: a render throw shows a reload notice
+        instead of an empty #root. */}
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );
 

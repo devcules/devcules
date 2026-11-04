@@ -63,18 +63,22 @@ func TestTrimKeepsRunes(t *testing.T) {
 }
 
 func TestFreshChat(t *testing.T) {
-	loop := testLoop(t, &scriptedModel{reply: []ModelReply{{Text: "hi"}}}, func(context.Context, ToolCallAsk) GateResult {
+	loop := testLoop(t, &scriptedModel{reply: []ModelReply{{Text: "hi"}, {Text: "again"}}}, func(context.Context, ToolCallAsk) GateResult {
 		return GateResult{Decision: "deny", Result: mcp.Result{Text: "x", IsError: true}}
 	})
-	if _, err := loop.Chat(context.Background(), "", "hello"); err != nil {
+	id, _, err := loop.Chat(context.Background(), "", "hello")
+	if err != nil {
 		t.Fatal(err)
 	}
-	id := loop.FreshChat()
-	if !ValidSessionID(id) || loop.FreshChat() != "" {
-		t.Fatalf("FreshChat = %q, then not cleared", id)
+	if !ValidSessionID(id) {
+		t.Fatalf("fresh Chat returned id %q", id)
 	}
 	if _, err := loop.Session(id); err != nil {
 		t.Fatalf("the fresh conversation is not readable: %v", err)
+	}
+	// Continuing a conversation hands back the same id.
+	if again, _, err := loop.Chat(context.Background(), id, "more"); err != nil || again != id {
+		t.Fatalf("continued Chat = %q, %v; want %q", again, err, id)
 	}
 }
 

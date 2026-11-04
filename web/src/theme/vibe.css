@@ -1,0 +1,357 @@
+/* vibe ✦ — the Gen Z demo palette. Acid lime on ultraviolet night,
+   hot pink and cyber cyan as the supporting cast, glass everywhere,
+   chunky display type. Token pairs stay WCAG AA: lime #c6ff3d on
+   #0b0614 is ~17:1, muted lavender #b9a8d9 on the surface ~8:1. */
+[data-theme="vibe"] {
+  --v-pink: #ff4fd8;
+  --v-cyan: #3df5ff;
+  --v-lime: #c6ff3d;
+  --v-violet: #8b5cff;
+  --v-grad: linear-gradient(120deg, var(--v-pink), var(--v-violet) 45%, var(--v-cyan));
+  --v-grad-lime: linear-gradient(120deg, var(--v-lime), var(--v-cyan));
+}
+
+[data-theme="vibe"] {
+  --c-tint: rgb(36 20 66 / 0.55);
+  --c-tint-strong: rgb(139 92 255 / 0.22);
+  --c-edge: rgb(198 255 61 / 0.25);
+  --c-glow: rgb(255 79 216 / 0.22);
+  --c-edge-top: rgb(255 255 255 / 0.12);
+}
+
+/* Type: Space Grotesk for everything, Unbounded for the shouty bits,
+   JetBrains Mono for code and terminals. */
+[data-theme="vibe"] body,
+[data-theme="vibe"] {
+  font-family: "Space Grotesk Variable", "Space Grotesk", system-ui, sans-serif;
+  letter-spacing: -0.005em;
+}
+[data-theme="vibe"] h1,
+[data-theme="vibe"] h2,
+[data-theme="vibe"] .v-display {
+  font-family: "Unbounded Variable", "Unbounded", system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+[data-theme="vibe"] .font-mono,
+[data-theme="vibe"] code,
+[data-theme="vibe"] pre {
+  font-family: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace !important;
+}
+
+/* The backdrop: a slow-drifting aurora mesh plus a faint grid, fixed
+   behind everything so every glass pane has something to blur. */
+[data-theme="vibe"] body {
+  background-color: var(--c-base);
+  background-image:
+    radial-gradient(60vmax 50vmax at 8% -10%, rgb(255 79 216 / 0.28), transparent 60%),
+    radial-gradient(55vmax 45vmax at 105% 10%, rgb(61 245 255 / 0.20), transparent 60%),
+    radial-gradient(70vmax 50vmax at 50% 120%, rgb(139 92 255 / 0.30), transparent 60%),
+    linear-gradient(rgb(255 255 255 / 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.025) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+  background-attachment: fixed;
+}
+@media (prefers-reduced-motion: no-preference) {
+  [data-theme="vibe"] body {
+    animation: v-aurora 28s ease-in-out infinite alternate;
+  }
+}
+@keyframes v-aurora {
+  0% { background-position: 0% 0%, 100% 0%, 50% 100%, 0 0, 0 0; }
+  100% { background-position: 12% 8%, 88% 14%, 40% 90%, 0 0, 0 0; }
+}
+
+/* Selection + scrollbars get the palette too. */
+[data-theme="vibe"] ::selection { background: var(--v-pink); color: #0b0614; }
+[data-theme="vibe"] * { scrollbar-color: rgb(198 255 61 / 0.45) transparent; scrollbar-width: thin; }
+
+/* Borders: the default muted border becomes a soft violet hairline. */
+[data-theme="vibe"] .border-muted { border-color: rgb(185 168 217 / 0.18); }
+
+/* Tiles: rounder, glassier, a gradient rim that lights up on hover,
+   and a gentle lift. */
+[data-theme="vibe"] .i-card {
+  position: relative;
+  border-radius: 1.25rem;
+  border-color: rgb(185 168 217 / 0.16);
+  background: linear-gradient(160deg, rgb(42 24 78 / 0.72), rgb(18 10 34 / 0.72));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.10),
+    0 18px 40px -22px rgb(255 79 216 / 0.45);
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+[data-theme="vibe"] .i-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: var(--v-grad);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 180ms ease;
+  pointer-events: none;
+}
+[data-theme="vibe"] .i-card:hover::before { opacity: 0.9; }
+[data-theme="vibe"] .i-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.12),
+    0 24px 50px -20px rgb(61 245 255 / 0.45);
+}
+[data-theme="vibe"] .i-card > header {
+  border-bottom-color: rgb(185 168 217 / 0.12);
+}
+[data-theme="vibe"] .i-card > header > span.truncate {
+  font-family: "Unbounded Variable", system-ui, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* LEDs glow. */
+[data-theme="vibe"] .d-led-live { background: var(--v-lime); box-shadow: 0 0 10px var(--v-lime); }
+[data-theme="vibe"] .d-led-error { box-shadow: 0 0 10px #ef4444; }
+[data-theme="vibe"] .d-led-stale { box-shadow: 0 0 10px #f59e0b; }
+[data-theme="vibe"] .i-live { background: var(--v-pink); box-shadow: 0 0 10px var(--v-pink); }
+
+/* Accent buttons: pill-shaped lime with a hover glow. */
+[data-theme="vibe"] .bg-accent {
+  background: var(--v-grad-lime);
+  border-radius: 9999px;
+  font-weight: 600;
+  box-shadow: 0 6px 20px -8px rgb(198 255 61 / 0.7);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+[data-theme="vibe"] .bg-accent:hover { transform: translateY(-1px) scale(1.02); box-shadow: 0 10px 28px -8px rgb(61 245 255 / 0.8); }
+
+/* Rows and controls: a violet wash and a lime marker. */
+[data-theme="vibe"] .i-row:hover,
+[data-theme="vibe"] .i-row[data-selected="true"] { background-color: rgb(139 92 255 / 0.16); }
+[data-theme="vibe"] .i-row[data-selected="true"]::before { background: var(--v-grad-lime); width: 4px; box-shadow: 0 0 12px var(--v-lime); }
+[data-theme="vibe"] .i-control:hover { background-color: rgb(139 92 255 / 0.18); }
+[data-theme="vibe"] .i-control[data-selected="true"] { background-color: rgb(198 255 61 / 0.14); color: var(--v-lime); }
+
+/* Inputs get rounder and glow on focus. */
+[data-theme="vibe"] input,
+[data-theme="vibe"] textarea,
+[data-theme="vibe"] select { border-radius: 0.75rem; }
+[data-theme="vibe"] :focus-visible { outline: 2px solid var(--v-pink); outline-offset: 2px; box-shadow: 0 0 0 4px rgb(255 79 216 / 0.25); }
+
+/* Gradient text helper + the Desk hero strip. */
+.v-grad-text {
+  background: var(--v-grad, linear-gradient(90deg, var(--c-accent), var(--c-accent)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+[data-theme="vibe"] .v-strip {
+  background: linear-gradient(100deg, rgb(255 79 216 / 0.14), rgb(139 92 255 / 0.12) 40%, rgb(61 245 255 / 0.10));
+  border-bottom-color: rgb(198 255 61 / 0.18);
+  backdrop-filter: blur(18px) saturate(1.5);
+}
+.v-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 9999px;
+  padding: 0.2rem 0.7rem;
+  font-size: 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--c-muted) 25%, transparent);
+  background: color-mix(in srgb, var(--c-text) 4%, transparent);
+  color: var(--c-text);
+}
+.v-btn {
+  min-height: 2.75rem;
+  border-radius: 9999px;
+  padding: 0 0.9rem;
+  font-size: 0.9rem;
+  color: var(--c-text);
+  border: 1px solid color-mix(in srgb, var(--c-muted) 22%, transparent);
+  background: color-mix(in srgb, var(--c-text) 4%, transparent);
+  transition: background 120ms ease, transform 120ms ease, border-color 120ms ease;
+}
+.v-btn:hover { background: color-mix(in srgb, var(--c-accent) 18%, transparent); border-color: var(--c-accent); transform: translateY(-1px); }
+.v-btn[aria-pressed="true"] { background: var(--c-accent); color: var(--c-on-accent); border-color: transparent; }
+
+/* Showcase tiles. */
+.v-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  border-radius: 1rem;
+  padding: 0.75rem 0.9rem;
+  background: color-mix(in srgb, var(--c-text) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c-muted) 14%, transparent);
+  min-width: 0;
+}
+.v-stat-num {
+  font-family: "Unbounded Variable", system-ui, sans-serif;
+  font-size: 1.9rem;
+  line-height: 1.1;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.v-stat-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--c-muted); }
+.v-marquee { overflow: hidden; white-space: nowrap; mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.v-marquee > div { display: inline-block; padding-inline-start: 100%; }
+@media (prefers-reduced-motion: no-preference) {
+  .v-marquee > div { animation: v-marquee 22s linear infinite; }
+}
+@keyframes v-marquee { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+.v-feed-item { border-left: 2px solid color-mix(in srgb, var(--c-muted) 20%, transparent); padding-left: 0.6rem; }
+.v-feed-item:first-child { border-left-color: var(--c-accent); }
+@media (prefers-reduced-motion: no-preference) {
+  .v-pop { animation: v-pop 420ms cubic-bezier(.2,1.4,.4,1) both; }
+}
+@keyframes v-pop { from { opacity: 0; transform: translateY(6px) scale(0.98); } to { opacity: 1; transform: none; } }
+.v-ring {
+  --p: 0;
+  width: 92px; height: 92px; border-radius: 9999px;
+  background: conic-gradient(var(--c-accent) calc(var(--p) * 1%), color-mix(in srgb, var(--c-text) 8%, transparent) 0);
+  display: grid; place-items: center;
+}
+.v-ring > span { width: 74px; height: 74px; border-radius: 9999px; background: var(--c-surface); display: grid; place-items: center; }
+
+/* Shell: let the aurora through, frost the header and sidebars. */
+[data-theme="vibe"] .v-shell { background-color: transparent; }
+[data-theme="vibe"] .v-head {
+  background: rgb(11 6 20 / 0.55);
+  backdrop-filter: blur(18px) saturate(1.5);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  border-bottom: 1px solid rgb(185 168 217 / 0.12);
+}
+[data-theme="vibe"] aside,
+[data-theme="vibe"] nav { backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+.v-logo { display: inline-flex; align-items: center; gap: 0.4rem; }
+[data-theme="vibe"] .v-logo {
+  font-family: "Unbounded Variable", system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: var(--v-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.v-logo-mark { display: inline-block; }
+[data-theme="vibe"] .v-logo-mark { color: var(--v-lime); -webkit-text-fill-color: var(--v-lime); text-shadow: 0 0 14px var(--v-lime); }
+@media (prefers-reduced-motion: no-preference) {
+  [data-theme="vibe"] .v-logo-mark { animation: v-spin 6s linear infinite; }
+}
+@keyframes v-spin { to { transform: rotate(360deg); } }
+
+/* Sign-in: a floating glass card with a gradient title. */
+[data-theme="vibe"] .v-signin {
+  max-width: 24rem;
+  padding: 2rem 1.75rem;
+  border-radius: 1.5rem;
+  background: linear-gradient(160deg, rgb(42 24 78 / 0.75), rgb(18 10 34 / 0.75));
+  border: 1px solid rgb(185 168 217 / 0.18);
+  box-shadow: 0 30px 80px -30px rgb(255 79 216 / 0.55), inset 0 1px 0 rgb(255 255 255 / 0.1);
+  backdrop-filter: blur(20px);
+}
+[data-theme="vibe"] .v-signin-title {
+  font-family: "Unbounded Variable", system-ui, sans-serif;
+  font-size: 1.75rem;
+  line-height: 2.1rem;
+  font-weight: 800;
+}
+[data-theme="vibe"] .v-signin button[type="submit"] { border-radius: 9999px; }
+
+.v-btn { display: inline-flex; align-items: center; gap: 0.3rem; white-space: nowrap; }
+@media (max-width: 640px) {
+  .v-stat { padding: 0.5rem 0.7rem; }
+  .v-stat-num { font-size: 1.35rem; }
+  .v-btn { padding: 0 0.7rem; font-size: 0.82rem; }
+}
+
+/* Calendar, vibe-ified: hairline grid, pink "today", dark text on the
+   lime active button. */
+[data-theme="vibe"] .d-calendar {
+  --fc-border-color: rgb(185 168 217 / 0.14);
+  --fc-button-bg-color: rgb(255 255 255 / 0.04);
+  --fc-button-border-color: rgb(185 168 217 / 0.22);
+  --fc-button-hover-bg-color: rgb(139 92 255 / 0.25);
+  --fc-button-active-text-color: #0b0614;
+  --fc-today-bg-color: rgb(255 79 216 / 0.10);
+  --fc-event-bg-color: var(--v-violet);
+  --fc-event-border-color: var(--v-pink);
+}
+[data-theme="vibe"] .d-calendar .fc-timegrid-slot { border-color: rgb(185 168 217 / 0.10); }
+[data-theme="vibe"] .d-calendar .fc .fc-button { border-radius: 0.6rem; }
+[data-theme="vibe"] .d-calendar .fc .fc-button-active,
+[data-theme="vibe"] .d-calendar .fc .fc-button-primary:not(:disabled).fc-button-active { color: #0b0614; font-weight: 600; }
+[data-theme="vibe"] .d-calendar .fc-toolbar-title { font-family: "Unbounded Variable", system-ui, sans-serif; }
+[data-theme="vibe"] .d-calendar .fc-timegrid-now-indicator-line { border-color: var(--v-pink); box-shadow: 0 0 8px var(--v-pink); }
+
+/* ---- Command palette, shortcuts, presentation mode ---- */
+.v-kbd {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  font-family: "JetBrains Mono Variable", ui-monospace, monospace;
+  font-size: 0.7rem;
+  color: var(--c-muted);
+  border: 1px solid color-mix(in srgb, var(--c-muted) 35%, transparent);
+  background: color-mix(in srgb, var(--c-base) 60%, transparent);
+  white-space: nowrap;
+}
+[data-theme="vibe"] .v-palette {
+  background: linear-gradient(160deg, rgb(42 24 78 / 0.92), rgb(18 10 34 / 0.94));
+  box-shadow: 0 40px 100px -30px rgb(255 79 216 / 0.55), inset 0 1px 0 rgb(255 255 255 / 0.1);
+}
+[data-theme="vibe"] .v-palette-sel { background: rgb(198 255 61 / 0.12); box-shadow: inset 3px 0 0 var(--v-lime); }
+.v-present-btn { border: 1px solid color-mix(in srgb, var(--c-accent) 50%, transparent); }
+.v-present-btn:hover { background: color-mix(in srgb, var(--c-accent) 18%, transparent); }
+
+.v-live-badge { display: none; }
+html.devcules-present .v-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  position: fixed;
+  bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  right: 0.75rem;
+  z-index: 65;
+  border-radius: 9999px;
+  padding: 0.35rem 0.85rem;
+  font-family: "Unbounded Variable", system-ui, sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  color: #fff;
+  background: rgb(11 6 20 / 0.7);
+  border: 1px solid rgb(255 79 216 / 0.6);
+  box-shadow: 0 0 24px rgb(255 79 216 / 0.45);
+  backdrop-filter: blur(12px);
+  opacity: 0.55;
+  transition: opacity 150ms ease;
+}
+html.devcules-present .v-live-badge:hover { opacity: 1; }
+.v-live-dot { width: 8px; height: 8px; border-radius: 9999px; background: #ff3b5c; box-shadow: 0 0 10px #ff3b5c; }
+@media (prefers-reduced-motion: no-preference) {
+  .v-live-dot { animation: i-live-pulse 1.2s ease-in-out infinite; }
+}
+html.devcules-present header.v-head,
+html.devcules-present nav[aria-label="Primary"],
+html.devcules-present nav[aria-label="Tabs"],
+html.devcules-present [role="separator"][aria-label="Resize the sidebar"],
+html.devcules-present footer[aria-label="Machine status"] { display: none !important; }
+html.devcules-present .v-shell { padding-bottom: 0 !important; }
+html.devcules-present .v-strip { padding-top: 1.25rem; padding-bottom: 1.25rem; }
+html.devcules-present .v-strip .v-display { font-size: 2.6rem; line-height: 1; }
+
+/* ---- Pulse tile: activity bars ---- */
+.v-bars { display: flex; align-items: flex-end; gap: 3px; height: 100%; min-height: 60px; }
+.v-bar {
+  flex: 1;
+  min-width: 3px;
+  border-radius: 4px 4px 1px 1px;
+  background: linear-gradient(180deg, var(--c-accent), color-mix(in srgb, var(--c-accent) 25%, transparent));
+  transition: height 400ms cubic-bezier(.2,1,.3,1);
+}
+[data-theme="vibe"] .v-bar { background: linear-gradient(180deg, var(--v-pink), var(--v-violet) 60%, rgb(61 245 255 / 0.4)); box-shadow: 0 0 10px rgb(255 79 216 / 0.25); }
+.v-bar[data-now="true"] { outline: 1px solid var(--c-accent); }

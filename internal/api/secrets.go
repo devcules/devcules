@@ -28,9 +28,18 @@ func secretsListPut(v *vault.Vault, rec auditor) http.HandlerFunc {
 				writeAuthError(w, http.StatusInternalServerError, "secrets unreadable")
 				return
 			}
-			if names == nil {
-				names = []string{}
+			// Only the names this API manages: a name with a slash is one
+			// of serve's own entries (desk/sources, desk/prefs,
+			// push/vapid_key, provider/<id>/api_key), which PUT and
+			// DELETE refuse, so listing it would only offer a delete
+			// that fails.
+			user := []string{}
+			for _, n := range names {
+				if !internalSecret(n) {
+					user = append(user, n)
+				}
 			}
+			names = user
 			writeJSON(w, http.StatusOK, map[string][]string{"names": names})
 		case http.MethodPut:
 			var body struct {
@@ -71,11 +80,22 @@ func secretsGetDelete(v *vault.Vault, rec auditor) http.HandlerFunc {
 		}
 		switch r.Method {
 		case http.MethodDelete:
+			// The PUT rule: a name with a slash is serve's own (the
+			// desk configuration, the VAPID key, provider keys) and
+			// is not this API's to remove.
+			if internalSecret(name) || len(name) > 128 {
+				writeAuthError(w, http.StatusBadRequest, "want a name (1-128, no slashes)")
+				return
+			}
+			// Vault.Delete does not report a missing name, so ask
+			// first: a delete of nothing answers 404 and audits
+			// nothing. Any other read error (a value that no longer
+			// opens) still lets the name be removed.
+			if _, err := v.Get(r.Context(), name); errors.Is(err, vault.ErrNotFound) {
+				writeAuthError(w, http.StatusNotFound, "no secret named "+name)
+				return
+			}
 			if err := v.Delete(r.Context(), name); err != nil {
-				if errors.Is(err, vault.ErrNotFound) {
-					writeAuthError(w, http.StatusNotFound, "no secret named "+name)
-					return
-				}
 				writeAuthError(w, http.StatusInternalServerError, "secret not deleted")
 				return
 			}
@@ -87,4 +107,11 @@ func secretsGetDelete(v *vault.Vault, rec auditor) http.HandlerFunc {
 			writeAuthError(w, http.StatusMethodNotAllowed, "secrets are write-only")
 		}
 	}
+}
+
+// internalSecret reports a vault name serve keeps for itself: every one
+// is path-like (desk/, push/, provider/), and a user's secret can never
+// carry a slash or a NUL (PUT refuses both).
+func internalSecret(name string) bool {
+	return strings.ContainsAny(name, "/\x00")
 }

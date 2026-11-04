@@ -343,3 +343,39 @@ func TestPushFailureIsLogged(t *testing.T) {
 		time.Sleep(5 * time.Millisecond)
 	}
 }
+
+// TestWaitReleasesWaiters checks that polling an answered or unknown
+// approval leaves no channel behind in the waiter map (each poll used
+// to leak one for good).
+func TestWaitReleasesWaiters(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	if err := f.svc.SetMode(ctx, "runner:laptop", ModeAll, "admin", ""); err != nil {
+		t.Fatal(err)
+	}
+	out, err := f.svc.Ask(ctx, Request{LaunchID: "l1", Runner: "laptop", Tool: "Bash", Command: "ls"})
+	if err != nil || out.Approval == nil {
+		t.Fatalf("Ask = %+v %v", out, err)
+	}
+	<-f.push.sent
+	if _, err := f.svc.Answer(ctx, out.Approval.ID, true, "admin", ""); err != nil {
+		t.Fatal(err)
+	}
+	for range 3 {
+		if got, err := f.svc.Wait(ctx, "l1", out.Approval.ID, time.Second); err != nil || got.Verdict != Allow {
+			t.Fatalf("answered wait = %+v %v", got, err)
+		}
+		if _, err := f.svc.Wait(ctx, "l1", "nope", time.Second); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("unknown wait = %v", err)
+		}
+		if _, err := f.svc.Wait(ctx, "l2", out.Approval.ID, time.Second); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("foreign wait = %v", err)
+		}
+	}
+	f.svc.mu.Lock()
+	n := len(f.svc.waiters)
+	f.svc.mu.Unlock()
+	if n != 0 {
+		t.Fatalf("%d waiters left behind", n)
+	}
+}

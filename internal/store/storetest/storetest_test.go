@@ -122,7 +122,7 @@ func (r memCalendar) List(ctx context.Context, from, to time.Time) ([]*store.Cal
 	defer r.db.mu.Unlock()
 	var out []*store.CalendarEvent
 	for _, e := range r.db.calendar {
-		if !e.End.Before(from) && !e.Start.After(to) {
+		if e.RRule != "" || (!e.End.Before(from) && !e.Start.After(to)) {
 			cp := e
 			out = append(out, &cp)
 		}

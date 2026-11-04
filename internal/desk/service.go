@@ -89,7 +89,7 @@ func NewService(v *vault.Vault, hc, feedHC *http.Client) *Service {
 		weatherC: NewCache[json.RawMessage](30*time.Minute, 5*time.Minute),
 		newsC:    NewCache[json.RawMessage](6*time.Hour, 20*time.Minute),
 		ticketC:  NewCache[json.RawMessage](10*time.Minute, 2*time.Minute),
-		meetC:    NewCache[json.RawMessage](10*time.Minute, 2*time.Minute),
+		meetC:    NewCache[json.RawMessage](10*time.Minute, 2*time.Minute).evictIdle(time.Hour),
 	}
 }
 
@@ -160,6 +160,10 @@ func (s *Service) WriteSources(ctx context.Context, src Sources) error {
 	return nil
 }
 
+// ErrPrefsVersion refuses a document whose version is outside
+// 0..MaxPrefsVersion.
+var ErrPrefsVersion = errors.New("desk prefs version out of range")
+
 func (s *Service) ReadPrefs(ctx context.Context) (Prefs, error) {
 	s.mu.Lock()
 	if s.prefs != nil {
@@ -188,8 +192,22 @@ func (s *Service) ReadPrefs(ctx context.Context) (Prefs, error) {
 	return p, nil
 }
 
+// MaxPrefsVersion bounds the document version a client may store. The
+// server does not interpret the version (the web app owns the document
+// shape and its migrations); it keeps what the client sent so the page's
+// "is this an older desk?" check sees its own version again on reload.
+const MaxPrefsVersion = 1000
+
+// WritePrefs stores the document as sent, version included. An
+// unversioned document (0) is stored as 2, the shape before versions
+// existed, matching what ReadPrefs answers for it.
 func (s *Service) WritePrefs(ctx context.Context, p Prefs) error {
-	p.Version = 2
+	if p.Version < 0 || p.Version > MaxPrefsVersion {
+		return ErrPrefsVersion
+	}
+	if p.Version == 0 {
+		p.Version = 2
+	}
 	raw, err := json.Marshal(p)
 	if err != nil {
 		return err
@@ -305,14 +323,21 @@ func (s *Service) Tickets(ctx context.Context, refresh bool) (json.RawMessage, e
 // calendar grid reads FeedMeetings over a wider window instead: this
 // narrow list is the "next up" telescope, the grid wants the horizon.
 func (s *Service) Meetings(ctx context.Context, refresh bool) (json.RawMessage, error) {
-	from := time.Now().Add(-2 * time.Hour)
-	to := time.Now().Add(7 * 24 * time.Hour)
+	// The window moves with the clock, so it is snapped to the hour: the
+	// cache key (which carries the window) then stays the same for an hour
+	// and the TTL, the Sync limit and the stale fallback all apply. from
+	// lands 1-2 h back (ongoing and just-ended meetings stay listed), to at
+	// least 7 days ahead.
+	hour := Now().Truncate(time.Hour)
+	from := hour.Add(-time.Hour)
+	to := hour.Add(7*24*time.Hour + time.Hour)
 	return s.FeedMeetings(ctx, from, to, refresh, 25)
 }
 
 // FeedMeetings answers the ICS feeds expanded over [from, to], sorted,
-// capped at limit (0 = no cap). Read-only sources; a feed that fails is
-// skipped unless every feed failed.
+// capped at limit, the earliest first (limit 0, or above maxFeedMeetings,
+// means maxFeedMeetings). Read-only sources; a feed that fails is skipped
+// unless every feed failed.
 func (s *Service) FeedMeetings(ctx context.Context, from, to time.Time, refresh bool, limit int) (json.RawMessage, error) {
 	src, err := s.readSources(ctx)
 	if err != nil {
@@ -344,7 +369,10 @@ func (s *Service) FeedMeetings(ctx context.Context, from, to time.Time, refresh 
 			return nil, firstErr
 		}
 		sort.Slice(all, func(i, j int) bool { return all[i].Start.Before(all[j].Start) })
-		if limit > 0 && len(all) > limit {
+		if limit <= 0 || limit > maxFeedMeetings {
+			limit = maxFeedMeetings // several feeds, each already bounded
+		}
+		if len(all) > limit {
 			all = all[:limit]
 		}
 		return json.Marshal(map[string]any{"configured": true, "items": all})

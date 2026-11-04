@@ -12,12 +12,15 @@ const errors = {
 // attemptPasskeyLogin runs one login ceremony: begin, get, finish.
 // A user cancel reads 'cancelled' (the screen stays silent). A
 // passkey the user picked that the server then refused reads
-// 'rejected'; any failure before a passkey was picked reads 'failed'.
-// It never throws.
+// 'rejected'; any failure before a passkey was picked reads 'failed',
+// except the begin rate limit, which reads 'limited'. It never throws.
 async function attemptPasskeyLogin(
   signal?: AbortSignal,
 ): Promise<'ok' | 'failed' | 'rejected' | 'limited' | 'cancelled'> {
   const begun = await beginPasskeyLogin();
+  if (begun === 'limited') {
+    return 'limited';
+  }
   if (typeof begun === 'string') {
     return 'failed';
   }
@@ -178,10 +181,11 @@ export default function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
     'min-h-11 rounded-md border border-muted text-body text-text transition-colors duration-150 disabled:opacity-60';
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-base px-4 pt-[env(safe-area-inset-top)]">
-      <div className="w-full max-w-xs">
-        <h1 className="text-lead font-semibold text-text">Sign in</h1>
-        <p className="mt-1 text-body text-muted">Your agents are waiting.</p>
+    <main className="v-shell flex min-h-dvh items-center justify-center bg-base px-4 pt-[env(safe-area-inset-top)]">
+      <div className="v-signin w-full max-w-xs">
+        <div className="v-logo mb-4 text-lead font-semibold text-accent"><span className="v-logo-mark" aria-hidden="true">✦</span>devcules</div>
+        <h1 className="v-signin-title text-lead font-semibold text-text">Sign in</h1>
+        <p className="mt-1 text-body text-muted">Your agents are waiting. No pressure. 💅</p>
         <form onSubmit={submit} className="mt-6 flex flex-col gap-4">
           <label className="flex flex-col gap-1 text-body text-text">
             Username

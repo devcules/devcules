@@ -34,7 +34,72 @@ lacks. Every token pair in every theme meets WCAG AA. */
     --c-muted: #5b6470;
     --c-accent: #8a5a00;
     --c-on-accent: #ffffff;
+    --c-danger: #b91c1c;
+    --c-warn: #92400e;
+    --c-hot: #b91c1c;
   }
+}
+
+/* vibe ✦: acid lime on ultraviolet night (the Gen Z demo default; the
+   glow, gradients and type live in vibe.css). */
+:root[data-theme="vibe"] {
+  color-scheme: dark;
+  --c-base: #0b0614;
+  --c-surface: #1a1030;
+  --c-text: #f6f1ff;
+  --c-muted: #b9a8d9;
+  --c-accent: #c6ff3d;
+  --c-accent-hero: #d8ff73;
+  --c-on-accent: #0b0614;
+}
+
+/* gridrunner ◈: electric cyan light-cycles on a deep-navy grid
+   (styling in future.css). */
+:root[data-theme="tron"] {
+  color-scheme: dark;
+  --c-base: #02060f;
+  --c-surface: #071426;
+  --c-text: #e6fbff;
+  --c-muted: #86bccf;
+  --c-accent: #00e5ff;
+  --c-on-accent: #001218;
+}
+
+/* ember 2049 ▲: sodium-orange haze, brutalist HUD brackets. */
+:root[data-theme="ember"] {
+  color-scheme: dark;
+  --c-base: #120a06;
+  --c-surface: #1e120b;
+  --c-text: #ffe9d6;
+  --c-muted: #cfa684;
+  --c-accent: #ff7a1a;
+  --c-on-accent: #160b04;
+}
+
+/* phosphor ▮: green CRT, scanlines, monospace everything. */
+:root[data-theme="phosphor"] {
+  color-scheme: dark;
+  --c-base: #020703;
+  --c-surface: #07130a;
+  --c-text: #c4ffd2;
+  --c-muted: #6fcf88;
+  --c-accent: #39ff6a;
+  --c-on-accent: #021006;
+}
+
+/* holo ◎: the light one. Pearl glass with iridescent rims, deep
+   electric-indigo ink. */
+:root[data-theme="holo"] {
+  color-scheme: light;
+  --c-base: #eef0fa;
+  --c-surface: #ffffff;
+  --c-text: #14122b;
+  --c-muted: #524f72;
+  --c-accent: #5b21e6;
+  --c-on-accent: #ffffff;
+  --c-danger: #b91c1c;
+  --c-warn: #92400e;
+  --c-hot: #b91c1c;
 }
 
 /* Paper: the light pair as an explicit pick (no OS dependence). */
@@ -46,6 +111,9 @@ lacks. Every token pair in every theme meets WCAG AA. */
   --c-muted: #5b6470;
   --c-accent: #8a5a00;
   --c-on-accent: #ffffff;
+  --c-danger: #b91c1c;
+  --c-warn: #92400e;
+  --c-hot: #b91c1c;
 }
 
 /* Slate: low-chroma blue-grey dark. Quiet chrome, cold steel accent. */
@@ -269,6 +337,9 @@ lacks. Every token pair in every theme meets WCAG AA. */
   --c-muted: #575650;
   --c-accent: #1d6f68;
   --c-on-accent: #fffcf0;
+  --c-danger: #b91c1c;
+  --c-warn: #92400e;
+  --c-hot: #b91c1c;
 }
 
 /* Rosé Pine dusk: rose-lavender dark with the rose accent that reads
@@ -341,6 +412,9 @@ lacks. Every token pair in every theme meets WCAG AA. */
   --c-muted: #4a5a61;
   --c-accent: #1f6aa6;
   --c-on-accent: #fdf6e3;
+  --c-danger: #b91c1c;
+  --c-warn: #92400e;
+  --c-hot: #b91c1c;
 }
 
 @theme {
@@ -383,4 +457,37 @@ light tone. Light bases (Paper + OS-follows-light Arc) keep it. */
 [data-theme="midnight"] .remote-tint,
 [data-theme="meta-hackathon"] .remote-tint {
   filter: invert(0.85) brightness(1.1);
+}
+
+/* Light schemes: the status colours in the screens are Tailwind's
+dark-tuned red-400 / amber / the vibe hot pink, which fall to 1.5-2.9:1
+on a light surface. themes.ts pins data-scheme on <html>, and here the
+light schemes repoint those utilities at the AA tokens above (danger,
+warn, hot; each >= 4.5:1 on its theme's base and surface, checked by
+contrast.test.ts). Repointing the theme variables also covers the
+hover: variants. Arc has no light attribute of its own: it goes light
+with the OS, so the media query repeats the mapping for it. */
+:root[data-scheme="light"] {
+  --color-red-300: var(--c-danger);
+  --color-red-400: var(--c-danger);
+  --color-amber-400: var(--c-warn);
+}
+:where(:root[data-scheme="light"]) .text-amber-500 {
+  color: var(--c-warn);
+}
+:where(:root[data-scheme="light"]) .text-\[\#ff4fd8\] {
+  color: var(--c-hot);
+}
+@media (prefers-color-scheme: light) {
+  :root[data-theme="arc"] {
+    --color-red-300: var(--c-danger);
+    --color-red-400: var(--c-danger);
+    --color-amber-400: var(--c-warn);
+  }
+  :where(:root[data-theme="arc"]) .text-amber-500 {
+    color: var(--c-warn);
+  }
+  :where(:root[data-theme="arc"]) .text-\[\#ff4fd8\] {
+    color: var(--c-hot);
+  }
 }

@@ -45,6 +45,10 @@ func deskPrefs(svc *desk.Service, rec auditor) http.HandlerFunc {
 				writeAuthError(w, http.StatusBadRequest, "too many widgets")
 				return
 			}
+			if p.Version < 0 || p.Version > desk.MaxPrefsVersion {
+				writeAuthError(w, http.StatusBadRequest, "prefs version refused")
+				return
+			}
 			if err := svc.WritePrefs(r.Context(), p); err != nil {
 				writeAuthError(w, http.StatusInternalServerError, "desk prefs not saved")
 				return
@@ -75,7 +79,13 @@ func deskSources(svc *desk.Service, rec auditor) http.HandlerFunc {
 			}
 			// Blank keeps the stored token (the drawer never round-trips a
 			// secret), except an explicit X_clear, which removes it.
-			cur, _ := svc.ReadSources(r.Context())
+			cur, curErr := svc.ReadSources(r.Context())
+			if curErr != nil && ((!src.ClearTavily && src.TavilyKey == "") || (!src.ClearTicket && src.TicketToken == "")) {
+				// Keeping a stored token needs the stored document: saving
+				// over an unreadable one would silently wipe the tokens.
+				writeAuthError(w, http.StatusInternalServerError, "desk sources unreadable")
+				return
+			}
 			if src.ClearTavily {
 				src.TavilyKey = ""
 			} else if src.TavilyKey == "" {
@@ -103,11 +113,17 @@ func deskSources(svc *desk.Service, rec auditor) http.HandlerFunc {
 
 type deskFetch func(ctx context.Context, refresh bool) (json.RawMessage, error)
 
+// deskData and deskNews proxy upstream providers whose clients time out
+// at 12 s (30 s per ICS feed, fetched in turn), past serve's 10 s write
+// timeout: both lift it until the answer, so a slow or failed fetch
+// still reaches the tile as data, stale or 502.
+
 func deskData(fn deskFetch) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !requireMethod(w, r, http.MethodGet) {
 			return
 		}
+		w = liftWrite(w)
 		body, err := fn(r.Context(), r.URL.Query().Get("refresh") == "1")
 		writeData(w, body, err)
 	}
@@ -119,6 +135,7 @@ func deskNews(svc *desk.Service) http.HandlerFunc {
 			return
 		}
 		which := strings.TrimPrefix(r.URL.Path, "/api/desk/news/")
+		w = liftWrite(w)
 		body, err := svc.News(r.Context(), which, r.URL.Query().Get("refresh") == "1")
 		writeData(w, body, err)
 	}

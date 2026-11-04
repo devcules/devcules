@@ -110,3 +110,20 @@ func TestRegistryInstallBadBody(t *testing.T) {
 		t.Fatalf("install with no name = %d, want 400 (body %q)", w.Code, w.Body.String())
 	}
 }
+
+// TestRegistryWritesCarryCSRF checks a cross-site browser POST to the
+// install route is refused before it can shell out to an agent CLI.
+func TestRegistryWritesCarryCSRF(t *testing.T) {
+	mux, password := fixture(t, "")
+	cookie := sessionCookie(t, mux, password)
+	r := httptest.NewRequest(http.MethodPost, "/api/registry/mcp/install", strings.NewReader(`{}`))
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Origin", "https://evil.example")
+	r.Header.Set("Sec-Fetch-Site", "cross-site")
+	r = withSession(r, cookie)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, r)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("cross-site install = %d, want 403 (body %q)", w.Code, w.Body.String())
+	}
+}

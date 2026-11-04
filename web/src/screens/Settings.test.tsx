@@ -398,3 +398,83 @@ describe('Settings', () => {
     await waitFor(() => expect(signedOut).toHaveBeenCalled());
   });
 });
+
+// DESK-16 / DESK-18: the section summaries neither refetch on every
+// Settings render nor claim "none" for a list that never loaded.
+describe('Settings summaries', () => {
+  function serveAll(
+    secrets: string[][],
+    dead = false,
+    status: Record<string, unknown> = { enabled: true },
+  ): Mock {
+    let gets = 0;
+    const fn = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = input.toString();
+      const method = init?.method ?? 'GET';
+      if (url.endsWith('/auth/passkeys/status')) return Response.json(status);
+      if (dead) throw new TypeError('Failed to fetch');
+      if (url.endsWith('/api/passkeys')) return Response.json({ passkeys: [phone] });
+      if (url.endsWith('/api/providers')) {
+        return Response.json({ providers: [{ id: 'openai', ready: true, default: true, format: 'openai' }] });
+      }
+      if (url.endsWith('/api/secrets') && method === 'GET') {
+        return Response.json({ names: secrets[Math.min(gets++, secrets.length - 1)] });
+      }
+      if (url.endsWith('/api/secrets') && method === 'PUT') return new Response(null, { status: 204 });
+      throw new Error(`unexpected fetch ${method} ${url}`);
+    });
+    window.fetch = fn as typeof fetch;
+    return fn;
+  }
+  const secretGets = (fn: Mock) =>
+    fn.mock.calls.filter(
+      ([u, i]) => String(u).endsWith('/api/secrets') && ((i as RequestInit | undefined)?.method ?? 'GET') === 'GET',
+    ).length;
+
+  it('fetches the secrets once on open, and once more per store', async () => {
+    const user = userEvent.setup();
+    const fn = serveAll([['A'], ['A', 'B']]);
+    renderSettings();
+    expect(await screen.findByText('1 stored')).toBeTruthy();
+    expect(await screen.findByText(/1 provider/)).toBeTruthy();
+    expect(await screen.findByText('1 passkey')).toBeTruthy();
+    // every summary write and every section toggle re-renders Settings
+    await user.click(screen.getByRole('button', { name: /Providers/ }));
+    await user.click(screen.getByRole('button', { name: /Secrets/ }));
+    await user.click(screen.getByRole('button', { name: /Providers/ }));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(secretGets(fn)).toBe(1);
+
+    await user.type(screen.getByLabelText('secret name'), 'B');
+    await user.type(screen.getByLabelText('secret value'), 'v');
+    await user.click(screen.getByRole('button', { name: 'store secret' }));
+    await user.click(screen.getByRole('button', { name: /Secrets/ }));
+    expect(await screen.findByText('2 stored')).toBeTruthy();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(secretGets(fn)).toBe(2);
+  });
+
+  it('says a summary could not load instead of None yet when the API is down', async () => {
+    serveAll([[]], true);
+    renderSettings();
+    await waitFor(() => expect(screen.getAllByText("Couldn't load")).toHaveLength(3));
+    expect(screen.queryByText('None yet')).toBeNull();
+    expect(screen.queryByText('None')).toBeNull();
+    expect(screen.queryByText('Off')).toBeNull();
+    await userEvent.setup().click(screen.getByRole('button', { name: /Secrets/ }));
+    expect(screen.getByText("couldn't load the list")).toBeTruthy();
+    expect(screen.queryByText(/No secrets yet/)).toBeNull();
+  });
+
+  it('keeps the server answer Off when passkeys are off and the list fails', async () => {
+    serveAll([[]], true, { enabled: false, reason: 'Set the URL.' });
+    renderSettings();
+    // Providers and Secrets still could not load; Passkeys says Off.
+    await waitFor(() => expect(screen.getAllByText("Couldn't load")).toHaveLength(2));
+    expect(await screen.findByText('Off')).toBeTruthy();
+    expect(screen.queryByText('None yet')).toBeNull();
+    // the body still reports the failed list
+    await userEvent.setup().click(screen.getByRole('button', { name: /Passkeys/ }));
+    expect(await screen.findByText("Couldn't load your passkeys. Try again.")).toBeTruthy();
+  });
+});

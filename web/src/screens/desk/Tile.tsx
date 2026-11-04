@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { copyText } from '../../lib/toast';
+import ErrorBoundary, { TileCrashed } from '../../shell/ErrorBoundary';
 
 export const STATUS_TEXT = { live: 'live', stale: 'stale', error: 'error', off: 'not set up', loading: 'loading' } as const;
 export type TileStatus = keyof typeof STATUS_TEXT;
@@ -59,7 +60,11 @@ export default function Tile({
           )}
         </span>
       </header>
-      <div className="d-tile-body flex min-h-0 flex-1 flex-col overflow-y-auto p-3">{children}</div>
+      <div className="d-tile-body flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
+        {/* A throw inside one tile's body shows an inline notice instead of
+            unmounting the app; the header and its actions stay usable. */}
+        <ErrorBoundary fallback={(_e, reset) => <TileCrashed reset={reset} />}>{children}</ErrorBoundary>
+      </div>
     </section>
   );
 }

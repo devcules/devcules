@@ -19,6 +19,8 @@ import (
 const (
 	testPublicURL = "http://localhost:7659"
 	testRPID      = "localhost"
+	// testBeginIP is the address test login begins come from.
+	testBeginIP = "192.0.2.1"
 )
 
 // passkeyFixture opens a service with passkeys on, a bootstrapped
@@ -72,7 +74,7 @@ func mustRegister(t *testing.T, svc *Service, a *authtest.Authenticator, name st
 func mustLogin(t *testing.T, svc *Service, a *authtest.Authenticator, clientIP string) string {
 	t.Helper()
 	ctx := context.Background()
-	options, ceremonyID, err := svc.BeginLogin()
+	options, ceremonyID, err := svc.BeginLogin(testBeginIP)
 	if err != nil {
 		t.Fatalf("BeginLogin: %s", err)
 	}
@@ -148,7 +150,7 @@ func TestPasskeyWrongOrigin(t *testing.T) {
 		a := mustAuthenticator(t)
 		mustRegister(t, svc, a, "")
 		a.OriginOverride = "http://evil.example"
-		options, ceremonyID, err := svc.BeginLogin()
+		options, ceremonyID, err := svc.BeginLogin(testBeginIP)
 		if err != nil {
 			t.Fatalf("BeginLogin: %s", err)
 		}
@@ -185,7 +187,7 @@ func TestPasskeyWrongRPID(t *testing.T) {
 		a := mustAuthenticator(t)
 		mustRegister(t, svc, a, "")
 		a.RPIDOverride = "other.example"
-		options, ceremonyID, err := svc.BeginLogin()
+		options, ceremonyID, err := svc.BeginLogin(testBeginIP)
 		if err != nil {
 			t.Fatalf("BeginLogin: %s", err)
 		}
@@ -223,14 +225,14 @@ func TestPasskeyChallengeMisuse(t *testing.T) {
 		svc, _ := passkeyFixture(t, testPublicURL)
 		a := mustAuthenticator(t)
 		mustRegister(t, svc, a, "")
-		_, ceremonyID, err := svc.BeginLogin()
+		_, ceremonyID, err := svc.BeginLogin(testBeginIP)
 		if err != nil {
 			t.Fatalf("BeginLogin: %s", err)
 		}
 		if _, err := svc.FinishLogin(ctx, ceremonyID, []byte("{broken"), "10.1.0.4"); !errors.Is(err, ErrPasskeyInvalid) {
 			t.Fatalf("FinishLogin with garbage = %v, want ErrPasskeyInvalid", err)
 		}
-		options, _, err := svc.BeginLogin()
+		options, _, err := svc.BeginLogin(testBeginIP)
 		if err != nil {
 			t.Fatalf("BeginLogin: %s", err)
 		}
@@ -254,10 +256,10 @@ func TestPasskeyChallengeMisuse(t *testing.T) {
 			t.Fatalf("Registration: %s", err)
 		}
 		past := svc.now().Add(-CeremonyTTL).Add(-time.Second)
-		c := svc.ceremonies[ceremonyID]
+		c := svc.registrations[ceremonyID]
 		c.expires = past
 		c.session.Expires = past
-		svc.ceremonies[ceremonyID] = c
+		svc.registrations[ceremonyID] = c
 		if err := svc.FinishRegistration(ctx, AdminUsername, ceremonyID, body); !errors.Is(err, ErrBadCeremony) {
 			t.Fatalf("FinishRegistration past expiry = %v, want ErrBadCeremony", err)
 		}
@@ -291,7 +293,7 @@ func TestPasskeyChallengeMisuse(t *testing.T) {
 		svc, _ := passkeyFixture(t, testPublicURL)
 		a := mustAuthenticator(t)
 		mustRegister(t, svc, a, "")
-		loginOptions, loginCeremony, err := svc.BeginLogin()
+		loginOptions, loginCeremony, err := svc.BeginLogin(testBeginIP)
 		if err != nil {
 			t.Fatalf("BeginLogin: %s", err)
 		}
@@ -307,11 +309,11 @@ func TestPasskeyChallengeMisuse(t *testing.T) {
 		svc, _ := passkeyFixture(t, testPublicURL)
 		a := mustAuthenticator(t)
 		mustRegister(t, svc, a, "")
-		_, ceremonyOne, err := svc.BeginLogin()
+		_, ceremonyOne, err := svc.BeginLogin(testBeginIP)
 		if err != nil {
 			t.Fatalf("BeginLogin: %s", err)
 		}
-		optionsTwo, _, err := svc.BeginLogin()
+		optionsTwo, _, err := svc.BeginLogin(testBeginIP)
 		if err != nil {
 			t.Fatalf("BeginLogin: %s", err)
 		}
@@ -366,7 +368,7 @@ func TestPasskeyUserVerification(t *testing.T) {
 		a := mustAuthenticator(t)
 		mustRegister(t, svc, a, "")
 		a.UserVerified = false
-		options, ceremonyID, err := svc.BeginLogin()
+		options, ceremonyID, err := svc.BeginLogin(testBeginIP)
 		if err != nil {
 			t.Fatalf("BeginLogin: %s", err)
 		}
@@ -385,7 +387,7 @@ func TestPasskeyCounter(t *testing.T) {
 	login := func(t *testing.T, svc *Service, a *authtest.Authenticator, counter uint32, ip string) error {
 		t.Helper()
 		a.Counter = counter
-		options, ceremonyID, err := svc.BeginLogin()
+		options, ceremonyID, err := svc.BeginLogin(testBeginIP)
 		if err != nil {
 			t.Fatalf("BeginLogin: %s", err)
 		}
@@ -463,7 +465,7 @@ func TestPasskeyUnknownAndDeleted(t *testing.T) {
 		if _, err := stranger.Registration(regOptions); err != nil {
 			t.Fatalf("Registration: %s", err)
 		}
-		options, ceremonyID, err := svc.BeginLogin()
+		options, ceremonyID, err := svc.BeginLogin(testBeginIP)
 		if err != nil {
 			t.Fatalf("BeginLogin: %s", err)
 		}
@@ -482,7 +484,7 @@ func TestPasskeyUnknownAndDeleted(t *testing.T) {
 		if err := svc.DeletePasskey(ctx, AdminUsername, a.CredentialID); err != nil {
 			t.Fatalf("DeletePasskey: %s", err)
 		}
-		options, ceremonyID, err := svc.BeginLogin()
+		options, ceremonyID, err := svc.BeginLogin(testBeginIP)
 		if err != nil {
 			t.Fatalf("BeginLogin: %s", err)
 		}
@@ -528,7 +530,7 @@ func TestPasskeyLoginRateLimit(t *testing.T) {
 		t.Fatalf("Registration: %s", err)
 	}
 	fail := func(ip string) error {
-		options, ceremonyID, err := svc.BeginLogin()
+		options, ceremonyID, err := svc.BeginLogin(testBeginIP)
 		if err != nil {
 			t.Fatalf("BeginLogin: %s", err)
 		}
@@ -786,7 +788,7 @@ func TestPasskeyOptions(t *testing.T) {
 		Verification string `json:"userVerification"`
 		Timeout      int    `json:"timeout"`
 	}
-	loginOptions, _, err := svc.BeginLogin()
+	loginOptions, _, err := svc.BeginLogin(testBeginIP)
 	if err != nil {
 		t.Fatalf("BeginLogin: %s", err)
 	}
@@ -829,7 +831,7 @@ func TestPasskeyStatus(t *testing.T) {
 		if _, _, err := off.BeginRegistration(context.Background(), AdminUsername); !errors.Is(err, ErrPasskeysDisabled) {
 			t.Fatalf("BeginRegistration while off = %v, want ErrPasskeysDisabled", err)
 		}
-		if _, _, err := off.BeginLogin(); !errors.Is(err, ErrPasskeysDisabled) {
+		if _, _, err := off.BeginLogin(testBeginIP); !errors.Is(err, ErrPasskeysDisabled) {
 			t.Fatalf("BeginLogin while off = %v, want ErrPasskeysDisabled", err)
 		}
 		if err := off.FinishRegistration(context.Background(), AdminUsername, "id", []byte("{}")); !errors.Is(err, ErrPasskeysDisabled) {
@@ -897,7 +899,7 @@ func TestPasskeyCeremonyCap(t *testing.T) {
 	}
 	var first [ceremonyIDBytes]byte
 	firstID := base64.RawURLEncoding.EncodeToString(first[:])
-	if _, _, err := svc.BeginLogin(); err != nil {
+	if _, _, err := svc.BeginLogin(testBeginIP); err != nil {
 		t.Fatalf("BeginLogin at the cap: %s", err)
 	}
 	if len(svc.ceremonies) != maxCeremonies {

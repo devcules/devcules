@@ -111,7 +111,7 @@ func TestScriptedApprovalFlow(t *testing.T) {
 		}
 	}()
 
-	evs, err := loop.Chat(ctx, "", "what is running?")
+	_, evs, err := loop.Chat(ctx, "", "what is running?")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func TestScriptedApprovalFlow(t *testing.T) {
 		{Text: "The owner denied that, so I did not run it."},
 	}
 	decide.Store(false)
-	evs, err = loop.Chat(ctx, loopTurnSession(t, loop), "try it again")
+	_, evs, err = loop.Chat(ctx, loopTurnSession(t, loop), "try it again")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +178,7 @@ func TestMaxTurnsGuard(t *testing.T) {
 		n++
 		return GateResult{Decision: "allow", Result: mcp.Result{Text: "up"}}
 	})
-	evs, err := loop.Chat(context.Background(), "", "hello")
+	_, evs, err := loop.Chat(context.Background(), "", "hello")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,7 +203,7 @@ func TestPlaceholderArgumentRefused(t *testing.T) {
 		gated++
 		return GateResult{Decision: "allow", Result: mcp.Result{Text: "up"}}
 	})
-	evs, err := loop.Chat(context.Background(), "", "pass REDACTED_SECRET_0123ABCDEF along")
+	_, evs, err := loop.Chat(context.Background(), "", "pass REDACTED_SECRET_0123ABCDEF along")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -232,7 +232,7 @@ func TestBlockedMessage(t *testing.T) {
 	// A bare AWS key trips aws-access-token; keys ending "EXAMPLE" are
 	// allowlisted by the gitleaks rules, which is why this one differs.
 	// Built from parts, so no file holds a whole key shape.
-	_, err = loop.Chat(context.Background(), "", "my key is "+"AKIA"+"2ZVWXTYPLMNBVCXZ")
+	_, _, err = loop.Chat(context.Background(), "", "my key is "+"AKIA"+"2ZVWXTYPLMNBVCXZ")
 	if err == nil {
 		t.Fatal("a block-mode secret reached the model")
 	}
@@ -261,7 +261,7 @@ func TestCompactionKeepsApprovalArgs(t *testing.T) {
 	firstID := ""
 	for i := 0; i < maxMessages/4+4; i++ {
 		model.reply = append(model.reply, ModelReply{Text: "ok"})
-		evs, err := loop.Chat(context.Background(), firstID, "say ok")
+		_, evs, err := loop.Chat(context.Background(), firstID, "say ok")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -280,7 +280,7 @@ func TestCompactionKeepsApprovalArgs(t *testing.T) {
 	}
 	model.reply = append(model.reply, ModelReply{
 		ToolCalls: []ToolCallAsk{{ID: "keep-me", Name: "status", Args: json.RawMessage(`{"target":"barnacle-01"}`)}}})
-	if _, err := loop.Chat(context.Background(), firstID, "check barnacle"); err != nil {
+	if _, _, err := loop.Chat(context.Background(), firstID, "check barnacle"); err != nil {
 		t.Fatal(err)
 	}
 	if len(got) != 1 || got[0] != `{"target":"barnacle-01"}` {
@@ -294,7 +294,7 @@ func TestSessionResume(t *testing.T) {
 	loop := testLoop(t, model, func(context.Context, ToolCallAsk) GateResult {
 		return GateResult{Decision: "deny", Result: mcp.Result{Text: "x", IsError: true}}
 	})
-	evs, err := loop.Chat(context.Background(), "", "hi")
+	_, evs, err := loop.Chat(context.Background(), "", "hi")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -303,7 +303,7 @@ func TestSessionResume(t *testing.T) {
 	}
 	ms := loop.o.Convos.(*MemorySessions)
 	id := ms.ListAll()[0].ID
-	evs, err = loop.Chat(context.Background(), id, "again")
+	_, evs, err = loop.Chat(context.Background(), id, "again")
 	if err != nil {
 		t.Fatal(err)
 	}

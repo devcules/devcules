@@ -90,7 +90,7 @@ func TestBuiltinShadowMode(t *testing.T) {
 	if !strings.Contains(a.State(), "read only") || a.ID() != "builtin" || a.Loop() == nil {
 		t.Fatalf("State %q ID %q", a.State(), a.ID())
 	}
-	evs, err := a.Chat(context.Background(), "", "how is the desk?")
+	_, evs, err := a.Chat(context.Background(), "", "how is the desk?")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func TestBuiltinWithApprovals(t *testing.T) {
 	if queue.Modes()[approvals.Target("builtin")] != approvals.ModeCritical || a.State() != "" {
 		t.Fatalf("mode %q, state %q", queue.Modes()[approvals.Target("builtin")], a.State())
 	}
-	evs, err := a.Chat(ctx, "", "how is the desk?")
+	_, evs, err := a.Chat(ctx, "", "how is the desk?")
 	if err != nil {
 		t.Fatal(err)
 	}

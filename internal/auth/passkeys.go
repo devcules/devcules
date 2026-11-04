@@ -26,9 +26,19 @@ import (
 const CeremonyTTL = 5 * time.Minute
 
 const (
-	// maxCeremonies bounds the in-flight ceremony map: past this many,
-	// a new begin evicts the ceremony expiring first.
+	// maxCeremonies bounds the in-flight login ceremony map: past
+	// this many, a new begin evicts the ceremony expiring first.
 	maxCeremonies = 1000
+	// maxLoginCeremoniesPerIP caps one address's live login
+	// ceremonies: past it, a begin evicts that address's own oldest,
+	// so one client cannot crowd out anyone else's.
+	maxLoginCeremoniesPerIP = 8
+	// maxLoginBegins caps login begins per address per SignInWindow;
+	// past it, BeginLogin answers ErrTooManyAttempts.
+	maxLoginBegins = 20
+	// maxRegistrations bounds the register ceremony map. Only signed-in
+	// users begin these, and login begins never touch the map.
+	maxRegistrations = 100
 	// ceremonyIDBytes is the ceremony id entropy: 128 bits, hex for
 	// the cookie.
 	ceremonyIDBytes = 16
@@ -85,7 +95,10 @@ type ceremony struct {
 	session  webauthn.SessionData
 	kind     ceremonyKind
 	username string
-	expires  time.Time
+	// ip is the address a login ceremony was begun from, for the
+	// per-address cap; register ceremonies leave it empty.
+	ip      string
+	expires time.Time
 }
 
 // WithPasskeys enables WebAuthn passkeys from DEVCULES_PUBLIC_URL
@@ -263,10 +276,17 @@ func (a *Service) FinishRegistration(ctx context.Context, username, ceremonyID s
 
 // BeginLogin opens a discoverable-credential login ceremony — no
 // username needed — and returns the request options as JSON plus the
-// ceremony id the caller stores in the ceremony cookie.
-func (a *Service) BeginLogin() (options []byte, ceremonyID string, err error) {
+// ceremony id the caller stores in the ceremony cookie. clientIP is
+// the connection's remote address: past maxLoginBegins per window it
+// answers ErrTooManyAttempts, and it holds at most
+// maxLoginCeremoniesPerIP live ceremonies (IPv6 counted per /64).
+func (a *Service) BeginLogin(clientIP string) (options []byte, ceremonyID string, err error) {
 	if a.wa == nil {
 		return nil, "", ErrPasskeysDisabled
+	}
+	clientIP = limitKey(clientIP)
+	if !a.allowLoginBegin(clientIP, a.now()) {
+		return nil, "", ErrTooManyAttempts
 	}
 	assertion, session, err := a.wa.BeginDiscoverableLogin()
 	if err != nil {
@@ -280,7 +300,7 @@ func (a *Service) BeginLogin() (options []byte, ceremonyID string, err error) {
 	if err != nil {
 		return nil, "", err
 	}
-	a.storeCeremony(id, ceremony{session: *session, kind: ceremonyLogin, expires: a.now().Add(CeremonyTTL)})
+	a.storeCeremony(id, ceremony{session: *session, kind: ceremonyLogin, ip: clientIP, expires: a.now().Add(CeremonyTTL)})
 	return options, id, nil
 }
 
@@ -293,17 +313,24 @@ func (a *Service) FinishLogin(ctx context.Context, ceremonyID string, body []byt
 	if a.wa == nil {
 		return "", ErrPasskeysDisabled
 	}
+	clientIP = limitKey(clientIP)
 	now := a.now()
-	if a.overLimit(clientIP, now) {
-		return "", ErrTooManyAttempts
+	// As in SignIn: the reservation is this attempt's failure unless
+	// the assertion verifies (cleared) or never reaches a verdict
+	// (refunded).
+	if err := a.reserveAttempt(clientIP, now); err != nil {
+		return "", err
 	}
 	fail := func() (string, error) {
-		a.recordFailure(clientIP, now)
 		return "", ErrPasskeyInvalid
+	}
+	abort := func(err error) (string, error) {
+		a.refundAttempt(clientIP, now)
+		return "", err
 	}
 	c, err := a.takeCeremony(ceremonyID, ceremonyLogin, "")
 	if err != nil {
-		return "", err
+		return abort(err)
 	}
 	parsed, err := protocol.ParseCredentialRequestResponseBytes(body)
 	if err != nil {
@@ -316,7 +343,7 @@ func (a *Service) FinishLogin(ctx context.Context, ceremonyID string, body []byt
 	stored, err := a.store.Passkeys().Get(ctx, parsed.RawID)
 	if err != nil {
 		if !errors.Is(err, store.ErrNotFound) {
-			return "", fmt.Errorf("auth: cannot look up passkey: %w", err)
+			return abort(fmt.Errorf("auth: cannot look up passkey: %w", err))
 		}
 		return fail()
 	}
@@ -336,7 +363,7 @@ func (a *Service) FinishLogin(ctx context.Context, ceremonyID string, body []byt
 		return fail()
 	}
 	if err := a.store.Passkeys().UpdateAfterLogin(ctx, cred.ID, cred.Authenticator.SignCount, cred.Flags.BackupState, now); err != nil {
-		return "", fmt.Errorf("auth: cannot update passkey: %w", err)
+		return abort(fmt.Errorf("auth: cannot update passkey: %w", err))
 	}
 	a.clearFailures(clientIP)
 	return a.mintSession(ctx, stored.Username, now)
@@ -358,45 +385,104 @@ func newCeremonyID() (string, error) {
 	return hex.EncodeToString(raw[:]), nil
 }
 
-// storeCeremony files a ceremony, sweeping expired ones first. Past
-// the cap, the ceremony expiring first is evicted: in-flight
+// storeCeremony files a ceremony, sweeping expired ones first.
+// Register and login ceremonies live in separate maps, so anonymous
+// login begins never evict a signed-in user's registration. A login
+// begin past its address's cap evicts that address's own oldest;
+// past a map's cap, the ceremony expiring first is evicted: in-flight
 // ceremonies die, but memory stays bounded.
 func (a *Service) storeCeremony(id string, c ceremony) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	a.cerMu.Lock()
+	defer a.cerMu.Unlock()
 	now := a.now()
-	for key, old := range a.ceremonies {
+	m, limit := a.ceremonies, maxCeremonies
+	if c.kind == ceremonyRegister {
+		m, limit = a.registrations, maxRegistrations
+	}
+	for key, old := range m {
 		if now.After(old.expires) {
-			delete(a.ceremonies, key)
+			delete(m, key)
 		}
 	}
-	for len(a.ceremonies) >= maxCeremonies {
-		oldest, at, first := "", now, true
-		for key, old := range a.ceremonies {
-			if first || old.expires.Before(at) {
-				oldest, at, first = key, old.expires, false
+	if c.kind == ceremonyLogin {
+		evictEarliest(m, maxLoginCeremoniesPerIP, func(old ceremony) bool { return old.ip == c.ip })
+	}
+	evictEarliest(m, limit, nil)
+	m[id] = c
+}
+
+// evictEarliest deletes the earliest-expiring ceremonies that match
+// (all of them when match is nil) until fewer than limit match.
+func evictEarliest(m map[string]ceremony, limit int, match func(ceremony) bool) {
+	for {
+		n, oldest, at := 0, "", time.Time{}
+		for key, old := range m {
+			if match != nil && !match(old) {
+				continue
 			}
+			if n == 0 || old.expires.Before(at) {
+				oldest, at = key, old.expires
+			}
+			n++
 		}
-		if first {
-			break
+		if n < limit {
+			return
 		}
-		delete(a.ceremonies, oldest)
+		delete(m, oldest)
 	}
-	a.ceremonies[id] = c
+}
+
+// allowLoginBegin counts one login begin for the address and reports
+// whether it stays within maxLoginBegins per SignInWindow. Refused
+// begins are not counted. A new address past maxFailureIPs evicts the
+// address whose oldest begin is earliest, so the map stays bounded.
+func (a *Service) allowLoginBegin(clientIP string, now time.Time) bool {
+	a.cerMu.Lock()
+	defer a.cerMu.Unlock()
+	var kept []time.Time
+	for _, t := range a.loginBegins[clientIP] {
+		if now.Sub(t) < SignInWindow {
+			kept = append(kept, t)
+		}
+	}
+	if len(kept) >= maxLoginBegins {
+		a.loginBegins[clientIP] = kept
+		return false
+	}
+	if len(kept) == 0 {
+		delete(a.loginBegins, clientIP)
+		if len(a.loginBegins) >= maxFailureIPs {
+			oldest, at, first := "", now, true
+			for ip, begins := range a.loginBegins {
+				if first || begins[0].Before(at) {
+					oldest, at, first = ip, begins[0], false
+				}
+			}
+			delete(a.loginBegins, oldest)
+		}
+	}
+	a.loginBegins[clientIP] = append(kept, now)
+	return true
 }
 
 // takeCeremony consumes the ceremony: any finish, valid or not,
-// removes the id, so challenges are single use. A register ceremony
-// also demands its own username, so a session cannot finish another
-// user's ceremony; login ceremonies carry no username.
+// removes the id, so challenges are single use. Each kind is looked
+// up only in its own map, so a challenge begun for one finish is
+// unknown to the other. A register ceremony also demands its own
+// username, so a session cannot finish another user's ceremony; login
+// ceremonies carry no username.
 func (a *Service) takeCeremony(id string, kind ceremonyKind, username string) (ceremony, error) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	c, ok := a.ceremonies[id]
+	a.cerMu.Lock()
+	defer a.cerMu.Unlock()
+	m := a.ceremonies
+	if kind == ceremonyRegister {
+		m = a.registrations
+	}
+	c, ok := m[id]
 	if !ok {
 		return ceremony{}, ErrBadCeremony
 	}
-	delete(a.ceremonies, id)
+	delete(m, id)
 	// At exactly the deadline the ceremony is still valid; past it,
 	// it is gone. One convention, as with sessions.
 	if c.kind != kind || a.now().After(c.expires) || (kind == ceremonyRegister && c.username != username) {

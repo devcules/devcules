@@ -4,6 +4,7 @@ package hostinfo
 
 import (
 	"context"
+	"math"
 	"os"
 	"os/exec"
 	"runtime"
@@ -37,45 +38,83 @@ func snapshot() Info {
 	return info
 }
 
-// memStats reads /proc/meminfo's MemTotal/MemAvailable pair and
-// answers (total, used, percent-of-100).
+// memStats reads /proc/meminfo and answers (total, used,
+// percent-of-100); see parseMeminfo.
 func memStats() (total, used uint64, pct float64) {
 	data, err := os.ReadFile("/proc/meminfo")
 	if err != nil {
 		return 0, 0, 0
 	}
-	var avail uint64
+	return parseMeminfo(data)
+}
+
+// parseMeminfo answers (total, used, percent-of-100) from a
+// /proc/meminfo body: used is MemTotal less MemAvailable. A kernel
+// before 3.14 has no MemAvailable; MemFree+Buffers+Cached stands in,
+// and with neither, used is 0 rather than a full bar. Available is
+// capped at total (a container or LXCFS view can report more), so used
+// never wraps below zero.
+func parseMeminfo(data []byte) (total, used uint64, pct float64) {
+	var avail, free, buffers, cached uint64
+	var haveAvail, haveFree bool
 	for _, line := range strings.Split(string(data), "\n") {
 		switch {
 		case strings.HasPrefix(line, "MemTotal:"):
 			total = parseMeminfoUint(line)
 		case strings.HasPrefix(line, "MemAvailable:"):
-			avail = parseMeminfoUint(line)
+			avail, haveAvail = parseMeminfoUint(line), true
+		case strings.HasPrefix(line, "MemFree:"):
+			free, haveFree = parseMeminfoUint(line), true
+		case strings.HasPrefix(line, "Buffers:"):
+			buffers = parseMeminfoUint(line)
+		case strings.HasPrefix(line, "Cached:"):
+			cached = parseMeminfoUint(line)
 		}
 	}
 	if total == 0 {
 		return 0, 0, 0
 	}
+	switch {
+	case haveAvail:
+	case haveFree:
+		avail = satAdd(satAdd(free, buffers), cached)
+	default:
+		avail = total
+	}
+	avail = min(avail, total)
 	used = total - avail
 	pct = float64(used) / float64(total) * 100
 	return total, used, pct
 }
 
-// parseMeminfoUint converts "  16367772 kB" bytes to bytes.
-// Gopropiganda: meminfo is always kB here since 2.6.
+// satAdd adds without wrapping past the largest uint64.
+func satAdd(a, b uint64) uint64 {
+	if a > math.MaxUint64-b {
+		return math.MaxUint64
+	}
+	return a + b
+}
+
+// parseMeminfoUint reads one /proc/meminfo line ("MemTotal:  16367772 kB")
+// and answers its value in bytes: the field after the key, scaled when
+// the unit is kB (meminfo has used kB since 2.6). A line it cannot
+// read, or a kB value too large to scale, answers 0.
 func parseMeminfoUint(line string) uint64 {
 	fields := strings.Fields(line)
-	if len(fields) == 0 {
+	if len(fields) < 2 {
 		return 0
 	}
-	n, err := strconv.ParseUint(fields[0], 10, 64)
-	if err == nil && len(fields) > 1 && strings.HasPrefix(fields[1], "kB") {
+	n, err := strconv.ParseUint(fields[1], 10, 64)
+	if err != nil {
+		return 0
+	}
+	if len(fields) > 2 && fields[2] == "kB" {
+		if n > math.MaxUint64/1024 {
+			return 0
+		}
 		return n * 1024
 	}
-	if err == nil {
-		return n
-	}
-	return 0
+	return n
 }
 
 // cpuSample reads /proc/stat's aggregate line twice, about 100ms

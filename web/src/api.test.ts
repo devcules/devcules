@@ -121,6 +121,8 @@ describe('api', () => {
     expect(await beginPasskeyLogin()).toEqual({ options: { challenge: 'abc' } });
     post(400);
     expect(await beginPasskeyLogin()).toBe('disabled');
+    post(429);
+    expect(await beginPasskeyLogin()).toBe('limited');
     post(500);
     expect(await beginPasskeyLogin()).toBe('unreachable');
     post(204);

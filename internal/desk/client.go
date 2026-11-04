@@ -25,17 +25,9 @@ func NewClient(timeout time.Duration) *http.Client {
 			if err != nil {
 				return nil, err
 			}
-			ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+			ips, err := PublicAddrs(ctx, host)
 			if err != nil {
 				return nil, err
-			}
-			if len(ips) == 0 {
-				return nil, fmt.Errorf("no address for %s", host)
-			}
-			for _, ip := range ips {
-				if !AllowPrivateHosts && !isPublicIP(ip.IP) {
-					return nil, fmt.Errorf("refusing to connect to %s (%s): not a public address", host, ip.IP)
-				}
 			}
 			// connect to the address we validated, not a re-resolved one
 			return dialer.DialContext(ctx, network, net.JoinHostPort(ips[0].IP.String(), port))
@@ -60,7 +52,44 @@ func NewClient(timeout time.Duration) *http.Client {
 	}
 }
 
+// PublicAddrs resolves host and answers its addresses, or an error
+// unless every one of them is public (see NewClient; AllowPrivateHosts
+// lifts the rule for tests).
+func PublicAddrs(ctx context.Context, host string) ([]net.IPAddr, error) {
+	ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+	if len(ips) == 0 {
+		return nil, fmt.Errorf("no address for %s", host)
+	}
+	for _, ip := range ips {
+		if !AllowPrivateHosts && !isPublicIP(ip.IP) {
+			return nil, fmt.Errorf("refusing to connect to %s (%s): not a public address", host, ip.IP)
+		}
+	}
+	return ips, nil
+}
+
+// nat64 is the NAT64 well-known prefix 64:ff9b::/96 (RFC 6052): its
+// last four bytes are an IPv4 address the translator connects to.
+var nat64 = net.IP{0, 0x64, 0xff, 0x9b, 0, 0, 0, 0, 0, 0, 0, 0}
+
 func isPublicIP(ip net.IP) bool {
+	// IPv6 forms that carry an IPv4 address in their last four bytes:
+	// NAT64 is as public as the address it embeds; IPv4-compatible
+	// ::a.b.c.d is deprecated (RFC 4291 2.5.5.1) and never a real
+	// destination, so all of ::/96 is refused. (::ffff:a.b.c.d is
+	// unwrapped by To4 below.)
+	if len(ip) == net.IPv6len && ip.To4() == nil {
+		switch {
+		case ip[:12].Equal(net.IPv6zero[:12]):
+			return false
+		case ip[:12].Equal(nat64):
+			return isPublicIP(ip[12:16])
+		}
+	}
+
 	if ip == nil || ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ||
 		ip.IsUnspecified() || ip.IsMulticast() || ip.IsInterfaceLocalMulticast() {
 		return false

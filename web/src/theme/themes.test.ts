@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { THEMES, THEME_KEY, applyTheme, currentTheme, initTheme, setTheme } from './themes';
+import { FEATURED_THEMES, THEMES, THEME_KEY, applyTheme, currentTheme, initTheme, setTheme } from './themes';
 
 // The registry is the one source of truth: ids unique, the fallback
 // an entry itself. setTheme persists and applies; the boot hook
 // reads the persisted id back. Storage-blocked never throws.
 describe('theme registry', () => {
-  it('has unique ids, and arc is the fallback', () => {
+  it('has unique ids, and vibe is the fallback', () => {
     const ids = THEMES.map((t) => t.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids[0]).toBe('arc');
+    expect(ids[0]).toBe('vibe');
   });
 
   it('every theme carries a 3-colour swatch and a scheme', () => {
@@ -29,23 +29,43 @@ describe('currentTheme / setTheme', () => {
   afterEach(() => {
     window.localStorage.clear();
     document.documentElement.removeAttribute('data-theme');
+    document.documentElement.removeAttribute('data-scheme');
   });
 
-  it('defaults to arc with nothing stored', () => {
-    expect(currentTheme()).toBe('arc');
+  it('defaults to vibe with nothing stored', () => {
+    expect(currentTheme()).toBe('vibe');
   });
 
   it('ignores a stored id that is no longer a theme', () => {
     window.localStorage.setItem(THEME_KEY, 'deleted-theme');
-    expect(currentTheme()).toBe('arc');
+    expect(currentTheme()).toBe('vibe');
   });
 
   it('setTheme pins data-theme, the scheme and localStorage', () => {
     setTheme('meta-hackathon');
     expect(document.documentElement.getAttribute('data-theme')).toBe('meta-hackathon');
     expect(document.documentElement.style.colorScheme).toBe('dark');
+    expect(document.documentElement.getAttribute('data-scheme')).toBe('dark');
     expect(window.localStorage.getItem(THEME_KEY)).toBe('meta-hackathon');
     expect(currentTheme()).toBe('meta-hackathon');
+  });
+
+  it('applyTheme pins data-scheme for light themes, and back to dark', () => {
+    for (const t of THEMES) {
+      applyTheme(t.id);
+      expect(document.documentElement.getAttribute('data-scheme'), t.id).toBe(t.scheme);
+    }
+    applyTheme('holo');
+    expect(document.documentElement.getAttribute('data-scheme')).toBe('light');
+    applyTheme('vibe');
+    expect(document.documentElement.getAttribute('data-scheme')).toBe('dark');
+  });
+
+  it('the featured five are registered themes, holo (light) among them', () => {
+    expect(FEATURED_THEMES).toEqual(['vibe', 'tron', 'ember', 'phosphor', 'holo']);
+    for (const id of FEATURED_THEMES) {
+      expect(THEMES.some((t) => t.id === id), id).toBe(true);
+    }
   });
 
   it('setTheme notifies listeners with the id', () => {

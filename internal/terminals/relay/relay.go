@@ -37,6 +37,11 @@ type Relay struct {
 	hub       *hub.Hub
 	publicURL string
 
+	// Browser heartbeat: production uses pingEveryBrowser and
+	// browserPingTimeout; tests shorten them before any stream opens.
+	pingEvery   time.Duration
+	pingTimeout time.Duration
+
 	mu      sync.Mutex
 	pending map[string]chan link.Frame // request frame id → reply waiter
 	streams map[string]*stream         // browser stream id → stream
@@ -69,6 +74,9 @@ func New(h *hub.Hub, publicURL string) *Relay {
 		publicURL: publicURL,
 		pending:   map[string]chan link.Frame{},
 		streams:   map[string]*stream{},
+
+		pingEvery:   pingEveryBrowser,
+		pingTimeout: browserPingTimeout,
 	}
 }
 
@@ -166,7 +174,7 @@ func (r *Relay) ok(ctx context.Context, runner, typ string, data any) error {
 
 // Resolve validates a browser attach request before any socket work:
 // it picks the runner (?runner=, or the only linked one) and checks
-// the terminal id and size. The API layer maps *Error straight to the
+// the terminal id. The API layer maps *Error straight to the
 // HTTP status; the stream endpoint maps it to a 4404 close.
 func (r *Relay) Resolve(runner, term string, cols, rows int) (string, *Error) {
 	name, err := r.PickRunner(runner)
@@ -176,9 +184,8 @@ func (r *Relay) Resolve(runner, term string, cols, rows int) (string, *Error) {
 	if !terminals.ValidID(term) {
 		return "", &Error{Status: 404, Msg: "unknown terminal: " + term}
 	}
-	if !terminals.ValidSize(cols, rows) {
-		return "", &Error{Status: 400, Msg: "cols and rows must each be 1-500"}
-	}
+	// Sizes are not refused here: AttachStream clamps them to 1..500,
+	// as the web client does, so an oversized pane still attaches.
 	return name, nil
 }
 

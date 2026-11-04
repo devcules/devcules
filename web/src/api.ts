@@ -149,8 +149,10 @@ export async function finishRegisterPasskey(
   return 'unreachable';
 }
 
+// A login begin is rate limited per client (429): that reads
+// 'limited', never as a failed passkey.
 export async function beginPasskeyLogin(): Promise<
-  { options: unknown } | 'disabled' | 'unreachable'
+  { options: unknown } | 'disabled' | 'limited' | 'unreachable'
 > {
   const res = await passkeyPost('/auth/passkeys/login/begin');
   if (res === 'unreachable') {
@@ -161,6 +163,9 @@ export async function beginPasskeyLogin(): Promise<
   }
   if (res.status === 400) {
     return 'disabled';
+  }
+  if (res.status === 429) {
+    return 'limited';
   }
   return 'unreachable';
 }

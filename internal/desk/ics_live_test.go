@@ -47,7 +47,6 @@ func TestLiveICS(t *testing.T) {
 	for tz, n := range tzids {
 		fmt.Printf("TZID %q x%d loadable=%v\n", tz, n, loadable[tz])
 	}
-	Unresolved = map[string]int{}
 	now := time.Now()
 	for _, days := range []int{1, 7, 30} {
 		ms, err := ParseMeetings(strings.NewReader(string(raw)), now.Add(-30*time.Minute), now.Add(time.Duration(days)*24*time.Hour))
@@ -64,5 +63,12 @@ func TestLiveICS(t *testing.T) {
 			}
 		}
 	}
-	fmt.Printf("TZIDs still unresolved after mapping: %v\n", Unresolved)
+	r := newTZResolver(cal)
+	var unresolved []string
+	for tz := range tzids {
+		if _, err := time.LoadLocation(tz); err != nil && ics.WindowsTimezoneToIANA(tz) == nil && r.custom[tz] == nil {
+			unresolved = append(unresolved, tz)
+		}
+	}
+	fmt.Printf("TZIDs still unresolved after mapping: %v\n", unresolved)
 }

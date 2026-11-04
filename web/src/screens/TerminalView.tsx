@@ -7,7 +7,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { streamURL, type Where } from '../api';
 import { bumpActivity, clearActivity } from './pulse';
-import { registerInput, ctrlState, sendTyped } from './keybus';
+import { registerInput, ctrlState, sendTyped, requestFs, termFontSize, onTermFont, stripPasteControls } from './keybus';
 import TermKeyboard from './TermKeyboard';
 
 type Status = 'connecting' | 'open' | 'reconnecting' | 'offline' | 'gone';
@@ -17,6 +17,24 @@ type Status = 'connecting' | 'open' | 'reconnecting' | 'offline' | 'gone';
 export function reconnectDelay(attempt: number): number {
   const capped = Math.min(1000 * 2 ** attempt, 10000);
   return capped + Math.random() * 500;
+}
+
+// The relay accepts 1..500 cols and rows and refuses anything else, a
+// refusal the pane would read as "terminal gone". A tiny font on an
+// ultrawide (or browser zoom-out) proposes more, so clamp, don't send.
+export const MAX_DIM = 500;
+export function clampDims(cols: number, rows: number): { cols: number; rows: number } {
+  const one = (n: number) => Math.min(MAX_DIM, Math.max(1, Math.floor(n)));
+  return { cols: one(cols), rows: one(rows) };
+}
+
+// resizeFrame is the text control for a fit's proposal, or null when
+// the proposal is unusable (no layout yet).
+function resizeFrame(dims: { cols: number; rows: number } | undefined): string | null {
+  if (!dims || !(dims.cols > 0) || !(dims.rows > 0)) {
+    return null;
+  }
+  return JSON.stringify({ type: 'resize', ...clampDims(dims.cols, dims.rows) });
 }
 
 export default function TerminalView({
@@ -44,6 +62,13 @@ export default function TerminalView({
   const attemptRef = useRef(0);
   const timerRef = useRef<number | null>(null);
   const connectRef = useRef<() => void>(() => undefined);
+  // The host's session-expired handler, read through a ref so a new
+  // function identity from a re-render never rebuilds connect (and
+  // with it the whole pane and its socket).
+  const onSessionExpiredRef = useRef(onSessionExpired);
+  useEffect(() => {
+    onSessionExpiredRef.current = onSessionExpired;
+  }, [onSessionExpired]);
   // Heartbeat bookkeeping: the serve side pings every 15 s; if the
   // pane is "open" but nothing (output or pong) arrived for a few
   // intervals, the socket died silently and sits frozen. The watchdog
@@ -80,11 +105,31 @@ export default function TerminalView({
     if (!host || !term || !fit) {
       return;
     }
+    // One live socket per pane: a pending reattach (armed by an earlier
+    // close) must not fire on top of this connect, and any socket still
+    // held is retired before the new one takes the ref.
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    if (watchdogRef.current !== null) {
+      window.clearInterval(watchdogRef.current);
+      watchdogRef.current = null;
+    }
+    const prev = wsRef.current;
+    if (prev) {
+      wsRef.current = null;
+      try {
+        prev.close(1000, 'replaced');
+      } catch {
+        // Already gone.
+      }
+    }
     let dims = { cols: 80, rows: 24 };
     try {
       const proposed = fit.proposeDimensions();
       if (proposed && proposed.cols > 0 && proposed.rows > 0) {
-        dims = { cols: proposed.cols, rows: proposed.rows };
+        dims = clampDims(proposed.cols, proposed.rows);
       }
     } catch {
       // proposeDimensions needs layout; fall back to 80x24.
@@ -94,7 +139,14 @@ export default function TerminalView({
     );
     ws.binaryType = 'arraybuffer';
     wsRef.current = ws;
+    // Every handler below belongs to this socket only. A socket that was
+    // replaced (a tab switch, a reconnect) may still deliver a late
+    // open, frame or close; it must not touch the live socket's refs.
+    const stale = () => wsRef.current !== ws;
     ws.onopen = () => {
+      if (stale()) {
+        return;
+      }
       attemptRef.current = 0;
       lastFrameRef.current = Date.now();
       setStatus('open');
@@ -102,28 +154,34 @@ export default function TerminalView({
         window.clearInterval(watchdogRef.current);
       }
       watchdogRef.current = window.setInterval(() => {
-        const wsNow = wsRef.current;
-        if (!wsNow || wsNow.readyState !== WebSocket.OPEN) {
+        if (stale() || ws.readyState !== WebSocket.OPEN) {
           return;
         }
         // A visible pane that heard nothing for several ping intervals
         // is hung, not idle: serve pings every 15 s.
         if (document.visibilityState === 'visible' && Date.now() - lastFrameRef.current > 45000) {
-          wsNow.close(4000, 'stale');
+          ws.close(4000, 'stale');
         }
       }, 15000);
       try {
         fit.fit();
-        const sized = fit.proposeDimensions();
-        if (sized) {
-          ws.send(JSON.stringify({ type: 'resize', cols: sized.cols, rows: sized.rows }));
+        const frame = resizeFrame(fit.proposeDimensions());
+        if (frame) {
+          ws.send(frame);
         }
       } catch {
         // The first paint arrived at the query size already.
       }
     };
     ws.onmessage = (ev: MessageEvent) => {
+      if (stale()) {
+        return;
+      }
       if (typeof ev.data === 'string') {
+        // Text frames are controls (serve's {"type":"ping"} heartbeat),
+        // never output. They still prove the link is alive: a protocol
+        // ping is answered by the browser and never reaches JS.
+        lastFrameRef.current = Date.now();
         return;
       }
       const bytes = ev.data instanceof ArrayBuffer ? new Uint8Array(ev.data) : new Uint8Array(ev.data as ArrayBuffer);
@@ -134,6 +192,9 @@ export default function TerminalView({
       bumpActivity(id);
     };
     ws.onclose = (ev: CloseEvent) => {
+      if (stale()) {
+        return;
+      }
       wsRef.current = null;
       if (watchdogRef.current !== null) {
         window.clearInterval(watchdogRef.current);
@@ -146,12 +207,12 @@ export default function TerminalView({
         setStatus('gone');
         return;
       }
-      if (ev.code === 1006 && attemptRef.current > 0 && onSessionExpired) {
+      if (ev.code === 1006 && attemptRef.current > 0 && onSessionExpiredRef.current) {
         // Only a 401 means signed out: a 5xx is serve restarting.
         void fetch('/auth/me').then(
           (res) => {
             if (res.status === 401 && !userClosedRef.current) {
-              onSessionExpired();
+              onSessionExpiredRef.current?.();
             }
           },
           () => undefined,
@@ -166,12 +227,13 @@ export default function TerminalView({
       attemptRef.current += 1;
       // Through the ref: the timeout outlives this render's connect.
       timerRef.current = window.setTimeout(() => {
+        timerRef.current = null;
         if (!userClosedRef.current) {
           connectRef.current();
         }
       }, wait);
     };
-  }, [id, machine, runner, onSessionExpired]);
+  }, [id, machine, runner]);
 
   useEffect(() => {
     connectRef.current = connect;
@@ -186,7 +248,19 @@ export default function TerminalView({
     if (!host) {
       return;
     }
-    const term = new Terminal({ cursorBlink: true, fontSize: 14 });
+    // A re-run (another pane id in the same instance) starts live: the
+    // previous run's cleanup marked the pane user-closed.
+    userClosedRef.current = false;
+    attemptRef.current = 0;
+    const term = new Terminal({
+      cursorBlink: true,
+      fontSize: termFontSize(),
+      fontFamily: "\"JetBrains Mono Variable\", ui-monospace, Menlo, monospace",
+      scrollback: 5000,
+      // Long-press selects words on a phone; a desktop keeps the usual.
+      rightClickSelectsWord: true,
+      macOptionIsMeta: true,
+    });
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(host);
@@ -234,8 +308,27 @@ export default function TerminalView({
             term.scrollToBottom();
           }
         },
+        // The strip's Paste goes through xterm like a desktop paste:
+        // bracketed when the app asked for it, \n turned into \r.
+        paste: (text: string) => term.paste(text),
       },
     );
+    // A desktop paste (Ctrl+Shift+V, menu) gets the strip Paste's
+    // sanitiser too. xterm handles it on its textarea/element with no
+    // hook, so take it first in the capture phase on the host.
+    const onPaste = (ev: ClipboardEvent) => {
+      const raw = ev.clipboardData?.getData('text/plain');
+      if (raw === undefined) {
+        return;
+      }
+      ev.preventDefault();
+      ev.stopPropagation();
+      const text = stripPasteControls(raw);
+      if (text !== '') {
+        term.paste(text);
+      }
+    };
+    host.addEventListener('paste', onPaste, true);
     // The pane element is the size source of truth: on any
     // change — OS keyboard pushing the page column, rotation, a fs
     // toggle — fit() the canvas and tell the PTY, so lines rewrap
@@ -254,9 +347,9 @@ export default function TerminalView({
         resizeTimer = null;
         try {
           fit.fit();
-          const dims = fit.proposeDimensions();
-          if (dims && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-            wsRef.current.send(JSON.stringify({ type: 'resize', cols: dims.cols, rows: dims.rows }));
+          const frame = resizeFrame(fit.proposeDimensions());
+          if (frame && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(frame);
           }
         } catch {
           // host is mid-layout; the next observation lands it.
@@ -264,9 +357,23 @@ export default function TerminalView({
         if (document.body.classList.contains('devcules-mobile')) {
           term.scrollToBottom();
         }
-      }, 150);
+      }, 60);
     });
     ro?.observe(host);
+    // A/A+ on the strip: restyle, refit, tell the PTY, keep the prompt.
+    const offFont = onTermFont((px) => {
+      term.options.fontSize = px;
+      try {
+        fit.fit();
+        const frame = resizeFrame(fit.proposeDimensions());
+        if (frame && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+          wsRef.current.send(frame);
+        }
+      } catch {
+        // mid-layout; the observer lands it
+      }
+      term.scrollToBottom();
+    });
     connect();
     const onVisible = () => {
       if (document.visibilityState === 'visible' && !userClosedRef.current && !wsRef.current) {
@@ -286,6 +393,7 @@ export default function TerminalView({
       userClosedRef.current = true;
       if (timerRef.current !== null) {
         window.clearTimeout(timerRef.current);
+        timerRef.current = null;
       }
       if (watchdogRef.current !== null) {
         window.clearInterval(watchdogRef.current);
@@ -293,13 +401,17 @@ export default function TerminalView({
       }
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('online', onOnline);
+      const ws = wsRef.current;
+      wsRef.current = null;
       try {
-        wsRef.current?.close(1000, 'leaving');
+        ws?.close(1000, 'leaving');
       } catch {
         // Already gone.
       }
+      host.removeEventListener('paste', onPaste, true);
       disposeData.dispose();
       unregisterKeys();
+      offFont();
       if (resizeTimer !== null) {
         window.clearTimeout(resizeTimer);
       }
@@ -311,7 +423,19 @@ export default function TerminalView({
       // pulse so a hidden tab never holds a stale glow.
       clearActivity(id);
     };
-  }, [connect]);
+  }, [connect, id, send]);
+
+  // On a phone an open terminal takes the whole screen: the shell
+  // folds its header and tab bar until ☰ brings them back. Once per
+  // pane id, not per socket rebuild: a re-run for any other reason
+  // must not undo the user's ☰.
+  useEffect(() => {
+    if (!document.body.classList.contains('devcules-mobile')) {
+      return undefined;
+    }
+    requestFs(true);
+    return () => requestFs(false);
+  }, [id]);
 
   return (
     <div className="d-term-pane flex min-h-0 flex-1 flex-col">
@@ -321,7 +445,7 @@ export default function TerminalView({
           keybus — on mobile that's the whole point; on desktop a very
           tall screen that's scrolled to a pane gets the same strip. */}
       <TermKeyboard onShowTabs={onShowTabs} />
-      <div className="flex min-h-11 items-center gap-2 px-4 py-2">
+      <div className="d-term-head flex min-h-11 items-center gap-2 px-4 py-2">
         <button
           type="button"
           aria-label="Back to terminals"
@@ -345,7 +469,7 @@ export default function TerminalView({
       {/* The pane: the host owns the size; its ResizeObserver in the
           effect above runs fit() + a PTY resize so lines rewrap on any
           shrink/rotation instead of clipping off the right or bottom. */}
-      <div ref={hostRef} className="min-h-0 flex-1 overflow-hidden px-2" aria-label="Terminal" role="application" />
+      <div ref={hostRef} className="d-term-host min-h-0 flex-1 overflow-hidden px-2" aria-label="Terminal" role="application" />
     </div>
   );
 }

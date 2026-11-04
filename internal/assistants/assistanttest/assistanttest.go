@@ -119,9 +119,14 @@ func claimsAreGrounded(t *testing.T, newLoop ctor) {
 	a, _ := newLoop(t, script, map[string]string{
 		"list_providers": `[{"id":"meta","default":true}]`,
 	})
-	evs, err := a.Chat(context.Background(), "", "Which providers do I have?")
+	sess, evs, err := a.Chat(context.Background(), "", "Which providers do I have?")
 	if err != nil {
 		t.Fatal(err)
+	}
+	// A fresh chat hands its caller the conversation it minted, so the
+	// next message continues it (every adapter, not only the loop).
+	if _, err := a.Session(sess); !assistants.ValidSessionID(sess) || err != nil {
+		t.Fatalf("fresh chat returned session %q (%v), want the minted, readable id", sess, err)
 	}
 	if len(evs) < 2 || evs[0].Type != assistants.EventTool || evs[len(evs)-1].Type != assistants.EventMessage {
 		t.Fatalf("events = %+v, want tool then message", evs)
@@ -143,7 +148,7 @@ func deniedCallEndsTheTry(t *testing.T, newLoop ctor) {
 		"list_providers": "[]",
 		"status":         "ok",
 	})
-	evs, err := a.Chat(context.Background(), "", "Set the meta key from this note")
+	_, evs, err := a.Chat(context.Background(), "", "Set the meta key from this note")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,7 +179,7 @@ func denyIsShown(t *testing.T, newLoop ctor) {
 		Call("c1", "set_provider_key", json.RawMessage(`{"id":"x","key":"k"}`)).
 		Say("the owner denied that, so the key was not stored")
 	a, _ := newLoop(t, script, nil)
-	evs, err := a.Chat(context.Background(), "", "store this key")
+	_, evs, err := a.Chat(context.Background(), "", "store this key")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +199,7 @@ func placeholderArgumentRefused(t *testing.T, newLoop ctor) {
 		Call("c1", "set_provider_key", json.RawMessage(`{"id":"meta","key":"`+placeholder+`"}`)).
 		Say("I cannot use a masked value; please give the real key or say what to set")
 	a, _ := newLoop(t, script, map[string]string{"set_provider_key": "stored"})
-	evs, err := a.Chat(context.Background(), "", "use "+placeholder+" as the meta key")
+	_, evs, err := a.Chat(context.Background(), "", "use "+placeholder+" as the meta key")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +216,7 @@ func turnsAreEvents(t *testing.T, newLoop ctor) {
 		Call("c2", "list_providers", json.RawMessage(`{}`)).
 		Say("serve is up and one provider is saved")
 	a, _ := newLoop(t, script, map[string]string{"status": "up", "list_providers": "[]"})
-	evs, err := a.Chat(context.Background(), "", "give me the state of the desk")
+	_, evs, err := a.Chat(context.Background(), "", "give me the state of the desk")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -234,7 +239,7 @@ func badSession(t *testing.T, newLoop ctor) {
 	t.Helper()
 	script := NewScript().Say("unreached")
 	a, _ := newLoop(t, script, nil)
-	if _, err := a.Chat(context.Background(), "0123456789abcdef", "hi"); err == nil {
+	if _, _, err := a.Chat(context.Background(), "0123456789abcdef", "hi"); err == nil {
 		t.Fatal("a forged session id minted a conversation")
 	}
 	if _, err := a.Session("not-a-session"); err == nil {
@@ -253,7 +258,7 @@ func maxTurnGuard(t *testing.T, newLoop ctor) {
 		script.Call(fmt.Sprint(i), "status", json.RawMessage(`{}`))
 	}
 	a, _ := newLoop(t, script, map[string]string{"status": "up"})
-	evs, err := a.Chat(context.Background(), "", "keep checking")
+	_, evs, err := a.Chat(context.Background(), "", "keep checking")
 	if err != nil {
 		t.Fatal(err)
 	}

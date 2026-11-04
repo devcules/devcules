@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { listApprovals } from '../api';
 import { Inbox, type PendingState } from '../screens/Approvals';
 import Machines from '../screens/Machines';
@@ -10,9 +10,13 @@ import Assistant from '../screens/Assistant';
 import Extensions from '../screens/Extensions';
 import DeskPage from '../screens/desk/DeskPage';
 import { useMobile, useVisibleHeight } from '../screens/useMobile';
+import { onFsRequest } from '../screens/keybus';
 import ThemePicker from '../theme/ThemePicker';
 import StatusBar from './StatusBar';
 import UserMenu from './UserMenu';
+import CommandPalette from './CommandPalette';
+import Confetti from './Confetti';
+import { confetti, togglePresenting } from './present';
 import { SIDEBAR_MAX, SIDEBAR_MIN, useSidebarWidth } from './useSidebarWidth';
 
 // The standalone Projects and Terminals pages are gone as tab
@@ -66,6 +70,65 @@ export default function Shell({
   const mobile = useMobile();
   const visH = useVisibleHeight();
   const fs = mobile && termFs;
+  // An open terminal pane asks for fullscreen on a phone; the strip's
+  // ☰ (or leaving the pane) hands the chrome back.
+  useEffect(() => onFsRequest((on) => setTermFs(on)), []);
+  // The software keyboard is up when the visible height is well short
+  // of the layout height.
+  const keyboardUp = mobile && typeof window !== 'undefined' && window.innerHeight - visH > 120;
+  // iOS pans the whole layout viewport up to reveal a focused input,
+  // which pushes the terminal's top bar off screen and can leave the
+  // cursor under the keys. The shell is pinned to the visible area
+  // instead, so undo any pan the browser makes.
+  useEffect(() => {
+    const vv = typeof window === 'undefined' ? undefined : window.visualViewport;
+    if (!mobile || !vv) {
+      return undefined;
+    }
+    let raf = 0;
+    const settle = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        if (window.scrollY !== 0 || window.scrollX !== 0) {
+          window.scrollTo(0, 0);
+        }
+      });
+    };
+    vv.addEventListener('resize', settle);
+    vv.addEventListener('scroll', settle);
+    window.addEventListener('scroll', settle, { passive: true });
+    return () => {
+      cancelAnimationFrame(raf);
+      vv.removeEventListener('resize', settle);
+      vv.removeEventListener('scroll', settle);
+      window.removeEventListener('scroll', settle);
+    };
+  }, [mobile]);
+  // The shell above is a fixed box sized to the visible height, and
+  // settle() undoes the browser's own pan, so nothing reveals a field
+  // the keyboard came up over. When the visible height shrinks, bring
+  // the focused field in main back into view by scrolling main itself
+  // (block: nearest leaves a field that is already visible alone). The
+  // terminal's xterm textarea is skipped: its pane refits on its own.
+  const mainRef = useRef<HTMLElement>(null);
+  const lastVisH = useRef(visH);
+  useEffect(() => {
+    const shrank = visH < lastVisH.current;
+    lastVisH.current = visH;
+    if (!mobile || !shrank) {
+      return;
+    }
+    const el = document.activeElement;
+    if (
+      el instanceof HTMLElement &&
+      (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement || el.isContentEditable) &&
+      mainRef.current?.contains(el) &&
+      el.closest('.xterm') === null &&
+      typeof el.scrollIntoView === 'function'
+    ) {
+      el.scrollIntoView({ block: 'nearest' });
+    }
+  }, [mobile, visH]);
   // The sidebar's project tree asks the Projects tab to show things;
   // treeReload tells the tree the list changed.
   const [intent, setIntent] = useState<ProjectIntent | undefined>(undefined);
@@ -123,70 +186,21 @@ export default function Shell({
 
   const waiting = Array.isArray(pending) ? pending.length : 0;
 
-  if (fs) {
-    // Mobile fullscreen terminal: the top/side chrome folds and the
-    // pane column sizes to the *visible* height so an open OS keyboard
-    // shrinks content instead of covering it (visualViewport). The
-    // bottom tab bar STAYS on screen — it's how you leave the terminal
-    // for another screen without first exiting — and it sits above the
-    // safe area so a home-indicator phone keeps the taps reachable.
-    const keyboardUp = window.innerHeight - visH > 120;
-    return (
-      <div
-        className="flex flex-col bg-base text-text"
-        style={{
-          height: visH,
-          paddingTop: 'env(safe-area-inset-top)',
-          boxSizing: 'border-box',
-        }}
-      >
-        <div className="flex min-h-0 flex-1 flex-col">
-          <Assistant
-            onSessionExpired={onSessionExpired}
-            fs
-            onExitFs={() => setTermFs(false)}
-            onEnterFs={() => setTermFs(true)}
-          />
-        </div>
-        {/* Static bottom bar, same one as normal mode: the user can hop
-            to Home/Projects/etc. straight out of the terminal. Exiting
-            fs happens on pick. No bottom safe-area pad while the OS
-            keyboard is up — the keys cover that zone already. */}
-        <nav
-          aria-label="Tabs"
-          className="shrink-0 border-t border-muted bg-surface"
-          style={{ paddingBottom: keyboardUp ? 0 : 'env(safe-area-inset-bottom)' }}
-        >
-          <ul className="flex">
-            {tabs.map((t) => (
-              <li key={t.id} className="min-w-0 flex-1">
-                <button
-                  type="button"
-                  aria-current={tab === t.id ? 'page' : undefined}
-                  onClick={() => {
-                    setTermFs(false);
-                    setTab(t.id);
-                  }}
-                  className={`flex min-h-11 min-w-0 w-full flex-1 flex-col items-center justify-center px-0.5 text-tab transition-colors duration-150 ${
-                    tab === t.id ? 'text-accent font-semibold' : 'text-muted'
-                  }`}
-                >
-                  <span className="max-w-full truncate">
-                    {t.label}
-                    {t.id === 'home' && <Badge count={waiting} />}
-                  </span>
-                  <span
-                    aria-hidden="true"
-                    className={`mt-1 h-1 w-5 rounded-full ${tab === t.id ? 'bg-accent' : ''}`}
-                  />
-                </button>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      </div>
-    );
-  }
+  // Inbox zero is worth a party: when the last waiting approval is
+  // answered, the confetti goes off once.
+  const prevWaiting = useRef(waiting);
+  useEffect(() => {
+    if (prevWaiting.current > 0 && waiting === 0 && Array.isArray(pending)) confetti();
+    prevWaiting.current = waiting;
+  }, [waiting, pending]);
+
+  // The palette's screens, with their "g <key>" jump letters.
+  const KEYS: Partial<Record<Tab, string>> = { desk: 'd', home: 'h', projects: 'j', assistant: 'a', machines: 'm', extensions: 'e', activity: 'v', settings: 's' };
+  const nav = useMemo(
+    () => tabs.map((t) => ({ id: t.id, label: t.label, key: KEYS[t.id], go: () => { setTermFs(false); setTab(t.id); } })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
   // h-dvh, not min-h-dvh: the shell must be exactly one viewport tall so
   // the flex chain is *bounded*. With min-h the children were free to
@@ -195,17 +209,35 @@ export default function Shell({
   // document is scroll-locked, nothing else could either. The fixed tab
   // bar overlays the bottom edge, so its strip is reserved here.
   return (
-    <div className="flex h-dvh flex-col bg-base pb-[calc(2.75rem+env(safe-area-inset-bottom))] text-text md:pb-0">
+    <div
+      // The chrome follows the same JS `mobile` flag as fullscreen, not
+      // Tailwind's md breakpoint: a phone in landscape (844x390) is wider
+      // than md but is still a phone, so it gets the bottom tabs and no
+      // sidebar or status bar. With viewport-fit=cover a phone also pads
+      // the side insets (the landscape notch) and, in fullscreen with
+      // the keyboard down, the bottom one (the home indicator).
+      className={`v-shell flex flex-col bg-base text-text ${
+        mobile ? 'pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]' : 'h-dvh md:pb-0'
+      } ${
+        keyboardUp ? 'pb-0' : fs ? 'pb-[env(safe-area-inset-bottom)]' : 'pb-[calc(2.75rem+env(safe-area-inset-bottom))]'
+      } ${fs ? 'v-shell-fs pt-[env(safe-area-inset-top)]' : ''}`}
+      // On a phone the shell is sized to the *visible* viewport, so the
+      // open keyboard shrinks the content (and the terminal refits above
+      // it) instead of covering the bottom rows and the cursor.
+      style={mobile ? { position: 'fixed', top: 0, left: 0, right: 0, height: visH } : undefined}
+    >
       {/* Top bar: the brand and, on the right, the theme drop-down.
           The picker sits in the header so the theme is
           reachable from every screen; the pick persists per browser
           and applies at once. The safe-area top inset moves into the
           bar so the body's `pt` stays zero. */}
-      <header className="sticky top-0 z-10 flex items-center justify-between gap-2 bg-base px-4 pt-[env(safe-area-inset-top)] pb-1">
+      <header className={`v-head sticky top-0 z-10 ${fs ? 'hidden' : 'flex'} items-center justify-between gap-2 bg-base px-4 pt-[env(safe-area-inset-top)] pb-1`}>
         {/* The wordmark carries the accent: it's the app's purple (or
             rose, or green), so it stays readable on every background. */}
-        <span className="text-lead font-semibold text-accent">devcules</span>
+        <span className="v-logo text-lead font-semibold text-accent"><span className="v-logo-mark" aria-hidden="true">✦</span>devcules</span>
         <div className="flex items-center gap-1">
+          <CommandPalette nav={nav} />
+          <button type="button" onClick={togglePresenting} className="v-present-btn hidden min-h-9 items-center gap-1 rounded-full px-3 text-tab text-text md:inline-flex" title="Presentation mode (p)">▶ present</button>
           <ThemePicker />
           <UserMenu username={username} onSignedOut={onSignedOut} />
         </div>
@@ -218,6 +250,7 @@ export default function Shell({
         {/* Desktop: sidebar. Phone: bottom bar below. The width is the
             owner's (dragged on the handle beside it); a phone hides the
             column entirely, so the inline width only matters at md+. */}
+        {!mobile && (<>
         <nav
           aria-label="Primary"
           className="hidden w-60 shrink-0 flex-col gap-1 overflow-y-auto p-4 md:flex"
@@ -270,9 +303,12 @@ export default function Shell({
           }}
           className={`hidden w-1 shrink-0 cursor-col-resize md:block ${sidebar.dragging ? 'bg-accent' : 'bg-transparent hover:bg-muted'}`}
         />
+        </>)}
       {/* main is the one scrolling region for every screen except the
           terminal panes and the desk grid, which own their own. */}
-      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
+      <Confetti />
+      <button type="button" onClick={togglePresenting} className="v-live-badge" title="Leave presentation mode (Esc)"><span className="v-live-dot" aria-hidden="true" />LIVE DEMO · esc</button>
+      <main ref={mainRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
         {tab === 'desk' && (
           <DeskPage onSessionExpired={onSessionExpired} onOpenApprovals={() => setTab('home')} />
         )}
@@ -286,6 +322,7 @@ export default function Shell({
         {tab === 'assistant' && (
           <Assistant
             onSessionExpired={onSessionExpired}
+            fs={fs}
             onEnterFs={mobile ? () => setTermFs(true) : undefined}
             onExitFs={() => setTermFs(false)}
           />
@@ -299,10 +336,10 @@ export default function Shell({
       </div>
       {/* The footer strip: after the sidebar+main row, holding the
           machine line. Flow, not fixed, so content runs right down to
-          it. Desktop only — on a phone it hides itself (md:block), which
-          is why the reserved tab strip below no longer has to make room
-          for it. */}
-      <StatusBar username={username} />
+          it. Desktop only: a phone (the mobile flag, landscape included)
+          never mounts it, so the reserved tab strip below does not have
+          to make room for it. */}
+      {!mobile && <StatusBar username={username} />}
       {/* Eight tabs do not fit 393px: at a fixed share each label got
           ~49px and half of them truncated mid-word ("Assista…",
           "Machin…"), which is what made the bar read as crowded. The
@@ -310,14 +347,19 @@ export default function Shell({
           so the labels stay whole. */}
       <nav
         aria-label="Tabs"
-        className="d-tab-scroll fixed inset-x-0 bottom-0 flex overflow-x-auto bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
+        className={`d-tab-scroll fixed inset-x-0 bottom-0 overflow-x-auto bg-surface pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] ${
+          mobile ? '' : 'md:hidden'
+        } ${fs || keyboardUp ? 'hidden' : 'flex'}`}
       >
         {tabs.map((t) => (
           <button
             key={t.id}
             type="button"
             aria-current={tab === t.id ? 'page' : undefined}
-            onClick={() => setTab(t.id)}
+            onClick={() => {
+              setTermFs(false);
+              setTab(t.id);
+            }}
             className={`flex min-h-11 shrink-0 flex-col items-center justify-center px-3 text-tab transition-colors duration-150 ${
               tab === t.id ? 'text-accent font-semibold' : 'text-muted'
             }`}

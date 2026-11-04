@@ -75,6 +75,27 @@ const (
 	maxDetailItems = 16
 )
 
+// Registry and take-control actions.
+const (
+	// Extensions registry: an MCP server or skill installed into, or
+	// removed from, the local coding agents (target: the name; detail:
+	// kind and what will run, never env values).
+	RegistryInstall = "registry.install"
+	RegistryRemove  = "registry.remove"
+	// Take control: one input event injected into a machine (target:
+	// the machine; detail: the event kind, never the key or text).
+	MachineInput = "machine.input"
+)
+
+// Desk calendar plans: a plan created (on the grid, through the API or
+// by quick-add), edited, or deleted (target: the plan id; detail: the
+// title).
+const (
+	CalendarAdd    = "calendar.add"
+	CalendarEdit   = "calendar.edit"
+	CalendarRemove = "calendar.remove"
+)
+
 // Event is what a caller records. Actor is a username, or "system" or
 // "cli" for Devcules itself; Target names what was acted on (an id, a
 // name). Detail holds short, non-secret context.

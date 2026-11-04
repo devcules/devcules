@@ -2,11 +2,11 @@
 
 ## Review outcome
 
-**Review branch, not yet recommended for an unqualified merge to main.**
-Current `main` is the base; its newer README site, Pages workflow and
-sidebar-width work are retained. The 2026-11-04 archive was based on
-`6ba67eb`, so it was compared against the complete repository, not
-copied over the latest checkout.
+**Merged to `main` after manual testing at the existing tailnet instance.**
+The supplied archive was based on `6ba67eb`, so it was compared against
+the complete repository instead of replacing the latest checkout. Its
+newer README site and Pages workflow are retained, as is the sidebar
+resizing behavior.
 
 Useful tested changes include bounded sign-in throttling, safer registry
 process cleanup and audit redaction, slow-HTTP responses, terminal
@@ -20,11 +20,13 @@ idempotent and kills its process group once.
 
 ## Verification
 
-- `go test ./...` and `go vet ./...`: passed.
-- Frontend unit tests: 46 files, 734 tests passed.
-- Frontend lint, TypeScript and production build: passed. One existing
-  `TerminalView.tsx` hook-dependency warning remains.
-- Not run: Playwright browser/e2e tests and real passkey/browser testing.
+- Locally: Go tests and vet, frontend tests (46 files / 734 tests),
+  lint/typecheck/build, full-history Gitleaks and the font licence check.
+- CI: Linux unit, fuzz, coverage, vulnerability/scanner, static
+  analysis, multi-arch Docker image, functional browser flows and Linux
+  visual baselines. One mobile WebAuthn lifecycle case remains skipped;
+  an external passkey ceremony still requires manual browser testing.
+- One existing `TerminalView.tsx` hook-dependency warning remains.
 
 ## Merge considerations
 
@@ -38,8 +40,8 @@ idempotent and kills its process group once.
 - MCP shutdown is best-effort: a stuck child has a two-second wait
   ceiling before the caller cancels its context.
 - An earlier sandboxed frontend run leaked fake timers between toast and
-  App tests; the final run passed after correcting the sandbox dependency
-  isolation. No production behavior was changed for this issue.
+  App tests; after reinstalling the isolated dependencies, the merged
+  frontend suite passed in both local and Linux CI runs.
 
 ## Supplied follow-ups
 

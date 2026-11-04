@@ -444,7 +444,7 @@ func TestFarWindowExpansionIsBounded(t *testing.T) {
 		{ID: "f", Title: "f", Start: start, End: start.Add(time.Hour), RRule: "FREQ=DAILY;BYMONTH=2;BYMONTHDAY=29;BYDAY=MO;COUNT=5000"},
 		{ID: "g", Title: "g", Start: start, End: start.Add(time.Hour), RRule: "FREQ=WEEKLY;BYMONTH=2;BYMONTHDAY=29"},
 	}
-	b8Timed(t, "slowest legal shapes in 2200", 100*time.Millisecond, func() { out, _ = expandPlansIn(slow, from, to, time.UTC) })
+	b8Timed(t, "slowest legal shapes in 2200", b8FarWindowTimeBudget, func() { out, _ = expandPlansIn(slow, from, to, time.UTC) })
 	if len(out) < 31 {
 		t.Fatalf("daily plan in Dec 2199..2200 = %d items", len(out))
 	}

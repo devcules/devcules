@@ -39,6 +39,9 @@ idempotent and kills its process group once.
   managers now get explicit private socket paths (`-S`); production
   retains the normal `devcules` socket namespace (`-L`). Attach/detach lifecycle races are
   separately tracked below and are not claimed fixed by this isolation.
+  Stream-writer cleanup is asynchronous: its regression test waits for
+  the browser close and guarded stream removal rather than assuming
+  those happen against the same scheduling deadline.
 - MCP shutdown is best-effort: a stuck child has a two-second wait
   ceiling before the caller cancels its context.
 - An earlier sandboxed frontend run leaked fake timers between toast and

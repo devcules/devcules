@@ -204,11 +204,21 @@ func TestWriterFailureClosesStream(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("writer failed but the browser socket stayed open")
 	}
-	r.mu.Lock()
-	n := len(r.streams)
-	r.mu.Unlock()
-	if n != 0 {
-		t.Fatalf("streams = %d after the writer failed, want 0", n)
+	// CloseNow wakes the browser reader before its goroutine finishes
+	// the deferred detach and forget, so stream removal is asynchronous.
+	deadline := time.After(5 * time.Second)
+	for {
+		r.mu.Lock()
+		n := len(r.streams)
+		r.mu.Unlock()
+		if n == 0 {
+			return
+		}
+		select {
+		case <-deadline:
+			t.Fatalf("streams = %d after writer failure cleanup, want 0", n)
+		case <-time.After(5 * time.Millisecond):
+		}
 	}
 }
 

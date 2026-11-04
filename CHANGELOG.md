@@ -4,6 +4,16 @@ All notable changes to Devcules, newest first.
 
 ## Unreleased
 
+### Added (2026-11-04, README and website)
+
+- The README leads with the demo video (a thumbnail linking to
+  YouTube), the problem Devcules solves, a feature tour with product
+  stills, and the same quick start, compose and tailnet steps as
+  before.
+- A project website in `site/` (one static page with the video
+  embedded, loaded only on play), published to GitHub Pages by the
+  new `pages` workflow at https://devcules.github.io/devcules/.
+
 ### Fixed (2026-11-04, Muse Code on its own login)
 
 - Muse Code no longer needs a provider profile with a saved key. Its

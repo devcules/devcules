@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Devcules · Your favorite agent harness, personalized by you</title>
+<meta name="description" content="Devcules is an open-source, terminal-first dev desk for AI coding agents. Run Muse Code, Claude Code, Codex or Hermes on your own machines and reach your desk from any device over your tailnet.">
+<meta name="theme-color" content="#0b0e12">
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Devcules · Your favorite agent harness, personalized by you">
+<meta property="og:description" content="An open-source, terminal-first dev desk for AI coding agents. Your agents. Your desk. Anywhere.">
+<meta property="og:url" content="https://devcules.github.io/devcules/">
+<meta property="og:image" content="https://devcules.github.io/devcules/assets/video-thumbnail.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://devcules.github.io/devcules/assets/video-thumbnail.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0e12;
+    --bg-2: #101418;
+    --card: #141a21;
+    --line: #232c37;
+    --text: #ece9e2;
+    --muted: #9aa4b1;
+    --gold: #e0a63f;
+    --gold-soft: rgba(224, 166, 63, .14);
+    --violet: #a46bff;
+    --radius: 18px;
+    --max: 1160px;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 17px/1.6 Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  a { color: inherit; }
+  img { max-width: 100%; height: auto; display: block; }
+  .wrap { max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+
+  /* nav */
+  nav {
+    position: sticky; top: 0; z-index: 20;
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    background: rgba(11, 14, 18, .72);
+    border-bottom: 1px solid rgba(255,255,255,.05);
+  }
+  nav .wrap { display: flex; align-items: center; gap: 24px; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 19px; text-decoration: none; }
+  .brand img { width: 30px; height: 30px; }
+  nav .links { margin-left: auto; display: flex; gap: 22px; align-items: center; }
+  nav .links a { text-decoration: none; color: var(--muted); font-size: 15px; font-weight: 500; }
+  nav .links a:hover { color: var(--text); }
+  @media (max-width: 720px) { nav .links a.hide-sm { display: none; } }
+
+  /* buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 13px 22px; border-radius: 999px;
+    font-weight: 600; font-size: 16px; text-decoration: none;
+    border: 1px solid var(--line); background: var(--card);
+    transition: transform .15s ease, border-color .15s ease, background .15s ease;
+  }
+  .btn:hover { transform: translateY(-1px); border-color: #3a4655; }
+  .btn.primary { background: var(--gold); color: #17120a; border-color: var(--gold); }
+  .btn.primary:hover { background: #ebb554; }
+  .btn svg { width: 18px; height: 18px; }
+  nav .btn { padding: 8px 16px; font-size: 14px; }
+
+  /* hero */
+  .hero { position: relative; padding: 96px 0 40px; text-align: center; }
+  .hero::before {
+    content: ""; position: absolute; inset: -200px 0 auto 0; height: 760px; z-index: -1;
+    background:
+      radial-gradient(600px 340px at 50% 30%, rgba(224,166,63,.20), transparent 70%),
+      radial-gradient(520px 320px at 18% 10%, rgba(164,107,255,.16), transparent 70%),
+      radial-gradient(520px 320px at 85% 20%, rgba(61,155,253,.10), transparent 70%);
+  }
+  .pill {
+    display: inline-flex; gap: 8px; align-items: center;
+    padding: 6px 14px; border-radius: 999px;
+    background: var(--gold-soft); color: var(--gold);
+    font-size: 14px; font-weight: 600; border: 1px solid rgba(224,166,63,.3);
+  }
+  h1 {
+    margin: 22px auto 18px; max-width: 900px;
+    font-size: clamp(40px, 7vw, 78px); line-height: 1.04; letter-spacing: -.035em; font-weight: 800;
+  }
+  h1 .gold { color: var(--gold); }
+  .lede { max-width: 700px; margin: 0 auto; color: var(--muted); font-size: clamp(17px, 2.2vw, 20px); }
+  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 34px; }
+  .chips { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 26px; }
+  .chips span {
+    font-size: 14px; color: var(--muted); padding: 6px 12px; border-radius: 999px;
+    border: 1px solid var(--line); background: rgba(255,255,255,.02);
+  }
+
+  /* video */
+  .video { margin: 56px auto 0; max-width: 1000px; }
+  .player {
+    position: relative; aspect-ratio: 16 / 9; border-radius: 22px; overflow: hidden;
+    border: 1px solid var(--line); background: #000;
+    box-shadow: 0 30px 120px -20px rgba(224,166,63,.25), 0 20px 60px rgba(0,0,0,.6);
+  }
+  .player iframe, .player button { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .player button { padding: 0; cursor: pointer; background: #000; }
+  .player button img { width: 100%; height: 100%; object-fit: cover; transition: transform .4s ease, filter .3s ease; }
+  .player button:hover img { transform: scale(1.015); filter: brightness(1.08); }
+  .play {
+    position: absolute; left: 50%; bottom: 7%; transform: translateX(-50%);
+    display: inline-flex; align-items: center; gap: 12px;
+    padding: 12px 24px 12px 14px; border-radius: 999px;
+    background: var(--gold); color: #17120a; font: 700 17px Inter, sans-serif; white-space: nowrap;
+    box-shadow: 0 0 0 8px rgba(224,166,63,.2), 0 12px 40px rgba(0,0,0,.5);
+    transition: transform .2s ease;
+  }
+  .player button:hover .play { transform: translateX(-50%) scale(1.05); }
+  .play i { width: 38px; height: 38px; border-radius: 50%; background: #17120a; display: grid; place-items: center; }
+  .play svg { width: 18px; height: 18px; margin-left: 3px; fill: var(--gold); }
+  @media (max-width: 560px) { .play { font-size: 14px; padding: 8px 16px 8px 9px; bottom: 5%; } .play i { width: 28px; height: 28px; } }
+  .video .caption { text-align: center; color: var(--muted); font-size: 14px; margin-top: 14px; }
+
+  /* sections */
+  section.wrap { padding-top: 110px; }
+  section#features { padding-top: 20px; }
+  .eyebrow { color: var(--gold); font-weight: 600; font-size: 14px; letter-spacing: .12em; text-transform: uppercase; }
+  h2 { font-size: clamp(30px, 4.4vw, 48px); line-height: 1.1; letter-spacing: -.025em; margin: 12px 0 16px; font-weight: 800; }
+  h3 { font-size: 22px; margin: 0 0 10px; letter-spacing: -.01em; }
+  .sub { color: var(--muted); max-width: 680px; font-size: 18px; margin: 0; }
+  .center { text-align: center; }
+  .center .sub { margin: 0 auto; }
+
+  /* why grid */
+  .why { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-top: 46px; }
+  @media (max-width: 960px) { .why { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .why { grid-template-columns: 1fr; } }
+  .why div {
+    background: linear-gradient(180deg, var(--card), var(--bg-2));
+    border: 1px solid var(--line); border-radius: var(--radius); padding: 26px;
+  }
+  .why .ico { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: var(--gold-soft); color: var(--gold); margin-bottom: 16px; }
+  .why .ico svg { width: 22px; height: 22px; }
+  .why p { color: var(--muted); margin: 0; font-size: 16px; }
+
+  /* feature rows */
+  .feature { display: grid; grid-template-columns: 1fr 1.25fr; gap: 56px; align-items: center; margin-top: 90px; }
+  .feature.flip { grid-template-columns: 1.25fr 1fr; }
+  .feature.flip .copy { order: 2; }
+  @media (max-width: 860px) {
+    .feature, .feature.flip { grid-template-columns: 1fr; gap: 28px; margin-top: 70px; }
+    .feature.flip .copy { order: 0; }
+  }
+  .feature .copy p { color: var(--muted); margin: 0 0 14px; }
+  .feature ul { list-style: none; padding: 0; margin: 18px 0 0; }
+  .feature li { position: relative; padding-left: 26px; margin: 8px 0; color: var(--text); font-size: 16px; }
+  .feature li::before { content: ""; position: absolute; left: 4px; top: 10px; width: 8px; height: 8px; border-radius: 50%; background: var(--gold); }
+  .shot {
+    border-radius: 16px; overflow: hidden; border: 1px solid var(--line);
+    box-shadow: 0 24px 80px rgba(0,0,0,.55);
+    background: var(--bg-2);
+  }
+  .phone-wrap { display: flex; justify-content: center; }
+  .phone {
+    width: min(300px, 70vw); border-radius: 38px; padding: 10px; background: #050608;
+    border: 1px solid #2a323d; box-shadow: 0 30px 90px rgba(164,107,255,.22), 0 20px 60px rgba(0,0,0,.6);
+  }
+  .phone img { border-radius: 30px; }
+
+  /* themes */
+  .themes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 44px; }
+  @media (max-width: 860px) { .themes { grid-template-columns: 1fr; } }
+  .themes figure { margin: 0; }
+  .themes figcaption { color: var(--muted); font-size: 14px; margin-top: 10px; text-align: center; }
+
+  /* quick start */
+  .qs { display: grid; gap: 18px; margin: 46px auto 0; max-width: 980px; }
+  .qs .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 26px;
+    display: grid; grid-template-columns: 1fr 1.5fr; gap: 28px; align-items: center; min-width: 0;
+  }
+  .qs .card > * { min-width: 0; }
+  @media (max-width: 860px) { .qs .card { grid-template-columns: 1fr; gap: 16px; padding: 20px; } }
+  .qs .card p { color: var(--muted); font-size: 15px; margin: 0; }
+  .step { font-family: var(--mono); color: var(--gold); font-size: 13px; margin-bottom: 8px; }
+  pre {
+    position: relative; margin: 0; padding: 40px 18px 16px; border-radius: 12px;
+    background: #07090c; border: 1px solid #1c232c; overflow-x: auto;
+    font: 13.5px/1.65 var(--mono); color: #d8dee6;
+  }
+  pre .c { color: #6b7684; }
+  pre .p { color: var(--gold); user-select: none; }
+  .copy-btn {
+    position: absolute; top: 8px; right: 8px; font: 600 12px Inter, sans-serif;
+    color: var(--muted); background: #141a21; border: 1px solid var(--line); border-radius: 8px;
+    padding: 4px 9px; cursor: pointer;
+  }
+  .copy-btn:hover { color: var(--text); }
+  .note { color: var(--muted); font-size: 15px; margin-top: 22px; }
+  .note a { color: var(--gold); }
+
+  /* closing */
+  .closing {
+    margin-top: 120px; padding: 70px 30px; border-radius: 28px; text-align: center;
+    border: 1px solid rgba(224,166,63,.25);
+    background:
+      radial-gradient(500px 260px at 50% 0%, rgba(224,166,63,.18), transparent 70%),
+      linear-gradient(180deg, #12171d, #0d1115);
+  }
+  footer { padding: 60px 0 50px; color: var(--muted); font-size: 14px; text-align: center; }
+  footer a { color: var(--text); }
+  footer p { margin: 6px 0; }
+
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity .7s ease, transform .7s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .reveal { opacity: 1; transform: none; transition: none; }
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="assets/logo.svg" alt="">Devcules</a>
+    <div class="links">
+      <a class="hide-sm" href="#why">Why</a>
+      <a class="hide-sm" href="#features">Features</a>
+      <a class="hide-sm" href="#start">Quick start</a>
+      <a class="btn" href="https://github.com/devcules/devcules">
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <span class="pill">Open source · Apache-2.0 · Self-hosted</span>
+    <h1>Your favorite agent harness, <span class="gold">personalized by you.</span></h1>
+    <p class="lede">Devcules is a terminal-first dev desk for AI coding agents. Run Muse Code, Claude Code, Codex or Hermes on your own machines, and reach your desk from your laptop, phone or iPad over your tailnet.</p>
+    <div class="cta">
+      <a class="btn primary" href="#start">Get started</a>
+      <a class="btn" href="https://github.com/devcules/devcules">Star on GitHub</a>
+    </div>
+    <div class="chips"><span>Terminal-first</span><span>Any device</span><span>Any agent harness</span><span>Tailnet only</span><span>Passkeys</span></div>
+
+    <div class="video reveal">
+      <div class="player" id="player">
+        <button type="button" aria-label="Play the Devcules demo video" data-yt="XtRAsomVlAs">
+          <img src="assets/video-thumbnail.jpg" alt="Devcules demo video: your agents, your desk, anywhere" width="1280" height="720">
+          <span class="play"><i><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></i>Watch the demo · 3 min</span>
+        </button>
+        <noscript><a href="https://youtu.be/XtRAsomVlAs" style="position:absolute;inset:0"></a></noscript>
+      </div>
+      <p class="caption">The 3 minute demo · <a href="https://youtu.be/XtRAsomVlAs">watch on YouTube</a></p>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section id="why" class="wrap">
+    <div class="center reveal">
+      <div class="eyebrow">Why Devcules</div>
+      <h2>Every developer is unique.</h2>
+      <p class="sub">We each have a favorite coding agent, ticket board, calendar and news feed, so one-size-fits-all tools never quite fit. Devcules, named after Hercules, is a strong skeleton you tune to fit you.</p>
+    </div>
+    <div class="why">
+      <div class="reveal">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span>
+        <h3>A harness that's yours</h3>
+        <p>Your agents, providers, panels and theme. Your own agent can even reshape Devcules itself.</p>
+      </div>
+      <div class="reveal">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg></span>
+        <h3>Any device</h3>
+        <p>The same desk and the same live terminals follow you from laptop to phone to iPad, even a real terminal on your phone.</p>
+      </div>
+      <div class="reveal">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></svg></span>
+        <h3>A sandbox per terminal</h3>
+        <p>Every terminal opens in a project on the machine you pick: this computer, a second box, or a container.</p>
+      </div>
+      <div class="reveal">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>
+        <h3>Less switching</h3>
+        <p>Calendar, tickets, approvals, agent feed and terminals on one desk, so you stop hopping between windows.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="features" class="wrap">
+    <div class="feature">
+      <div class="copy reveal">
+        <div class="eyebrow">Your desk</div>
+        <h2>Every panel is yours to shape.</h2>
+        <p>Calendar, meetings, tickets, news searches, a focus timer, quick links and a scratchpad. Add, move, resize or remove any panel, and pick each panel's source.</p>
+        <ul><li>Tickets from Jira, Asana or Linear</li><li>A live agent feed and a 24 hour pulse</li><li>Weather, meetings and quick links at a glance</li></ul>
+      </div>
+      <div class="shot reveal"><img src="assets/desk.jpg" alt="The Devcules desk with calendar, agent feed and pulse panels" loading="lazy" width="1420" height="928"></div>
+    </div>
+
+    <div class="feature flip">
+      <div class="copy reveal">
+        <div class="eyebrow">Any machine, any harness</div>
+        <h2>Open a terminal anywhere.</h2>
+        <p>Add a computer with one line and it enrols over your tailnet. Open a project on any machine and start a terminal with Muse Code, Claude Code, Codex, or an assistant like Hermes.</p>
+        <ul><li>tmux is the source of truth, so sessions survive a closed tab</li><li>Host, second machine or container, side by side</li><li>Switch models and providers per launch</li></ul>
+      </div>
+      <div class="shot reveal"><img src="assets/terminal.jpg" alt="Opening a new terminal in a project" loading="lazy" width="1400" height="787"></div>
+    </div>
+
+    <div class="feature">
+      <div class="copy reveal">
+        <div class="eyebrow">Extensions</div>
+        <h2>The MCP registry, built in.</h2>
+        <p>Browse the MCP servers and skills your agents share, then search the registry and install into Claude Code or Codex, right from the browser.</p>
+      </div>
+      <div class="shot reveal"><img src="assets/extensions.jpg" alt="The Extensions tab listing MCP servers and skills" loading="lazy" width="1400" height="909"></div>
+    </div>
+
+    <div class="feature flip">
+      <div class="copy reveal">
+        <div class="eyebrow">Secure by default</div>
+        <h2>Nothing leaks, nothing is public.</h2>
+        <p>Passkey sign-in, access only over your own tailnet, and write-only secrets in the vault. Redaction masks keys, emails, phone numbers and IP addresses before any model call leaves the machine.</p>
+        <ul><li>No public ports, ever</li><li>Risky agent steps wait for your approval</li><li>Every action lands in the audit log</li></ul>
+      </div>
+      <div class="shot reveal"><img src="assets/redaction.jpg" alt="Redaction settings masking secrets, emails, phone numbers and IPs" loading="lazy" width="1400" height="884"></div>
+    </div>
+
+    <div class="feature">
+      <div class="copy reveal">
+        <div class="eyebrow">Anywhere</div>
+        <h2>Your desk, on any device.</h2>
+        <p>Devcules installs as an app on your phone or iPad. Approve a step with Face ID, check the agent feed, or drop into your remote terminal from the couch.</p>
+        <p>Tickle your builder mind anywhere.</p>
+      </div>
+      <div class="phone-wrap reveal"><div class="phone"><img src="assets/phone.jpg" alt="Devcules on an iPhone, starting an assistant" loading="lazy" width="600" height="1300"></div></div>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <div class="center reveal">
+      <div class="eyebrow">Themes</div>
+      <h2>Every personality has a theme.</h2>
+      <p class="sub">Pick one, or ask the assistant to make one for you.</p>
+    </div>
+    <div class="themes">
+      <figure class="reveal"><div class="shot"><img src="assets/theme-vibe.jpg" alt="A neon purple theme on desktop and mobile" loading="lazy"></div><figcaption>Neon</figcaption></figure>
+      <figure class="reveal"><div class="shot"><img src="assets/theme-phosphor.jpg" alt="A green phosphor terminal theme on desktop and mobile" loading="lazy"></div><figcaption>Phosphor</figcaption></figure>
+      <figure class="reveal"><div class="shot"><img src="assets/theme-holo.jpg" alt="A light holographic theme on desktop and mobile" loading="lazy"></div><figcaption>Light</figcaption></figure>
+    </div>
+  </section>
+
+  <section id="start" class="wrap">
+    <div class="center reveal">
+      <div class="eyebrow">Quick start</div>
+      <h2>One command on your computer.</h2>
+      <p class="sub">It runs serve and its own host runner in one process on <code>127.0.0.1:7659</code>, sets no environment variable and asks nothing. The first start prints a bootstrap admin password.</p>
+    </div>
+    <div class="qs">
+      <div class="card reveal">
+        <div>
+        <div class="step">01 · on your machine</div>
+        <h3>Install and run</h3>
+        <p>Open the desk, sign in with the printed password, then add a passkey.</p>
+        </div>
+<pre><button class="copy-btn" type="button">Copy</button><code><span class="p">$ </span>go install github.com/devcules/devcules/cmd/devcules@latest
+<span class="p">$ </span>devcules</code></pre>
+      </div>
+      <div class="card reveal">
+        <div>
+        <div class="step">02 · or in a container</div>
+        <h3>Compose up</h3>
+        <p>Serve, a runner rooted at your <code>~/code</code>, and the vault, all in one volume.</p>
+        </div>
+<pre><button class="copy-btn" type="button">Copy</button><code><span class="p">$ </span>docker compose -f deploy/compose.yaml up -d --wait</code></pre>
+      </div>
+      <div class="card reveal">
+        <div>
+        <div class="step">03 · from your phone</div>
+        <h3>Join your tailnet</h3>
+        <p>The phone reaches the desk over your tailnet, never a public port.</p>
+        </div>
+<pre><button class="copy-btn" type="button">Copy</button><code><span class="p">$ </span>echo "TS_AUTHKEY=tskey-auth-…" &gt; .env
+<span class="p">$ </span>docker compose -f deploy/compose.yaml \
+    --profile tailscale up -d --wait
+<span class="c"># https://devcules.&lt;your-tailnet&gt;.ts.net</span></code></pre>
+      </div>
+    </div>
+    <p class="note center">More machines are one click away in <strong>Machines → Add a computer</strong>. See <a href="https://github.com/devcules/devcules/blob/main/docs/deploy.md">the deploy guide</a> for environment, hardening and limits.</p>
+  </section>
+
+  <div class="wrap">
+    <div class="closing reveal">
+      <img src="assets/logo.svg" alt="" width="64" height="64" style="margin:0 auto 18px">
+      <h2>Build it with us.</h2>
+      <p class="sub" style="margin:0 auto 30px">Devcules is open source and growing one module at a time. Issues, ideas and pull requests are all welcome.</p>
+      <div class="cta" style="margin-top:0">
+        <a class="btn primary" href="https://github.com/devcules/devcules">⭐ Star on GitHub</a>
+        <a class="btn" href="https://github.com/devcules/devcules/blob/main/CONTRIBUTING.md">Contribute</a>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Built for the Meta Hackathon. Thank you to Meta for the hackathon and Cerebral Valley for hosting.</p>
+    <p><a href="https://github.com/devcules/devcules">GitHub</a> · <a href="https://youtu.be/XtRAsomVlAs">Demo video</a> · <a href="https://github.com/devcules/devcules/blob/main/LICENSE">Apache-2.0</a></p>
+  </div>
+</footer>
+
+<script>
+  // Load the YouTube player only when asked, so the page stays fast and
+  // nothing from YouTube loads until a visitor presses play.
+  document.querySelectorAll('[data-yt]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var f = document.createElement('iframe');
+      f.src = 'https://www.youtube-nocookie.com/embed/' + btn.dataset.yt + '?autoplay=1&rel=0&modestbranding=1';
+      f.title = 'Devcules demo video';
+      f.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+      f.allowFullscreen = true;
+      f.referrerPolicy = 'strict-origin-when-cross-origin';
+      btn.replaceWith(f);
+    });
+  });
+
+  // Copy buttons copy the commands without the prompt or comments.
+  document.querySelectorAll('.copy-btn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var code = b.parentElement.querySelector('code').cloneNode(true);
+      code.querySelectorAll('.p, .c').forEach(function (n) { n.remove(); });
+      var text = code.textContent.replace(/\n\s*$/, '').trim();
+      try {
+        navigator.clipboard.writeText(text).then(function () {
+          b.textContent = 'Copied';
+          setTimeout(function () { b.textContent = 'Copy'; }, 1500);
+        });
+      } catch (e) {}
+    });
+  });
+
+  // Fade sections in as they scroll into view.
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { rootMargin: '0px 0px -8% 0px' });
+    document.querySelectorAll('.reveal').forEach(function (el) { io.observe(el); });
+  } else {
+    document.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('in'); });
+  }
+</script>
+</body>
+</html>

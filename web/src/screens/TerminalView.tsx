@@ -314,7 +314,7 @@ export default function TerminalView({
   }, [connect]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="d-term-pane flex min-h-0 flex-1 flex-col">
       {/* The custom keyboard docks at the TOP of the pane:
           the OS keyboard stays at the bottom and the pane takes the
           middle. It appears once the pane's stream registers on

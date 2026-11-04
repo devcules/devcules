@@ -57,10 +57,10 @@ export default function Terminals({ onSessionExpired }: { onSessionExpired: () =
     () => (runners.state === 'ready' ? runners.runners : []),
     [runners],
   );
-  // No picker on this screen: the first live runner is the target.
-  const picked = '';
-  // Derived, not stored: a pick survives while still linked, else the
-  // first live runner wins ('' when none are).
+  const [picked, setPicked] = useState('');
+  // A pick survives while that runner is still linked, else the first
+  // live one wins ('' when none). useRunners puts the host first, so
+  // the default is the Mac serve runs on.
   const chosen = runnerList.includes(picked) ? picked : runnerList[0] ?? '';
   const where = chosen === '' ? undefined : { runner: chosen };
 
@@ -187,7 +187,7 @@ export default function Terminals({ onSessionExpired }: { onSessionExpired: () =
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lead font-semibold text-text">Terminals</h2>
         <button
           type="button"
@@ -197,6 +197,25 @@ export default function Terminals({ onSessionExpired }: { onSessionExpired: () =
           New terminal
         </button>
       </div>
+      {/* Only worth a picker with more than one runner linked: with one
+          the choice is forced, and the row is noise on a phone. */}
+      {runners.state === 'ready' && runnerList.length > 1 && (
+        <label className="flex flex-wrap items-center gap-2 text-tab text-muted">
+          terminals run on
+          <select
+            value={chosen}
+            onChange={(e) => setPicked(e.target.value)}
+            className="min-h-11 min-w-0 flex-1 rounded bg-base px-2 text-body text-text"
+            aria-label="Terminal runner"
+          >
+            {runnerList.map((r) => (
+              <option key={r} value={r}>
+                {r === runners.host ? `${r} (this machine)` : r}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {state.notice !== null && (
         <p role="alert" className="text-body text-text">
           {state.notice}

@@ -172,10 +172,15 @@ func badOrInternal(w http.ResponseWriter, err error) {
 
 // target is one row of the access mode settings.
 type target struct {
-	Target string         `json:"target"`
-	Runner string         `json:"runner"`
-	Linked bool           `json:"linked"`
-	Mode   approvals.Mode `json:"mode"`
+	Target string `json:"target"`
+	Runner string `json:"runner"`
+	Linked bool   `json:"linked"`
+	// Host marks the runner of the computer serve itself runs on (the
+	// in-process runner of `devcules`, local mode). Screens that pick a
+	// default link prefer it, so a phone opening Terminals lands on the
+	// Mac it already knows instead of whichever name sorts first.
+	Host bool           `json:"host"`
+	Mode approvals.Mode `json:"mode"`
 }
 
 // approvalSettings lists every target (launches with no runner, the
@@ -193,13 +198,17 @@ func approvalSettings(svc *approvals.Service, runners func() []string) any {
 		}
 	}
 	slices.Sort(names)
+	host, _ := hostRunner(linked)
 	for _, n := range names {
 		if seen[n] {
 			continue
 		}
 		seen[n] = true
 		t := approvals.Target(n)
-		rows = append(rows, target{Target: t, Runner: n, Linked: slices.Contains(linked, n), Mode: modes[t]})
+		rows = append(rows, target{
+			Target: t, Runner: n, Linked: slices.Contains(linked, n),
+			Host: n == host, Mode: modes[t],
+		})
 	}
 	return struct {
 		Targets        []target         `json:"targets"`

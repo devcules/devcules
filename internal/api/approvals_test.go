@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -18,6 +19,7 @@ import (
 	"github.com/devcules/devcules/internal/approvals"
 	"github.com/devcules/devcules/internal/audit"
 	"github.com/devcules/devcules/internal/auth"
+	"github.com/devcules/devcules/internal/config"
 	"github.com/devcules/devcules/internal/launch"
 	"github.com/devcules/devcules/internal/push"
 	"github.com/devcules/devcules/internal/store/sqlite"
@@ -46,12 +48,13 @@ func (k *memKeys) Put(_ context.Context, name string, v []byte) error {
 }
 
 type approvalsFixture struct {
-	mux      http.Handler
-	session  string
-	token    string
-	launchID string
-	log      *audit.Log
-	pushes   chan string
+	mux       http.Handler
+	session   string
+	token     string
+	launchID  string
+	log       *audit.Log
+	pushes    chan string
+	approvals *approvals.Service
 }
 
 func newApprovalsFixture(t *testing.T) *approvalsFixture {
@@ -75,7 +78,7 @@ func newApprovalsFixture(t *testing.T) *approvalsFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := &approvalsFixture{token: token, launchID: l.ID, log: log, pushes: make(chan string, 10)}
+	f := &approvalsFixture{token: token, launchID: l.ID, log: log, pushes: make(chan string, 10), approvals: a}
 	f.mux = Handler(Options{Store: s, Auth: svc, Web: testWeb(), Launches: tokens, AuditLog: log, ApprovalQueue: a, Push: p})
 	f.session = sessionCookie(t, f.mux, password)
 	return f
@@ -116,7 +119,7 @@ func TestApprovalsAPIFlow(t *testing.T) {
 
 	// Settings list the unbound row and the token's runner once it has a mode.
 	w = doJSON(f.mux, http.MethodPut, "/api/approvals/modes", `{"target":"runner:laptop","mode":"critical"}`, f.session)
-	if w.Code != 200 || !strings.Contains(w.Body.String(), `"target":"runner:laptop","runner":"laptop","linked":false,"mode":"critical"`) ||
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"target":"runner:laptop","runner":"laptop","linked":false,"host":false,"mode":"critical"`) ||
 		!strings.Contains(w.Body.String(), `"target":"unbound"`) || !strings.Contains(w.Body.String(), `"timeoutSeconds":60`) {
 		t.Fatalf("set mode = %d %s", w.Code, w.Body)
 	}
@@ -347,5 +350,49 @@ func TestApprovalsNotConfigured(t *testing.T) {
 	}
 	if w := doJSONBearer(mux, "/hook/approvals", "{}", "x"); w.Code != http.StatusServiceUnavailable {
 		t.Fatalf("hook = %d", w.Code)
+	}
+}
+
+// The settings rows mark the host runner: screens default to it, so a
+// phone opening Terminals lands on the computer serve runs on rather
+// than on whichever runner name sorts first.
+func TestApprovalSettingsMarksHost(t *testing.T) {
+	host, err := config.HostRunnerName()
+	if err != nil {
+		t.Skipf("no hostname on this box: %v", err)
+	}
+	f := newApprovalsFixture(t)
+	// Two live runners, the host and one other, sorted so the host is
+	// not incidentally first.
+	live := []string{"zeta", host}
+	slices.Sort(live)
+
+	got := approvalSettings(f.approvals, func() []string { return live })
+	b, err := json.Marshal(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var body struct {
+		Targets []target `json:"targets"`
+	}
+	if err := json.Unmarshal(b, &body); err != nil {
+		t.Fatal(err)
+	}
+	var hosts, others []string
+	for _, row := range body.Targets {
+		if row.Runner == "" {
+			continue // the unbound row is never a host
+		}
+		if row.Host {
+			hosts = append(hosts, row.Runner)
+		} else {
+			others = append(others, row.Runner)
+		}
+	}
+	if len(hosts) != 1 || hosts[0] != host {
+		t.Fatalf("host rows = %v, want just %q", hosts, host)
+	}
+	if len(others) != 1 || others[0] != "zeta" {
+		t.Fatalf("other rows = %v, want just zeta", others)
 	}
 }

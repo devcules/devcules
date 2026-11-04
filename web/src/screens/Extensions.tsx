@@ -75,7 +75,7 @@ function Glance({
       {agents.length > 0 && (
         <span className="text-tab text-muted">across {agents.map(agentLabel).join(', ')}</span>
       )}
-      <button type="button" onClick={onExpand} className="ml-auto text-tab text-accent">
+      <button type="button" onClick={onExpand} className="ml-auto min-h-11 px-2 text-tab text-accent">
         details
       </button>
     </div>
@@ -151,7 +151,7 @@ function EnvFields({
             aria-label={h.name}
             value={values[h.name] ?? ''}
             onChange={(e) => onChange(h.name, e.target.value)}
-            className="min-h-9 rounded bg-surface px-2 text-tab text-text"
+            className="min-h-11 rounded bg-surface px-2 text-tab text-text"
             autoComplete="off"
           />
         </label>
@@ -183,7 +183,7 @@ function InstalledList({
               type="button"
               onClick={() => onRemove(s.name)}
               disabled={removing[s.name]}
-              className="ml-auto min-h-8 rounded bg-base px-2 text-tab text-red-400 disabled:opacity-60"
+              className="ml-auto min-h-11 rounded bg-base px-2 text-tab text-red-400 disabled:opacity-60"
             >
               {removing[s.name] ? 'removing…' : 'remove'}
             </button>
@@ -408,7 +408,7 @@ export default function Extensions({ onSessionExpired }: { onSessionExpired: () 
               type="button"
               aria-pressed={kind === k}
               onClick={() => switchKind(k)}
-              className={`min-h-9 rounded px-3 text-tab ${kind === k ? 'bg-accent text-on-accent' : 'bg-base text-muted'}`}
+              className={`min-h-11 rounded px-3 text-tab ${kind === k ? 'bg-accent text-on-accent' : 'bg-base text-muted'}`}
             >
               {k === 'mcp' ? 'MCP servers' : 'Skills'}
             </button>
@@ -440,7 +440,7 @@ export default function Extensions({ onSessionExpired }: { onSessionExpired: () 
                   type="button"
                   aria-pressed={harness === h}
                   onClick={() => setHarness(h)}
-                  className={`min-h-9 rounded px-3 text-tab ${harness === h ? 'bg-accent text-on-accent' : 'bg-base text-muted'}`}
+                  className={`min-h-11 rounded px-3 text-tab ${harness === h ? 'bg-accent text-on-accent' : 'bg-base text-muted'}`}
                 >
                   {agentLabel(h)}
                 </button>
@@ -546,14 +546,14 @@ export default function Extensions({ onSessionExpired }: { onSessionExpired: () 
                                   value={installName[entry.id] ?? entry.name}
                                   onChange={(e) => setInstallName((p) => ({ ...p, [entry.id]: e.target.value }))}
                                   aria-label="install name"
-                                  className="min-h-9 w-40 rounded bg-surface px-2 text-tab text-text"
+                                  className="min-h-11 w-40 rounded bg-surface px-2 text-tab text-text"
                                 />
                               )}
                               <button
                                 type="button"
                                 onClick={() => install(entry)}
                                 disabled={installing[entry.id]}
-                                className="min-h-9 rounded bg-accent px-3 text-tab text-on-accent disabled:opacity-60"
+                                className="min-h-11 rounded bg-accent px-3 text-tab text-on-accent disabled:opacity-60"
                               >
                                 {installing[entry.id]
                                   ? 'installing…'

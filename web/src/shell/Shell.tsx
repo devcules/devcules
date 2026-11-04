@@ -188,8 +188,14 @@ export default function Shell({
     );
   }
 
+  // h-dvh, not min-h-dvh: the shell must be exactly one viewport tall so
+  // the flex chain is *bounded*. With min-h the children were free to
+  // grow, so the desk's own scroll box ended up 2822px tall inside a
+  // 3104px page and could never scroll — and on mobile, where the
+  // document is scroll-locked, nothing else could either. The fixed tab
+  // bar overlays the bottom edge, so its strip is reserved here.
   return (
-    <div className="flex min-h-dvh flex-col bg-base text-text">
+    <div className="flex h-dvh flex-col bg-base pb-[calc(2.75rem+env(safe-area-inset-bottom))] text-text md:pb-0">
       {/* Top bar: the brand and, on the right, the theme drop-down.
           The picker sits in the header so the theme is
           reachable from every screen; the pick persists per browser
@@ -204,7 +210,11 @@ export default function Shell({
           <UserMenu username={username} onSignedOut={onSignedOut} />
         </div>
       </header>
-      <div className="flex flex-1 md:flex-row">
+      {/* min-h-0 matters as much as flex-1: a flex item's default
+          min-height is auto, so without it this row grows to its content
+          instead of shrinking to share the viewport with the header and
+          status bar — which is what left everything below unscrollable. */}
+      <div className="flex min-h-0 flex-1 md:flex-row">
         {/* Desktop: sidebar. Phone: bottom bar below. The width is the
             owner's (dragged on the handle beside it); a phone hides the
             column entirely, so the inline width only matters at md+. */}
@@ -227,7 +237,7 @@ export default function Shell({
               type="button"
               onClick={() => ask({ kind: 'new-project' })}
               aria-label="Add a project"
-              className="min-h-9 rounded-md px-2 text-body text-text"
+              className="min-h-11 rounded-md px-2 text-body text-text"
             >
               + Project
             </button>
@@ -260,7 +270,9 @@ export default function Shell({
           }}
           className={`hidden w-1 shrink-0 cursor-col-resize md:block ${sidebar.dragging ? 'bg-accent' : 'bg-transparent hover:bg-muted'}`}
         />
-      <main className="flex min-h-0 flex-1 flex-col pb-20 md:pb-0">
+      {/* main is the one scrolling region for every screen except the
+          terminal panes and the desk grid, which own their own. */}
+      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
         {tab === 'desk' && (
           <DeskPage onSessionExpired={onSessionExpired} onOpenApprovals={() => setTab('home')} />
         )}
@@ -286,13 +298,19 @@ export default function Shell({
       </main>
       </div>
       {/* The footer strip: after the sidebar+main row, holding the
-          machine line. Flow, not fixed, so content runs
-          right down to it; on mobile it sits above the fixed
-          bottom tabs. */}
+          machine line. Flow, not fixed, so content runs right down to
+          it. Desktop only — on a phone it hides itself (md:block), which
+          is why the reserved tab strip below no longer has to make room
+          for it. */}
       <StatusBar username={username} />
+      {/* Eight tabs do not fit 393px: at a fixed share each label got
+          ~49px and half of them truncated mid-word ("Assista…",
+          "Machin…"), which is what made the bar read as crowded. The
+          strip pans sideways instead, each tab keeping its natural width
+          so the labels stay whole. */}
       <nav
         aria-label="Tabs"
-        className="fixed inset-x-0 bottom-0 flex bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
+        className="d-tab-scroll fixed inset-x-0 bottom-0 flex overflow-x-auto bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
       >
         {tabs.map((t) => (
           <button
@@ -300,13 +318,11 @@ export default function Shell({
             type="button"
             aria-current={tab === t.id ? 'page' : undefined}
             onClick={() => setTab(t.id)}
-            className={`flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center px-0.5 text-tab transition-colors duration-150 ${
+            className={`flex min-h-11 shrink-0 flex-col items-center justify-center px-3 text-tab transition-colors duration-150 ${
               tab === t.id ? 'text-accent font-semibold' : 'text-muted'
             }`}
           >
-            {/* Six tabs share a phone's width: the labels sit a size
-                below body text and truncate rather than run together. */}
-            <span className="max-w-full truncate">
+            <span className="whitespace-nowrap">
               {t.label}
               {t.id === 'home' && <Badge count={waiting} />}
             </span>

@@ -150,16 +150,16 @@ export default function DeskPage({ onSessionExpired, onOpenApprovals }: { onSess
           </div>
         )}
         <div className="ml-auto flex items-center gap-1">
-          <button type="button" className="min-h-9 rounded px-3 text-body text-text hover:bg-base" onClick={() => setSyncKey((k) => k + 1)} title="refetch every widget">⟳ sync</button>
-          <button type="button" aria-pressed={arranging} className={`min-h-9 rounded px-3 text-body ${arranging ? 'bg-accent text-on-accent' : 'text-text hover:bg-base'}`} onClick={() => setArranging((a) => !a)} title="drag and resize tiles">
+          <button type="button" className="min-h-11 rounded px-3 text-body text-text hover:bg-base" onClick={() => setSyncKey((k) => k + 1)} title="refetch every widget">⟳ sync</button>
+          <button type="button" aria-pressed={arranging} className={`min-h-11 rounded px-3 text-body ${arranging ? 'bg-accent text-on-accent' : 'text-text hover:bg-base'}`} onClick={() => setArranging((a) => !a)} title="drag and resize tiles">
             {arranging ? 'done' : 'arrange'}
           </button>
-          <button type="button" className="min-h-9 rounded px-3 text-body text-text hover:bg-base" onClick={() => setDrawer('add')} title="add a widget">＋ add</button>
-          <button type="button" className="min-h-9 rounded px-3 text-body text-text hover:bg-base" onClick={() => setDrawer('sources')} title="calendar, news, tickets, weather">⚙ sources</button>
+          <button type="button" className="min-h-11 rounded px-3 text-body text-text hover:bg-base" onClick={() => setDrawer('add')} title="add a widget">＋ add</button>
+          <button type="button" className="min-h-11 rounded px-3 text-body text-text hover:bg-base" onClick={() => setDrawer('sources')} title="calendar, news, tickets, weather">⚙ sources</button>
         </div>
       </div>
 
-      <div ref={containerRef as React.RefObject<HTMLDivElement>} className="min-h-0 flex-1 overflow-y-auto">
+      <div ref={containerRef as React.RefObject<HTMLDivElement>} className="d-desk-scroll min-h-0 flex-1 overflow-y-auto">
         {!prefs && (
           <div className="flex h-full items-center justify-center p-6 text-body text-muted">{loaded ? 'Waking your desk…' : 'Loading your desk…'}</div>
         )}

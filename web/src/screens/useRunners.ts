@@ -14,7 +14,7 @@ import { getApprovalSettings, type AccessTarget } from '../api';
 export type RunnersState =
   | { state: 'loading' }
   | { state: 'unreachable' }
-  | { state: 'ready'; runners: string[] };
+  | { state: 'ready'; runners: string[]; host: string };
 
 export function useRunners(onSessionExpired?: () => void): RunnersState {
   const [state, setState] = useState<RunnersState>({ state: 'loading' });
@@ -31,11 +31,17 @@ export function useRunners(onSessionExpired?: () => void): RunnersState {
       }
       // Only runners that are actually linked right now can host a
       // terminal; a remembered-but-absent target must not be offered.
+      // The host computer leads the list: serve runs beside it, so it is
+      // the natural default and a phone lands on the Mac it already
+      // knows rather than on whichever name happens to sort first. The
+      // rest stay alphabetical, so the order is otherwise stable.
       const live = (res.targets as AccessTarget[])
         .filter((t) => t.linked && t.runner !== '')
         .map((t) => t.runner)
         .sort();
-      setState({ state: 'ready', runners: live });
+      const host = (res.targets as AccessTarget[]).find((t) => t.linked && t.host === true)?.runner ?? '';
+      const ordered = live.includes(host) ? [host, ...live.filter((n) => n !== host)] : live;
+      setState({ state: 'ready', runners: ordered, host: live.includes(host) ? host : '' });
     });
   }, [onSessionExpired]);
 

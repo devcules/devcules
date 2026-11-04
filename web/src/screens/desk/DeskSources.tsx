@@ -140,7 +140,14 @@ export default function DeskSources({ onClose, onSaved, onUnauthorized }: { onCl
 function Drawer({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-40 flex justify-end bg-black/40" role="dialog" aria-label="Desk sources" onClick={onClose}>
-      <div className="h-full w-full max-w-md overflow-y-auto border-l border-muted bg-surface" onClick={(e) => e.stopPropagation()}>
+      {/* Full-bleed on a phone: the sheet reaches the notch and the home
+          indicator, so its content carries the insets rather than being
+          clipped under them. */}
+      <div
+        className="h-full w-full max-w-md overflow-y-auto overscroll-contain border-l border-muted bg-surface"
+        style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {children}
       </div>
     </div>

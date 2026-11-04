@@ -43,7 +43,7 @@ export default function UserMenu({ username, onSignedOut }: { username: string; 
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         data-selected={open ? 'true' : undefined}
-        className="i-control flex min-h-9 items-center gap-1.5 px-2 text-body text-text"
+        className="i-control flex min-h-11 items-center gap-1.5 px-2 text-body text-text"
       >
         <span
           aria-hidden="true"

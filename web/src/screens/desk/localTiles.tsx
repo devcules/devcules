@@ -104,15 +104,15 @@ export function TodosTile({ widget, arranging, onRemove, onSettings, onConfig }:
             />
             <span className={`min-w-0 flex-1 truncate text-body ${t.done ? 'text-muted line-through' : 'text-text'}`}>{t.text}</span>
             {!arranging && (
-              <button type="button" className="min-h-6 min-w-6 rounded px-1 text-muted hover:text-red-400" aria-label={`remove ${t.text}`} onClick={() => save(todos.filter((x) => x.id !== t.id))}>✕</button>
+              <button type="button" className="d-tap min-h-6 min-w-6 rounded px-1 text-muted hover:text-red-400" aria-label={`remove ${t.text}`} onClick={() => save(todos.filter((x) => x.id !== t.id))}>✕</button>
             )}
           </li>
         ))}
       </ul>
       {todos.length === 0 && <div className="mb-2 text-body text-muted">Nothing here. Add the one thing you keep forgetting.</div>}
       <form onSubmit={add} className="flex gap-1">
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="add a todo" aria-label="new todo" className="min-h-9 min-w-0 flex-1 rounded bg-base px-2 text-body text-text" />
-        <button type="submit" className="min-h-9 rounded bg-accent px-3 text-body text-on-accent">add</button>
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="add a todo" aria-label="new todo" className="min-h-11 min-w-0 flex-1 rounded bg-base px-2 text-body text-text" />
+        <button type="submit" className="min-h-11 rounded bg-accent px-3 text-body text-on-accent">add</button>
       </form>
     </Tile>
   );
@@ -214,7 +214,7 @@ export function LinksTile({ widget, arranging, onRemove, onSettings, onConfig }:
             <a href={l.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-body text-accent hover:underline">{l.title}</a>
             <CopyButton text={l.url} label={`copy ${l.title}`} />
             {!arranging && (
-              <button type="button" className="min-h-6 min-w-6 rounded px-1 text-muted hover:text-red-400" aria-label={`remove ${l.title}`} onClick={() => onConfig?.({ links: links.filter((x) => x.url !== l.url) })}>✕</button>
+              <button type="button" className="d-tap min-h-6 min-w-6 rounded px-1 text-muted hover:text-red-400" aria-label={`remove ${l.title}`} onClick={() => onConfig?.({ links: links.filter((x) => x.url !== l.url) })}>✕</button>
             )}
           </li>
         ))}
@@ -224,7 +224,7 @@ export function LinksTile({ widget, arranging, onRemove, onSettings, onConfig }:
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="title" aria-label="link title" className="min-h-8 rounded bg-base px-2 text-body text-text" />
         <div className="flex gap-1">
           <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" aria-label="link url" className="min-h-8 min-w-0 flex-1 rounded bg-base px-2 text-body text-text" />
-          <button type="submit" className="min-h-8 rounded bg-accent px-3 text-body text-on-accent">add</button>
+          <button type="submit" className="min-h-11 rounded bg-accent px-3 text-body text-on-accent">add</button>
         </div>
       </form>
       {err && <div className="mt-1 text-tab text-red-400">{err}</div>}

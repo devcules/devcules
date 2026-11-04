@@ -76,19 +76,35 @@
   }
 }
 
-/* Mobile: the page is a shell, not a document. Lock body scroll so the
-   xterm surface and the horizontal key strip are the only things that
-   move: taps focus the pane without the page
-   jumping, and the strip pans with touch-action:pan-x below. */
+/* Mobile: the page is a shell, not a document. Lock *document* scroll so
+   the xterm surface and the horizontal key strip are the only things that
+   chase your finger: taps focus the pane without the page jumping.
+   Never `touch-action: none` here — that also kills panning inside every
+   scroll region the app owns, which is what made the Desk refuse to
+   scroll and left the calendar's own drag gestures stuck. Vertical pans
+   stay with the scrolling containers that opt in below, and
+   `overscroll-behavior: contain` keeps them from handing off to the page. */
 html.devcules-mobile,
 body.devcules-mobile {
   overflow: hidden;
   height: 100%;
-  touch-action: none;
+  touch-action: pan-y;
   overscroll-behavior: none;
 }
-body.devcules-mobile .devcules-main {
-  overflow: hidden;
+/* Terminal panes keep the old lock: xterm draws its own viewport and a
+   page pan under a focused pane loses the selection. Scoped to the pane
+   instead of the whole document so the desk and the other screens stay
+   scrollable. */
+body.devcules-mobile .d-term-pane {
+  touch-action: none;
+}
+/* The desk's grid is the one long, vertical region on mobile: it owns
+   its pan, and contain stops a flick at its edge from chain-scrolling
+   the locked document instead. */
+.d-desk-scroll {
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 /* The strip's row is the one allowed pan: sideways, never vertical. */
 .mk-scroll {
@@ -98,6 +114,41 @@ body.devcules-mobile .devcules-main {
 }
 .mk-scroll::-webkit-scrollbar {
   display: none;
+}
+
+/* The status bar pans sideways on a phone instead of wrapping into a
+   block: it stays one hairline at the bottom, and the metrics past the
+   right edge are one flick away. pan-x keeps that gesture from fighting
+   the document, which is scroll-locked on mobile. */
+.d-status-scroll {
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.d-status-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* The bottom tab strip pans the same way, so eight tabs keep their
+   labels whole instead of truncating into each other. */
+.d-tab-scroll {
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.d-tab-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Tile-header controls (⟳ ⚙ ✕ ⧉) are deliberately compact, which is
+   right for a mouse and wrong for a thumb. On a phone they keep their
+   look but grow to a 44px target, so a tap lands without hitting the
+   neighbouring control. */
+@media (pointer: coarse) {
+  .d-tap {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
 }
 
 /* Base only: every colour, size and space comes from the tokens. The

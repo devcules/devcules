@@ -54,6 +54,15 @@ describe('StatusBar', () => {
     expect(container.firstChild).toBeNull();
   });
 
+  // jsdom does not apply Tailwind, so this pins the intent: the stats
+  // are desktop chrome and must stay hidden below md on a phone.
+  it('hides itself on a phone and shows from md up', async () => {
+    render(<StatusBar username="admin" />);
+    const footer = await screen.findByRole('contentinfo');
+    expect(footer.className).toContain('hidden');
+    expect(footer.className).toContain('md:block');
+  });
+
   it('a field serve omitted simply reads nothing: no GPU line', async () => {
     const noGpu = { ...answer, gpuName: undefined };
     vi.mocked(hostInfo).mockResolvedValue(noGpu);

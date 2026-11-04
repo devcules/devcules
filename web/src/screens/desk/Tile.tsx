@@ -49,13 +49,13 @@ export default function Tile({
           {updatedAt && <span className={status === 'stale' ? 'text-amber-400' : ''}>{status === 'stale' ? 'stale · ' : ''}{fmtTime(updatedAt)}</span>}
           {meta}
           {onRefresh && !arranging && (
-            <button type="button" className="min-h-7 min-w-7 rounded px-1 text-muted hover:text-text" onClick={onRefresh} title="refresh" aria-label={`refresh ${title}`}>⟳</button>
+            <button type="button" className="d-tap min-h-7 min-w-7 rounded px-1 text-muted hover:text-text" onClick={onRefresh} title="refresh" aria-label={`refresh ${title}`}>⟳</button>
           )}
           {onSettings && (
-            <button type="button" className="min-h-7 min-w-7 rounded px-1 text-muted hover:text-text" onClick={onSettings} title="settings" aria-label={`settings for ${title}`}>⚙</button>
+            <button type="button" className="d-tap min-h-7 min-w-7 rounded px-1 text-muted hover:text-text" onClick={onSettings} title="settings" aria-label={`settings for ${title}`}>⚙</button>
           )}
           {arranging && onRemove && (
-            <button type="button" className="min-h-7 min-w-7 rounded px-1 text-red-400 hover:text-red-300" onClick={onRemove} title="remove from the Desk" aria-label={`remove ${title}`}>✕</button>
+            <button type="button" className="d-tap min-h-7 min-w-7 rounded px-1 text-red-400 hover:text-red-300" onClick={onRemove} title="remove from the Desk" aria-label={`remove ${title}`}>✕</button>
           )}
         </span>
       </header>
@@ -68,7 +68,7 @@ export function CopyButton({ text, label = 'copy link', onCopied }: { text: stri
   return (
     <button
       type="button"
-      className="min-h-6 min-w-6 shrink-0 rounded px-1 text-muted hover:text-text"
+      className="d-tap min-h-6 min-w-6 shrink-0 rounded px-1 text-muted hover:text-text"
       onClick={(e) => { e.stopPropagation(); e.preventDefault(); void copyText(text); onCopied?.(); }}
       title={label}
       aria-label={label}

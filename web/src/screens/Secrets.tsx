@@ -64,7 +64,7 @@ export default function Secrets({ onSessionExpired, onSummary }: { onSessionExpi
           {names.map((n) => (
             <li key={n} className="flex items-center gap-2">
               <code className="min-w-0 flex-1 truncate rounded bg-base px-2 py-1 font-mono text-body text-text">{n}</code>
-              <button type="button" className="min-h-9 rounded px-3 text-body text-red-400 hover:bg-base" onClick={() => void remove(n)} aria-label={`remove ${n}`}>
+              <button type="button" className="min-h-11 rounded px-3 text-body text-red-400 hover:bg-base" onClick={() => void remove(n)} aria-label={`remove ${n}`}>
                 remove
               </button>
             </li>

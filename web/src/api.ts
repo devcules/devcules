@@ -1092,7 +1092,7 @@ export type Approval = {
   answeredBy?: string;
 };
 export type AccessMode = 'off' | 'critical' | 'all' | 'full';
-export type AccessTarget = { target: string; runner: string; linked: boolean; mode: AccessMode | '' };
+export type AccessTarget = { target: string; runner: string; linked: boolean; host?: boolean; mode: AccessMode | '' };
 export type CriticalRule = { id: string; name: string; pattern: string; enabled: boolean; builtin: boolean };
 export type ApprovalSettings = {
   targets: AccessTarget[];

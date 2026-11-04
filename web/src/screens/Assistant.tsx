@@ -57,7 +57,9 @@ export default function Assistant({
   );
   const [picked, setPicked] = useState('');
   // chosen is derived, not stored: a pick survives while that runner is
-  // still linked, else the first live one wins ('' when none are).
+  // still linked, else the first live one wins ('' when none).
+  // useRunners puts the host first, so the default is the Mac serve runs
+  // on rather than whichever name sorts first.
   const chosen = runnerList.includes(picked) ? picked : runnerList[0] ?? '';
   const where = chosen === '' ? undefined : { runner: chosen };
 
@@ -228,11 +230,11 @@ export default function Assistant({
           <select
             value={chosen}
             onChange={(e) => setPicked(e.target.value)}
-            className="min-h-9 rounded bg-base px-2 text-tab text-text"
+            className="min-h-11 rounded bg-base px-2 text-tab text-text"
             aria-label="Assistant runner"
           >
             {runnerList.map((r) => (
-              <option key={r} value={r}>{r}</option>
+              <option key={r} value={r}>{r === runners.host ? `${r} (this machine)` : r}</option>
             ))}
           </select>
           <span>({runnerList.length} linked)</span>

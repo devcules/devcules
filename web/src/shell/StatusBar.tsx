@@ -60,33 +60,35 @@ export default function StatusBar({ username }: { username: string }) {
   return (
     <footer
       aria-label="Machine status"
-      className="mt-auto w-full border-t border-muted bg-surface px-4 py-1.5 text-tab text-muted md:pb-[env(safe-area-inset-bottom)]"
+      /* Desktop chrome only. On a phone these stats (user, machine, CPU,
+         memory, GPU) are noise: they take a strip off a short screen and
+         none of it is actionable from the handset. They stay from md up,
+         where there is room to read them at a glance. */
+      className="hidden w-full border-t border-muted bg-surface px-0 py-1.5 text-tab text-muted md:block"
     >
-      <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-1">
-        <div className="flex min-w-0 items-center gap-x-4">
-          <Item l="USER" accent>
-            {username}
+      {/* A narrow desktop window can still out-run the row; it pans
+          sideways rather than wrapping onto a second line. */}
+      <div className="d-status-scroll flex items-center gap-x-4 overflow-x-auto px-4 whitespace-nowrap">
+        <Item l="USER" accent>
+          {username}
+        </Item>
+        <Item l="MACHINE">{info.hostname}</Item>
+        {repoBase !== '' && (
+          <Item l="REPO" accent>
+            {repoBase}
+            {info.branch !== undefined && info.branch !== '' && (
+              <span className="text-accent">@{info.branch}</span>
+            )}
           </Item>
-          <Item l="MACHINE">{info.hostname}</Item>
-          {repoBase !== '' && (
-            <Item l="REPO" accent>
-              {repoBase}
-              {info.branch !== undefined && info.branch !== '' && (
-                <span className="text-accent">@{info.branch}</span>
-              )}
-            </Item>
-          )}
-        </div>
-        <div className="flex items-center gap-x-4">
-          <Item l="CPU">
-            {pct(info.cpuPercent)}
-            <span className="text-muted">·{info.cores}C</span>
-          </Item>
-          <Item l="MEM">
-            {gib(info.memUsedBytes)}/{gib(info.memTotalBytes)} {pct(info.memPercent)}
-          </Item>
-          {info.gpuName !== undefined && info.gpuName !== '' && <Item l="GPU">{info.gpuName}</Item>}
-        </div>
+        )}
+        <Item l="CPU">
+          {pct(info.cpuPercent)}
+          <span className="text-muted">·{info.cores}C</span>
+        </Item>
+        <Item l="MEM">
+          {gib(info.memUsedBytes)}/{gib(info.memTotalBytes)} {pct(info.memPercent)}
+        </Item>
+        {info.gpuName !== undefined && info.gpuName !== '' && <Item l="GPU">{info.gpuName}</Item>}
       </div>
     </footer>
   );

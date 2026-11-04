@@ -151,9 +151,9 @@ export default function CalendarTile({ widget, arranging, onRemove, onSettings, 
             value={quick} onChange={(e) => setQuick(e.target.value)}
             placeholder="add: standup tomorrow 10:00 30m · gym every weekday 7:00"
             aria-label="quick add a calendar event" disabled={busy}
-            className="min-h-9 min-w-0 flex-1 rounded bg-base px-2 text-tab text-text"
+            className="min-h-11 min-w-0 flex-1 rounded bg-base px-2 text-tab text-text"
           />
-          <button type="submit" disabled={busy || !quick.trim()} className="min-h-9 rounded bg-accent px-3 text-tab text-on-accent disabled:opacity-60">
+          <button type="submit" disabled={busy || !quick.trim()} className="min-h-11 rounded bg-accent px-3 text-tab text-on-accent disabled:opacity-60">
             add
           </button>
         </form>

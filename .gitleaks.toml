@@ -28,3 +28,7 @@ commits = ['''c7e3fded8222f3a0becbe6b1bbd6f1d7a26bbacf''']
 [[allowlists]]
 description = "7126945's assistant tests held a made-up AWS key and a redaction placeholder in full; they are built from parts now. Only that commit is excused."
 commits = ['''7126945d676060051c39be711a7fb5a1cdf16924''']
+
+[[allowlists]]
+description = "073102f's hardening test used a clearly fake news token to prove it is masked. e80a91c builds that token from parts; only the original fixture commit is exempt, not any new real-shaped token."
+commits = ['''073102fce864a57f8f35b8a916888d5f28416114''']

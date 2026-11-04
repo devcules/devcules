@@ -24,6 +24,7 @@ import (
 	"github.com/devcules/devcules/internal/link/linktest"
 	"github.com/devcules/devcules/internal/machines"
 	"github.com/devcules/devcules/internal/store/sqlite"
+	"github.com/devcules/devcules/internal/terminals"
 	"github.com/devcules/devcules/internal/terminals/pty"
 	"github.com/devcules/devcules/internal/terminals/relay"
 )
@@ -188,7 +189,7 @@ func withTmuxMachine(t *testing.T, pipe *linktest.Server, h *hub.Hub, ctx contex
 		}
 		t.Skip("tmux not installed")
 	}
-	m, err := pty.New(t.TempDir(), workspace, nil)
+	m, err := pty.NewForTestAt(t.TempDir(), workspace, terminals.MaxTerminals)
 	if err != nil {
 		t.Fatalf("pty manager: %s", err)
 	}

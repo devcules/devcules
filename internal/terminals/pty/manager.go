@@ -47,12 +47,13 @@ const tmuxTimeout = 10 * time.Second
 // use; tmux itself is the session source of truth, while attach
 // clients are tracked here by stream id.
 type Manager struct {
-	socket    string // TMUX_TMPDIR: the private server's socket dir
-	workspace string // start directory for new sessions
-	conf      string // written tmux.conf path
-	max       int    // terminal cap (terminals.MaxTerminals in production)
-	log       *slog.Logger
-	undo      func() // removes a relocated socket dir, once
+	socket     string // TMUX_TMPDIR: the private server's socket dir
+	testSocket string // explicit test socket path; production uses its normal namespace
+	workspace  string // start directory for new sessions
+	conf       string // written tmux.conf path
+	max        int    // terminal cap (terminals.MaxTerminals in production)
+	log        *slog.Logger
+	undo       func() // removes a relocated socket dir, once
 	// reaper is the devcules binary an agent's launch script runs as
 	// `reaper reap <launch dir>` when the agent exits; "" skips it.
 	reaper string
@@ -144,12 +145,11 @@ func HasTmux() bool {
 	return err == nil
 }
 
-// NewForTest returns a Manager on a private socket dir for tests that
-// never touch the default tmux server. Validation and bookkeeping run
-// before any process spawns; tmux-backed behavior lives in
-// tmux_test.go (skip-gated), while link_test.go drives the error paths
-// through a live link.
-func NewForTest(socketDir string) (*Manager, error) {
+// NewForTest returns a Manager owning a private, explicit tmux socket,
+// distinct from the default server. The optional limit permits the
+// normal runner cap when a fixture drives multiple sessions; the small
+// default remains convenient for validation and relay fixtures.
+func NewForTest(socketDir string, limit ...int) (*Manager, error) {
 	if err := os.MkdirAll(socketDir, 0o700); err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ func NewForTest(socketDir string) (*Manager, error) {
 		undo()
 		return nil, err
 	}
-	return &Manager{
+	m := &Manager{
 		socket:    socketDir,
 		workspace: socketDir,
 		conf:      conf,
@@ -170,7 +170,26 @@ func NewForTest(socketDir string) (*Manager, error) {
 		log:       slog.New(slog.DiscardHandler),
 		attaches:  map[string]*attach{},
 		undo:      undo,
-	}, nil
+	}
+	if len(limit) > 0 {
+		m.max = limit[0]
+	}
+	// -L ignores TMUX_TMPDIR, so a short-lived socket path is stricter
+	// isolation than labeling the server "devcules" in a temp directory.
+	// The constructor's length budget also covers this smaller suffix.
+	m.testSocket = filepath.Join(socketDir, "devcules.sock")
+	return m, nil
+}
+
+// NewForTestAt is NewForTest when the fixture's project workspace is
+// distinct from its private tmux socket directory.
+func NewForTestAt(socketDir, workspace string, limit ...int) (*Manager, error) {
+	m, err := NewForTest(socketDir, limit...)
+	if err != nil {
+		return nil, err
+	}
+	m.workspace = workspace
+	return m, nil
 }
 
 // New returns a Manager with a private socket dir and tmux config. It
@@ -229,9 +248,16 @@ func (m *Manager) env() []string {
 }
 
 // tmux builds a tmux call with argument lists, never through a shell.
-// Every call names the private server (-L) and config (-f).
+// Every call names a private server and config (-f). Production keeps
+// -L devcules; test-only managers use (-S) to honor their private path.
 func (m *Manager) tmux(ctx context.Context, args ...string) *exec.Cmd {
-	argv := append([]string{"-L", "devcules", "-f", m.conf}, args...)
+	argv := []string{"-f", m.conf}
+	if m.testSocket != "" {
+		argv = append([]string{"-S", m.testSocket}, argv...)
+	} else {
+		argv = append([]string{"-L", "devcules"}, argv...)
+	}
+	argv = append(argv, args...)
 	cmd := exec.CommandContext(ctx, "tmux", argv...)
 	cmd.Env = m.env()
 	return cmd

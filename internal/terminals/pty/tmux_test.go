@@ -24,8 +24,7 @@ func tmuxManager(t *testing.T) (*pty.Manager, context.Context) {
 		}
 		t.Skip("tmux not installed locally")
 	}
-	dir := t.TempDir()
-	m, err := pty.New(dir, dir, nil)
+	m, err := pty.NewForTest(t.TempDir(), terminals.MaxTerminals)
 	if err != nil {
 		t.Fatal(err)
 	}

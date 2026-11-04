@@ -33,10 +33,12 @@ idempotent and kills its process group once.
 - Some candidate tests target a different version of interfaces than
   `main`; ensure Git preserves all their matching package changes when
   reviewing/picking this change.
-- Repeated/full-race terminal runs failed on both baseline `main` and the
-  candidate (runner timeouts and closed streams), so no candidate-specific
-  cause was established. Follow this up separately before relying on a
-  fully green race gate.
+- CI full-race failures in machine/file/terminal routes exposed a shared
+  tmux test server: `-L devcules` ignores TMUX_TMPDIR, so tests with
+  different directories still killed one another's sessions. Test
+  managers now get explicit private socket paths (`-S`); production
+  retains the normal `devcules` socket namespace (`-L`). Attach/detach lifecycle races are
+  separately tracked below and are not claimed fixed by this isolation.
 - MCP shutdown is best-effort: a stuck child has a two-second wait
   ceiling before the caller cancels its context.
 - An earlier sandboxed frontend run leaked fake timers between toast and

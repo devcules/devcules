@@ -9,7 +9,7 @@ require (
 	github.com/go-webauthn/webauthn v0.18.2
 	github.com/teambition/rrule-go v1.8.2
 	golang.org/x/crypto v0.58.0
-	golang.org/x/sys v0.49.0
+	golang.org/x/sys v0.50.0
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.61.0
 )
